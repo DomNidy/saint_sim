@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 
-	"github.com/DomNidy/sim-bot/internal/secrets"
+	"github.com/DomNidy/sim-bot/cmd/sim-bot/constants"
 )
 
 func main() {
-	// Remove this, just putting this here to shut the go linter up
-	fmt.Println(secrets.DBHost, secrets.DBPassword, secrets.DBUser, secrets.DiscordToken)
+	fmt.Println("Loaded secrets:")
+	fmt.Printf("%s: %s\n", constants.DBHost.Key(), constants.DBHost.MaskedValue())
+	fmt.Printf("%s: %s\n", constants.DBUser.Key(), constants.DBUser.MaskedValue())
+	fmt.Printf("%s: %s\n", constants.DBPassword.Key(), constants.DBPassword.MaskedValue())
+	fmt.Printf("%s: %s\n", constants.DiscordToken.Key(), constants.DiscordToken.MaskedValue())
 }

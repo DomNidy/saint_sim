@@ -8,37 +8,54 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var (
-	DiscordToken string
-	DBUser       string
-	DBPassword   string
-	DBHost       string
-)
-
-// The init() method is ran automatically when this package is imported
+// Load secrets into memory when this package is imported
 func init() {
-	fmt.Println("Loading secrets")
 	err := godotenv.Load(".env")
 	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
+		log.Fatal("Error occured while loading .env", err)
 	}
-
-	DiscordToken = getEnv("DISCORD_TOKEN", "")
-	DBUser = getEnv("DB_USER", "")
-	DBPassword = getEnv("DB_PASSWORD", "")
-	DBHost = getEnv("DB_HOST", "")
-
-	fmt.Printf("Loaded DiscordToken: %s\n", maskToken(DiscordToken, 3))
-	fmt.Printf("Loaded DBUser: %s\n", maskToken(DBUser, 3))
-	fmt.Printf("Loaded DBPassword: %s\n", maskToken(DBPassword, 3))
-	fmt.Printf("Loaded DBHost: %s\n", maskToken(DBHost, 3))
 }
 
-func getEnv(key, defaultValue string) string {
+type Secret interface {
+	// Returns the key the secret (the same as the key in the .env file we load these from)
+	Key() string
+	// Returns the actual value of the secret
+	Value() string
+	// Returns the value of the secret, masking out all characters after the 3rd
+	MaskedValue() string
+}
+
+type SecretImpl struct {
+	key   string
+	value string
+}
+
+func (s *SecretImpl) Key() string {
+	return s.key
+}
+
+func (s *SecretImpl) Value() string {
+	return s.value
+}
+
+func (s *SecretImpl) MaskedValue() string {
+	return maskToken(s.value, 3)
+}
+
+func NewSecret(key, value string) Secret {
+	return &SecretImpl{key: key, value: value}
+}
+
+// Panics on error
+func LoadSecret(key string) Secret {
+	var secret Secret = nil
+
 	if value, exists := os.LookupEnv(key); exists {
-		return value
+		secret = NewSecret(key, value)
+	} else {
+		panic(fmt.Sprintf("failed to load secret with key: %s from env file", key))
 	}
-	return defaultValue
+	return secret
 }
 
 // Used to print out the secrets to console

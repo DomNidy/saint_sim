@@ -11,4 +11,4 @@ The `saint-sim` project aims to provide World of Warcraft players with helpful i
   - `/cmd/sim-api`: The API server application
 
 - `/internal`: Directory containing packages shared and used throughout the applications defined in `/cmd`
-  - `/internal/secrets`: For reading secrets into memory
+  - `/internal/secrets`: Utility for reading secrets into memory
