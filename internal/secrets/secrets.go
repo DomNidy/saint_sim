@@ -15,6 +15,7 @@ var (
 	DBHost       string
 )
 
+// The init() method is ran automatically when this package is imported
 func init() {
 	fmt.Println("Loading secrets")
 	err := godotenv.Load(".env")
