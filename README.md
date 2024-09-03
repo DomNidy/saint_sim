@@ -12,3 +12,4 @@ The `saint-sim` project aims to provide World of Warcraft players with helpful i
 
 - `/internal`: Directory containing packages shared and used throughout the applications defined in `/cmd`
   - `/internal/secrets`: Utility for reading secrets into memory
+  - `/internal/interfaces`: Contains shared types, interfaces, and models
