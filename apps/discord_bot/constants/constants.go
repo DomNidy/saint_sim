@@ -1,6 +1,6 @@
 package constants
 
-import "github.com/DomNidy/sim-bot/internal/secrets"
+import "github.com/DomNidy/saint_sim/pkg/secrets"
 
 // Load necessary env vars for the bot
 // If we fail to load a secret here, we will panic

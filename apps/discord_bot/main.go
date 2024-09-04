@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/DomNidy/sim-bot/cmd/sim-bot/constants"
+	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
 )
 
 func main() {

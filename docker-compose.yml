@@ -1,0 +1,16 @@
+# https://docs.docker.com/reference/compose-file/
+
+version: '3.9'
+
+services:
+  discord_bot:
+    build:
+      context: ./apps/discord_bot
+      # We are using multiple build contexts so we can easily copy the modules in /pkg/ into the containers
+      # https://www.docker.com/blog/dockerfiles-now-support-multiple-build-contexts/
+      additional_contexts:
+        root: ./
+        pkg: ./pkg
+      tags:
+        - "saint_sim_discord_bot:latest"
+      
