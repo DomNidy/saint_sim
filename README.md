@@ -22,6 +22,12 @@ We use [go workspaces](https://go.dev/doc/tutorial/workspaces) to manage the mul
 
 We use docker and docker compose to build and deploy the applications. To make the modules inside of `/pkg` available in our dockerfiles, we use the `additional_contexts` argument in our `docker-compose.yml` file.
 
+To start/stop the containers locally:
+
+```sh
+./local.sh start # to stop, pass 'stop' as an argument
+```
+
 To build the containers:
 
 ```sh
