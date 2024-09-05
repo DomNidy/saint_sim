@@ -1,6 +1,6 @@
 # * It is important to know that the names of directories here aren't entirely arbitrary
 # * We name them in accordance with the modules defined in our go.work file at the root of our directory
-FROM golang:1.21 AS builder
+FROM golang:1.21-alpine AS builder
 
 # We will copy necessary go modules to build this image into this dir
 WORKDIR /build
@@ -36,9 +36,27 @@ WORKDIR /app
 
 # copy the binary from previous stage
 COPY --from=builder /build/apps/discord_bot/discord_bot .
+
+RUN chmod +x discord_bot
+
 # todo: move to more secure way of managing these, perhaps use docker-compose config
 # copy the .env from project root
 COPY --from=root .env . 
+
+# todo: Install CA certificates
+# todo:
+# 0.438 fetch http://dl-4.alpinelinux.org/alpine/v2.7/main/x86_64/APKINDEX.tar.gz
+# 1.368 wget: not an http or ftp url: https://dl-4.alpinelinux.org/alpine/v2.7/main/x86_64/APKINDEX.tar.gz
+# 1.368 ERROR: http://dl-4.alpinelinux.org/alpine/v2.7/main: Bad address
+# 1.368 WARNING: Ignoring APKINDEX.0f59c441.tar.gz: No such file or directory
+# 1.369 OK: 13 distinct packages available
+# 1.372 WARNING: Ignoring APKINDEX.0f59c441.tar.gz: No such file or directory
+# 1.372 ERROR: unsatisfiable constraints:
+# 1.373   ca-certificates (missing):
+# 1.373     required by: world[ca-certificates]
+# includes the necessary root certificates to verify SSL/TLS connections.
+RUN apk update && apk add ca-certificates
+
 
 ENTRYPOINT ["./discord_bot"]
 
