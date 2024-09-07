@@ -1,14 +1,40 @@
-FROM golang:1.10 AS build
-WORKDIR /go/src
-COPY go ./go
-COPY main.go .
+FROM golang:1.21-alpine AS builder
 
-ENV CGO_ENABLED=0
-RUN go get -d -v ./...
+WORKDIR /build
 
-RUN go build -a -installsuffix cgo -o swagger .
+COPY --from=root go.work go.work.sum ./
 
-FROM scratch AS runtime
-COPY --from=build /go/src/swagger ./
-EXPOSE 8080/tcp
-ENTRYPOINT ["./swagger"]
+RUN go work edit -dropuse ./apps/discord_bot
+
+WORKDIR /build/pkg
+COPY --from=pkg . .
+
+WORKDIR /build/apps/api
+
+
+# download modules
+COPY go.mod go.sum ./
+RUN go mod download
+
+# copy the remaining contents of discord_bot into container
+COPY . .
+
+RUN go build -o api main.go
+
+# alpine index: https://dl-4.alpinelinux.org/alpine/
+FROM alpine:3.20 AS runner
+
+WORKDIR /app
+
+COPY --from=builder /build/apps/api/api .
+
+RUN chmod +x api
+
+# todo: move to more secure way of managing these, perhaps use docker-compose config
+# copy the .env from project root
+COPY --from=root .env . 
+
+# Install CA certificates
+RUN apk update && apk add ca-certificates
+
+ENTRYPOINT ["./api"]

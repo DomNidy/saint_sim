@@ -1,6 +1,6 @@
 # https://docs.docker.com/reference/compose-file/
 
-version: '3.9'
+version: "3.9"
 
 services:
   discord_bot:
@@ -13,4 +13,15 @@ services:
         pkg: ./pkg
       tags:
         - "saint_sim_discord_bot:latest"
-      
+
+  api:
+    build:
+      context: ./apps/api
+      additional_contexts:
+        root: ./
+        pkg: ./pkg
+      tags:
+        - "saint_sim_api:latest"
+    # Expose port 8080 in container to host machine on port 8000
+    ports:
+      - 8000:8080
