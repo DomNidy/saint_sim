@@ -7,8 +7,6 @@ info:
 paths:
   /add:
     post:
-      tags:
-        - add
       operationId: add
       requestBody:
         description: Add two numbers together
@@ -23,7 +21,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AddResponse"
-
+  /simulate:
+    post:
+      operationId: simulate
+      requestBody:
+        description: "Simulate character dps"
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulationOptions"
+      responses:
+        "200":
+          description: Simulation request was received
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResponse"
 components:
   schemas:
     Add:
@@ -44,3 +57,26 @@ components:
           type: integer
           format: int64
           example: 3
+    SimulationOptions:
+      type: object
+      properties:
+        character_realm:
+          type: string
+          description: WoW realm of the character we want to sim
+        sim_config:
+          nullable: true
+          type: object
+          description: Extra configuration options for sims
+
+          properties:
+            target_count:
+              type: integer
+              minimum: 1
+              maximum: 10
+              description: The amount of enemy targets to include in the sim
+    SimulationResponse:
+      type: object
+      description: Object containing information about a simulation operation
+      properties:
+        simulation_id:
+          type: string

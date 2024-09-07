@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
 	// WARNING!
 	// Change this to a fully-qualified import path
 	// once you place this file into your project.
@@ -20,16 +21,8 @@ import (
 	//
 	//    sw "github.com/myname/myrepo/go"
 	//
+	"github.com/DomNidy/saint_sim/pkg/interfaces"
 )
-
-type AddRequest struct {
-	A int64 `json:"a"`
-	B int64 `json:"b"`
-}
-
-type AddResponse struct {
-	Result int64 `json:"result"`
-}
 
 func addHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("/add POST received")
@@ -40,19 +33,25 @@ func addHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse the JSON request body
-	var addReq AddRequest
+	var addReq interfaces.Add
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&addReq); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
+	// Validate the request body
+	if addReq.A == nil || addReq.B == nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
 	// Perform the addition
-	result := addReq.A + addReq.B
+	result := *addReq.A + *addReq.B
 
 	// Create the response
-	addResp := AddResponse{
-		Result: result,
+	addResp := interfaces.AddResponse{
+		Result: &result,
 	}
 
 	// Convert the response to JSON
