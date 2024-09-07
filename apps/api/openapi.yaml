@@ -1,0 +1,46 @@
+openapi: 3.0.3
+info:
+  title: Saint API
+  version: 1.0.0
+  description: |-
+    This API responsible for the saint business logic. The discord bot, and, potentially more services in the future, will call this API.
+paths:
+  /add:
+    post:
+      tags:
+        - add
+      operationId: add
+      requestBody:
+        description: Add two numbers together
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Add"
+      responses:
+        "200":
+          description: Addition was completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AddResponse"
+
+components:
+  schemas:
+    Add:
+      type: object
+      properties:
+        a:
+          type: integer
+          format: int64
+          example: 10
+        b:
+          type: integer
+          format: int64
+          example: -12
+    AddResponse:
+      type: object
+      properties:
+        result:
+          type: integer
+          format: int64
+          example: 3
