@@ -17,7 +17,7 @@ COPY --from=pkg . .
 
 # download modules
 WORKDIR /build/apps/discord_bot
-COPY go.mod .
+COPY go.mod go.sum ./
 RUN go mod download
 
 # copy the remaining contents of discord_bot into container
