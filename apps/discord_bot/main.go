@@ -100,9 +100,6 @@ var s *discordgo.Session
 // Create session object
 func init() {
 	fmt.Println("Loaded secrets:")
-	fmt.Printf("%s: %s\n", constants.DBHost.Key(), constants.DBHost.MaskedValue())
-	fmt.Printf("%s: %s\n", constants.DBUser.Key(), constants.DBUser.MaskedValue())
-	fmt.Printf("%s: %s\n", constants.DBPassword.Key(), constants.DBPassword.MaskedValue())
 	fmt.Printf("%s: %s\n", constants.DiscordToken.Key(), constants.DiscordToken.MaskedValue())
 
 	var err error

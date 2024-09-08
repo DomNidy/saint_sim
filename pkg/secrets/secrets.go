@@ -2,7 +2,6 @@ package secrets
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -10,10 +9,7 @@ import (
 
 // Load secrets into memory when this package is imported
 func init() {
-	err := godotenv.Load(".env")
-	if err != nil {
-		log.Fatal("Error occured while loading .env", err)
-	}
+	godotenv.Load(".env")
 }
 
 type Secret interface {
@@ -53,7 +49,7 @@ func LoadSecret(key string) Secret {
 	if value, exists := os.LookupEnv(key); exists {
 		secret = NewSecret(key, value)
 	} else {
-		panic(fmt.Sprintf("failed to load secret with key: %s from env file", key))
+		panic(fmt.Sprintf("failed to load secret with key: %s", key))
 	}
 	return secret
 }

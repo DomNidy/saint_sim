@@ -17,6 +17,9 @@ services:
       - saint_network
     depends_on:
       - api
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - APPLICATION_ID=${APPLICATION_ID}
   api:
     build:
       context: ./apps/api

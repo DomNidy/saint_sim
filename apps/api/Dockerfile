@@ -30,10 +30,6 @@ COPY --from=builder /build/apps/api/api .
 
 RUN chmod +x api
 
-# todo: move to more secure way of managing these, perhaps use docker-compose config
-# copy the .env from project root
-COPY --from=root .env . 
-
 # Install CA certificates
 RUN apk update && apk add ca-certificates
 

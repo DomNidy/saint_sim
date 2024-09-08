@@ -34,10 +34,6 @@ COPY --from=builder /build/apps/discord_bot/discord_bot .
 
 RUN chmod +x discord_bot
 
-# todo: move to more secure way of managing these, perhaps use docker-compose config
-# copy the .env from project root
-COPY --from=root .env . 
-
 # Install CA certificates
 RUN apk update && apk add ca-certificates
 
