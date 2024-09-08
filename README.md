@@ -16,11 +16,14 @@ We use [go workspaces](https://go.dev/doc/tutorial/workspaces) to manage the mul
 - `/pkg`: Directory containing modules shared and used throughout the applications defined in `/apps`
 
   - `/pkg/secrets`: Utility for reading secrets into memory
-  - `/pkg/interfaces`: Contains shared types, interfaces, and models
+  - `/pkg/interfaces`: Contains automatically generated, shared interfaces/types
+  - `/pkg/utils`: Miscellanious shared utilities
 
 ## Running
 
 We use docker and docker compose to build and deploy the applications. To make the modules inside of `/pkg` available in our dockerfiles, we use the `additional_contexts` argument in our `docker-compose.yml` file.
+
+The secrets used in `docker-compose.yml` should be stored in a .env file, collocated in the same directory.
 
 To start/stop the containers locally:
 
@@ -39,6 +42,10 @@ To run the containers:
 ```sh
 docker compose up
 ```
+
+### Connecting to database
+
+The docker compose file starts up a postgres and pgadmin instance. You can connect to the pgadmin instance locally at `localhost:5050`. The login credentials should be specified in the environment variables.
 
 ### Issues with go workspaces and dockerfiles
 

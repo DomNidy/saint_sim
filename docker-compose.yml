@@ -34,6 +34,31 @@ services:
       - 8000:8080
     networks:
       - saint_network
+    depends_on:
+      - saint_postgres
+
+  # https://www.postgresql.org/docs/14/libpq-envars.html
+  saint_postgres:
+    image: postgres:16.4
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      - 5432:5432
+    networks:
+      - saint_network
+    restart: always # this policy always restarts the container until its removal.
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
+    ports:
+      - 5050:80
+    depends_on:
+      - saint_postgres
+    restart: always
 
 # shared network to allow the containers to communicate
 networks:
