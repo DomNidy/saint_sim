@@ -76,8 +76,8 @@ services:
 
   # This container actually performs the simulations
   # todo: create another message queue, allow this worker to consume from it and process sim requests
-  simulation_worker:
-    container_name: saint_simulation_worker
+  # simulation_worker:
+  #   container_name: saint_simulation_worker
 
 # shared network to allow the containers to communicate
 networks:
