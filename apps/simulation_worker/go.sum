@@ -1,0 +1,4 @@
+github.com/DomNidy/saint_sim/pkg/secrets v0.0.0-20240908203648-5e532d643359 h1:+/eBXr7nJEXUQzZET4WqaMLo6+zpMGYTvFprX53yJa4=
+github.com/DomNidy/saint_sim/pkg/secrets v0.0.0-20240908203648-5e532d643359/go.mod h1:ygq0a7zB9rEd9gdm5s/1ZR1prxWRcRDQ7V8oB/fhDhY=
+github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
+github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=

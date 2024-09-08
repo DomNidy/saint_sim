@@ -4,6 +4,7 @@ version: "3.9"
 
 services:
   discord_bot:
+    container_name: saint_discord_bot
     build:
       context: ./apps/discord_bot
       # We are using multiple build contexts so we can easily copy the modules in /pkg/ into the containers
@@ -20,7 +21,9 @@ services:
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - APPLICATION_ID=${APPLICATION_ID}
+
   api:
+    container_name: saint_api
     build:
       context: ./apps/api
       additional_contexts:
@@ -35,11 +38,17 @@ services:
     networks:
       - saint_network
     depends_on:
-      - saint_postgres
+      - postgres
 
   # https://www.postgresql.org/docs/14/libpq-envars.html
-  saint_postgres:
+  postgres:
+    # explicitly name this so we can connect to it via this hostname (since we are using shared docker network)
+    container_name: saint_postgres
     image: postgres:16.4
+    # shared memory limit
+    shm_size: 145mb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
@@ -50,16 +59,36 @@ services:
     restart: always # this policy always restarts the container until its removal.
 
   pgadmin:
+    container_name: saint_pgadmin
     image: dpage/pgadmin4:latest
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     environment:
       - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL}
       - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD}
     ports:
       - 5050:80
     depends_on:
-      - saint_postgres
+      - postgres
+    networks:
+      - saint_network
     restart: always
+
+  # This container actually performs the simulations
+  # todo: create another message queue, allow this worker to consume from it and process sim requests
+  simulation_worker:
+    container_name: saint_simulation_worker
 
 # shared network to allow the containers to communicate
 networks:
   saint_network:
+    name: saint_network
+
+# persist data from this directory inside containers
+volumes:
+  # persist our databases data (important)
+  postgres_data:
+    name: postgres_data
+  # pgadmin data so we dont have to re-configure the dashboard each time
+  pgadmin_data:
+    name: pgadmin_data

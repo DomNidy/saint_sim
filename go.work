@@ -6,4 +6,5 @@ use (
 	./pkg/interfaces
 	./apps/discord_bot
 	./apps/api
+	./apps/simulation_worker
 )
