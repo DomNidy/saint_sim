@@ -26,6 +26,8 @@ func performSim(region, realm, name string) {
 
 }
 
+// todo: consume messages from rabbitmq queue
+// todo: write the results of the sim to database
 func main() {
 	performSim("us", "hydraxis", "ishton")
 }

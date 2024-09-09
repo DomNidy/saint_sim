@@ -9,15 +9,16 @@ _The project structure is subject to change as things are ironed out throughout 
 We use [go workspaces](https://go.dev/doc/tutorial/workspaces) to manage the multiple different modules used in this repository.
 
 - `/apps`: Directory containing the various applications
-
   - `/apps/discord_bot`: The Discord bot application
   - `/apps/api`: The API server application
-
+  - `/apps/simulation_worker`: Application which handles simulation requests from users by invoking `simc`, then persists the results to the database
 - `/pkg`: Directory containing modules shared and used throughout the applications defined in `/apps`
 
   - `/pkg/secrets`: Utility for reading secrets into memory
   - `/pkg/interfaces`: Contains automatically generated, shared interfaces/types
   - `/pkg/utils`: Miscellanious shared utilities
+
+- `/db`: Contains postgres db initialization scripts. These scripts are copied into the postgres container, then executed. (Note: these only are executed if the postgres db container is started with a data directory that is empty.)
 
 ## Running
 

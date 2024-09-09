@@ -9,6 +9,7 @@ COPY --from=root go.work go.work.sum ./
 
 # remove the unnecssary modules from go workspace file
 RUN go work edit -dropuse ./apps/api
+RUN go work edit -dropuse ./apps/simulation_worker
 
 # copy the shared packages we need into here
 # pkg is an additional_context defined in docker-compose.yml

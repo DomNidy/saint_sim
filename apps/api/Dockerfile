@@ -5,6 +5,7 @@ WORKDIR /build
 COPY --from=root go.work go.work.sum ./
 
 RUN go work edit -dropuse ./apps/discord_bot
+RUN go work edit -dropuse ./apps/simulation_worker
 
 WORKDIR /build/pkg
 COPY --from=pkg . .

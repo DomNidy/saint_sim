@@ -40,13 +40,35 @@ services:
     depends_on:
       - postgres
 
-  # https://www.postgresql.org/docs/14/libpq-envars.html
+  # This container actually performs the simulations
+  # todo: create another message queue, allow this worker to consume from it and process sim requests
+  simulation_worker:
+    container_name: saint_simulation_worker
+    build:
+      context: ./apps/simulation_worker
+      additional_contexts:
+        root: ./
+        pkg: ./pkg
+      tags:
+        - "saint_sim_worker:latest"
+    depends_on:
+      - rabbitmq
+    networks:
+      - saint_network
+
+
   postgres:
     # explicitly name this so we can connect to it via this hostname (since we are using shared docker network)
     container_name: saint_postgres
-    image: postgres:16.4
+    # copy our db initialization scripts into the container
+    # note: these only run if you start the container with a data directory that is empty; 
+    # any pre-existing database will be left untouched on container startup (https://hub.docker.com/_/postgres)
+    build:
+      dockerfile_inline: |
+        FROM postgres:16.4
+        COPY ./db /docker-entrypoint-initdb.d/
     # shared memory limit
-    shm_size: 145mb
+    shm_size: 256mb
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -74,10 +96,21 @@ services:
       - saint_network
     restart: always
 
-  # This container actually performs the simulations
-  # todo: create another message queue, allow this worker to consume from it and process sim requests
-  # simulation_worker:
-  #   container_name: saint_simulation_worker
+  # we place simulation requests into this queue
+  # simulation worker will consume from here
+  rabbitmq:
+    container_name: saint_rabbitmq
+    hostname: saint_rabbitmq
+    image: rabbitmq:3-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    ports:
+      - 5672:5672 # rabbitmq port
+      - 15672:15672 # management ui port
+    networks:
+      - saint_network
+    restart: always
 
 # shared network to allow the containers to communicate
 networks:

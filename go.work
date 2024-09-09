@@ -1,10 +1,10 @@
 go 1.21.6
 
 use (
+	./apps/api
+	./apps/discord_bot
+	./apps/simulation_worker
+	./pkg/interfaces
 	./pkg/secrets
 	./pkg/utils
-	./pkg/interfaces
-	./apps/discord_bot
-	./apps/api
-	./apps/simulation_worker
 )
