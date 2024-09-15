@@ -5,22 +5,6 @@ info:
   description: |-
     This API responsible for the saint business logic. The discord bot, and, potentially more services in the future, will call this API.
 paths:
-  /add:
-    post:
-      operationId: add
-      requestBody:
-        description: Add two numbers together
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Add"
-      responses:
-        "200":
-          description: Addition was completed successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AddResponse"
   /simulate:
     post:
       operationId: simulate
@@ -39,44 +23,36 @@ paths:
                 $ref: "#/components/schemas/SimulationResponse"
 components:
   schemas:
-    Add:
+    WoWCharacter:
       type: object
+      description: Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc.
       properties:
-        a:
-          type: integer
-          format: int64
-          example: 10
-        b:
-          type: integer
-          format: int64
-          example: -12
-    AddResponse:
-      type: object
-      properties:
-        result:
-          type: integer
-          format: int64
-          example: 3
+        region:
+          type: string
+          description: Identifies the region in which the characters realm is located
+          example: us
+        realm:
+          type: string
+          description: The realm which the character is located on
+          example: Hydraxis
+        character_name:
+          type: string
+          description: The name of the WoW character
+          example: John
+          minLength: 2
+          maxLength: 12
+
     SimulationOptions:
       type: object
+      description: Specifices sim options, and the character of interest to sim
       properties:
-        character_realm:
-          type: string
-          description: WoW realm of the character we want to sim
-        sim_config:
-          nullable: true
-          type: object
-          description: Extra configuration options for sims
+        wow_character:
+          $ref: "#/components/schemas/WoWCharacter"
 
-          properties:
-            target_count:
-              type: integer
-              minimum: 1
-              maximum: 10
-              description: The amount of enemy targets to include in the sim
     SimulationResponse:
       type: object
       description: Object containing information about a simulation operation
       properties:
         simulation_id:
           type: string
+          description: Used to identify the ID of the sim in postgres, query this to read sim results

@@ -32,6 +32,6 @@ COPY --from=builder /build/apps/api/api .
 RUN chmod +x api
 
 # Install CA certificates
-RUN apk update && apk add ca-certificates
+RUN apk update && apk add ca-certificates && apk add curl
 
 ENTRYPOINT ["./api"]

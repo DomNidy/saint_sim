@@ -1,7 +1,7 @@
 # https://docs.docker.com/reference/compose-file/
 
 version: "3.9"
-
+name: saint
 services:
   discord_bot:
     container_name: saint_discord_bot
@@ -31,6 +31,16 @@ services:
         pkg: ./pkg
       tags:
         - "saint_sim_api:latest"
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+    healthcheck:
+      test: ["CMD", "curl", "localhost:8080/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
     # Expose port 8080 in container to host machine on port 8000
     #* this is just for development
     ports:
@@ -38,7 +48,10 @@ services:
     networks:
       - saint_network
     depends_on:
-      - postgres
+      postgres:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
 
   # This container actually performs the simulations
   # todo: create another message queue, allow this worker to consume from it and process sim requests
@@ -56,12 +69,11 @@ services:
     networks:
       - saint_network
 
-
   postgres:
     # explicitly name this so we can connect to it via this hostname (since we are using shared docker network)
     container_name: saint_postgres
     # copy our db initialization scripts into the container
-    # note: these only run if you start the container with a data directory that is empty; 
+    # note: these only run if you start the container with a data directory that is empty;
     # any pre-existing database will be left untouched on container startup (https://hub.docker.com/_/postgres)
     build:
       dockerfile_inline: |
@@ -102,11 +114,16 @@ services:
     container_name: saint_rabbitmq
     hostname: saint_rabbitmq
     image: rabbitmq:3-management
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
     ports:
-      - 5672:5672 # rabbitmq port
+      - ${RABBITMQ_PORT}:5672 # rabbitmq server port
       - 15672:15672 # management ui port
     networks:
       - saint_network

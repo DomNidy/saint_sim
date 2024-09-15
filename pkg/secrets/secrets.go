@@ -57,7 +57,7 @@ func LoadSecret(key string) Secret {
 // Used to print out the secrets to console
 func maskToken(token string, visibleChars int) string {
 	if len(token) < 3 {
-		return token
+		return "XXXXXXXX"
 	}
-	return token[:visibleChars] + "XXX"
+	return token[:visibleChars] + "XXXXX"
 }

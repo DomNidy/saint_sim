@@ -20,6 +20,18 @@ We use [go workspaces](https://go.dev/doc/tutorial/workspaces) to manage the mul
 
 - `/db`: Contains postgres db initialization scripts. These scripts are copied into the postgres container, then executed. (Note: these only are executed if the postgres db container is started with a data directory that is empty.)
 
+## Management UI's
+
+All management UI ports can be configured in the `docker-compose.yml` file. The credentials used to login to these ports should be specified in the `.env` file, collated in the same directory as the compose file.
+
+### pgAdmin - `http://localhost:5050`
+
+Use this to inspect the postgres db.
+
+### rabbitmq management - `http://localhost:15672`
+
+Use this to view the queues.
+
 ## Running
 
 We use docker and docker compose to build and deploy the applications. To make the modules inside of `/pkg` available in our dockerfiles, we use the `additional_contexts` argument in our `docker-compose.yml` file.
@@ -43,10 +55,6 @@ To run the containers:
 ```sh
 docker compose up
 ```
-
-### Connecting to database
-
-The docker compose file starts up a postgres and pgadmin instance. You can connect to the pgadmin instance locally at `localhost:5050`. The login credentials should be specified in the environment variables.
 
 ### Issues with go workspaces and dockerfiles
 

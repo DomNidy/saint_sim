@@ -41,12 +41,10 @@ WORKDIR /app
 # (the /app directory)
 COPY --from=builder /app/SimulationCraft/ .
 
-
-
 COPY --from=builder /build/apps/simulation_worker/simulation_worker .
 RUN chmod +x simulation_worker
 
-# # Install CA certificates
+# # Install CA certificates and dependencies needed to run simc
 RUN apk update && apk add ca-certificates libcurl libgcc libstdc++
  
 ENTRYPOINT ["./simulation_worker"]
