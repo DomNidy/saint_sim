@@ -30,7 +30,7 @@ func main() {
 	conn, err := amqp.Dial(connectionURI)
 	failOnError(err, "Failed to connect to rabbitmq")
 	defer conn.Close()
-	fmt.Println("Hello new build!")
+
 	// Setup api server
 	r := gin.Default()
 	r.GET("/health", func(c *gin.Context) {
@@ -55,6 +55,5 @@ func main() {
 
 		// todo: post to rabbitmq
 	})
-	fmt.Println("Hello new build!123")
 	r.Run("0.0.0.0:8080")
 }

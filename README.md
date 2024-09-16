@@ -38,23 +38,21 @@ We use docker and docker compose to build and deploy the applications. To make t
 
 The secrets used in `docker-compose.yml` should be stored in a .env file, collocated in the same directory.
 
-To start/stop the containers locally:
+### To start/stop the all services (containers) locally
 
 ```sh
 ./local.sh start # to stop, pass 'stop' as an argument
 ```
 
-To build the containers:
+### Stop a service, rebuild it's image, then start it
 
 ```sh
-docker compose build
+./local.sh api # could also be discord_bot, simulation_worker, etc.
 ```
 
-To run the containers:
+### Docker compose
 
-```sh
-docker compose up
-```
+The `local.sh` script simply uses docker compose commands, so you can also interact with the application using the compose cli if you're farmiliar with it.
 
 ### Issues with go workspaces and dockerfiles
 
