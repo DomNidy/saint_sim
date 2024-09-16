@@ -26,13 +26,11 @@ func main() {
 	RABBITMQ_PORT := secrets.LoadSecret("RABBITMQ_PORT")
 	RABBITMQ_HOST := secrets.LoadSecret("RABBITMQ_HOST")
 	connectionURI := fmt.Sprintf("amqp://%s:%s@%s:%s", RABBITMQ_USER.Value(), RABBITMQ_PASS.Value(), RABBITMQ_HOST.Value(), RABBITMQ_PORT.Value())
-	fmt.Printf("%s\n", connectionURI)
 	// Connect to rabbitmq
 	conn, err := amqp.Dial(connectionURI)
-
 	failOnError(err, "Failed to connect to rabbitmq")
 	defer conn.Close()
-
+	fmt.Println("Hello new build!")
 	// Setup api server
 	r := gin.Default()
 	r.GET("/health", func(c *gin.Context) {
@@ -57,5 +55,6 @@ func main() {
 
 		// todo: post to rabbitmq
 	})
+	fmt.Println("Hello new build!123")
 	r.Run("0.0.0.0:8080")
 }

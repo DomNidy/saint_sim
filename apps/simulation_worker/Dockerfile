@@ -36,6 +36,9 @@ ENV SIMC_BINARY_PATH=./simc
 
 WORKDIR /app
 
+# # Install CA certificates and dependencies needed to run simc
+RUN apk update && apk add ca-certificates libcurl libgcc libstdc++
+
 # Copy simc binary from previous stage into image
 # the simc binary should be in same dir as the simulation_worker binary
 # (the /app directory)
@@ -44,7 +47,6 @@ COPY --from=builder /app/SimulationCraft/ .
 COPY --from=builder /build/apps/simulation_worker/simulation_worker .
 RUN chmod +x simulation_worker
 
-# # Install CA certificates and dependencies needed to run simc
-RUN apk update && apk add ca-certificates libcurl libgcc libstdc++
+
  
 ENTRYPOINT ["./simulation_worker"]

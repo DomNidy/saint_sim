@@ -31,12 +31,12 @@ FROM alpine:3.20 AS runner
 
 WORKDIR /app
 
+# Install CA certificates
+RUN apk update && apk add ca-certificates
+
 COPY --from=builder /build/apps/discord_bot/discord_bot .
 
 RUN chmod +x discord_bot
-
-# Install CA certificates
-RUN apk update && apk add ca-certificates
 
 ENTRYPOINT ["./discord_bot"]
 

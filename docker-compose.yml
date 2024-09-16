@@ -13,11 +13,12 @@ services:
         root: ./
         pkg: ./pkg
       tags:
-        - "saint_sim_discord_bot:latest"
+        - "saint_discord_bot:latest"
     networks:
       - saint_network
     depends_on:
-      - api
+      api:
+        condition: service_started
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - APPLICATION_ID=${APPLICATION_ID}
@@ -30,16 +31,20 @@ services:
         root: ./
         pkg: ./pkg
       tags:
-        - "saint_sim_api:latest"
+        - "saint_api:latest"
     environment:
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=${RABBITMQ_PORT}
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
+    # https://docs.docker.com/reference/compose-file/services/#healthcheck
     healthcheck:
       test: ["CMD", "curl", "localhost:8080/health"]
-      interval: 15s
-      timeout: 3s
+      # during the 1min start period, run healthcheck every second
+      start_period: 1m30s
+      start_interval: 1s
+      interval: 10s
+      timeout: 2s
       retries: 5
     # Expose port 8080 in container to host machine on port 8000
     #* this is just for development
@@ -63,7 +68,7 @@ services:
         root: ./
         pkg: ./pkg
       tags:
-        - "saint_sim_worker:latest"
+        - "saint_simulation_worker:latest"
     depends_on:
       - rabbitmq
     networks:
@@ -117,8 +122,11 @@ services:
     healthcheck:
       test: ["CMD", "rabbitmqctl", "status"]
       interval: 10s
-      timeout: 3s
+      timeout: 2s
       retries: 5
+      # during the 1min start period, run healthcheck every second
+      start_period: 1m30s
+      start_interval: 1s
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
@@ -127,6 +135,8 @@ services:
       - 15672:15672 # management ui port
     networks:
       - saint_network
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     restart: always
 
 # shared network to allow the containers to communicate
@@ -142,3 +152,5 @@ volumes:
   # pgadmin data so we dont have to re-configure the dashboard each time
   pgadmin_data:
     name: pgadmin_data
+  rabbitmq_data:
+    name: rabbitmq_data
