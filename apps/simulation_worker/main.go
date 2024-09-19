@@ -17,10 +17,10 @@ import (
 func performSim(region, realm, name string) {
 
 	simcBinaryPath := secrets.LoadSecret("SIMC_BINARY_PATH")
-	outputFilePath := fmt.Sprintf("output=%v-%v-%v-%d.txt", region, realm, name, time.Now().Unix())
+	outputFilePath := fmt.Sprintf("%v-%v-%v-%d.txt", region, realm, name, time.Now().Unix())
 	simCommand := exec.Cmd{
 		Path:   simcBinaryPath.Value(),
-		Args:   []string{simcBinaryPath.Value(), fmt.Sprintf("armory=%v,%v,%v", region, realm, name), outputFilePath},
+		Args:   []string{simcBinaryPath.Value(), fmt.Sprintf("armory=%v,%v,%v", region, realm, name), fmt.Sprintf("output=%v", outputFilePath)},
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
@@ -29,11 +29,15 @@ func performSim(region, realm, name string) {
 		log.Fatalf("Failed to execute sim binary: %v", err)
 	}
 
+	data, err := os.ReadFile(outputFilePath)
+	if err != nil {
+		log.Fatalf("Failed to read sim output file: %v", err)
+	}
+	fmt.Printf("Sim data: %v\n", data)
 }
 
-// todo: consume messages from rabbitmq queue
-// todo: write the results of the sim to database
 func main() {
+	// Setup rabitmq
 	RABBITMQ_USER := secrets.LoadSecret("RABBITMQ_USER")
 	RABBITMQ_PASS := secrets.LoadSecret("RABBITMQ_PASS")
 	RABBITMQ_PORT := secrets.LoadSecret("RABBITMQ_PORT")
@@ -82,14 +86,17 @@ func main() {
 
 			var simRequestMsg interfaces.SimulateJSONRequestBody
 
+			// todo: figure out how to validate the request object
 			err := json.Unmarshal(d.Body, &simRequestMsg)
 			if err != nil {
 				log.Printf("error unmarshalling json: %v", err)
 			}
 			fmt.Println("Received simulation request:")
-			fmt.Printf("	character_name: %s", *simRequestMsg.WowCharacter.CharacterName)
-			fmt.Printf("	realm: %s", *simRequestMsg.WowCharacter.Realm)
-			fmt.Printf("	region: %s", *simRequestMsg.WowCharacter.Region)
+			fmt.Printf("	character_name: %s\n", *simRequestMsg.WowCharacter.CharacterName)
+			fmt.Printf("	realm: %s\n", *simRequestMsg.WowCharacter.Realm)
+			fmt.Printf("	region: %s\n", *simRequestMsg.WowCharacter.Region)
+
+			performSim(*simRequestMsg.WowCharacter.Region, *simRequestMsg.WowCharacter.Realm, *simRequestMsg.WowCharacter.CharacterName)
 
 			receivedCount += 1
 		}

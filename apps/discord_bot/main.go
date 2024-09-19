@@ -42,38 +42,71 @@ var (
 		{
 			Name:        string(SaintSimulate),
 			Description: "Simulate your characters DPS.",
+			Type:        discordgo.ChatApplicationCommand,
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Required:    true,
+					Description: "What region do you play on?",
+					Name:        "region",
+					Choices: []*discordgo.ApplicationCommandOptionChoice{
+						{
+							Name:  "eu",
+							Value: "eu",
+						},
+						{
+							Name:  "us",
+							Value: "us",
+						},
+						{
+							Name:  "kr",
+							Value: "kr",
+						}, {
+							Name:  "tw",
+							Value: "tw",
+						}, {
+							Name:  "cn",
+							Value: "cn",
+						},
+					},
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Required:    true,
+					Name:        "realm",
+					Description: "What realm is your character on?",
+					Choices: []*discordgo.ApplicationCommandOptionChoice{
+						{
+							Name:  "us-thrall",
+							Value: "thrall",
+						},
+						{
+							Name:  "us-hydraxis",
+							Value: "hydraxis",
+						},
+						{
+							Name:  "eu-silvermoon",
+							Value: "silvermoon",
+						}, {
+							Name:  "eu-draenor",
+							Value: "draenor",
+						},
+					},
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Required:    true,
+					Description: "What is your characters name?",
+					Name:        "character_name",
+					MinLength:   utils.IntPtr(2),
+					MaxLength:   12,
+				},
+			},
 		},
 		{
-			Name:        string(SaintHelp),
+			Name: string(SaintHelp),
+
 			Description: "View help",
-		},
-	}
-
-	// TODO: REMOVE COMPONENT HANDLERS, JUST USE SLASH COMMANDS
-	// componentHandlers deal with responding to interactions from message components
-	// for example, when a user selects a field, an interaction of type MessageComponent occurs
-	// but when a user enters a slash command, an interaction of type ApplicationCommandData will be occur
-	componentHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-		"character_name_input": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-			fmt.Printf("Received character_name_input")
-			simRes, simErr := simulateCharacter(s, i)
-			fmt.Printf("%v", simRes)
-
-			if simErr != nil {
-				log.Fatalf("%v", simErr)
-				return
-			}
-
-			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionResponseChannelMessageWithSource,
-				Data: &discordgo.InteractionResponseData{
-					Content: *simRes.SimulationId, // todo: add sim response here
-				},
-			})
-
-			if err != nil {
-				panic(err)
-			}
 		},
 	}
 
@@ -82,12 +115,72 @@ var (
 		// https://github.com/kevcenteno/discordgo/blob/f8c5d6c837ef0cd4db6a4b7d03e301d83f3708c4/examples/components/main.go
 		SaintSimulate: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
-			simRes, simErr := simulateCharacter(s, i)
+			// Handle case where this handler receives incorrect interaction type (we need application command interactions only)
+			if _, ok := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData); !ok {
+				errResponse := &discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: "Something went wrong, please try again.",
+					},
+				}
+				err := s.InteractionRespond(i.Interaction, errResponse)
+
+				if err != nil {
+					fmt.Printf("error sending error response: %v\n", errResponse.Data)
+					panic(err)
+				}
+
+				return
+			}
+
+			fmt.Printf("sim command data: %v\n", i.Interaction.ApplicationCommandData())
+
+			// Unmarshall received options into SimulationOptions struct so we can validate it
+			// seems like we need to explicitly create the WoWCharacter struct inside, as go wont allocate
+			// memory for the struct itsself (because we accept a pointer to a struct), so it just
+			// allocates memory for the pointer, not the struct.
+			simOptions := interfaces.SimulationOptions{
+				WowCharacter: &interfaces.WoWCharacter{},
+			}
+			for _, option := range i.ApplicationCommandData().Options {
+				fmt.Printf("option %v\n", option)
+				switch option.Name {
+				case "character_name":
+					fmt.Println("character_name found")
+					if characterName, ok := option.Value.(string); ok {
+						simOptions.WowCharacter.CharacterName = &characterName
+					}
+				case "realm":
+					fmt.Println("realm found")
+					if realm, ok := option.Value.(string); ok {
+						simOptions.WowCharacter.Realm = &realm
+					}
+				case "region":
+					fmt.Println("region found")
+					if region, ok := option.Value.(string); ok {
+						simOptions.WowCharacter.Region = &region
+					}
+				default:
+					fmt.Println("defaulted")
+				}
+			}
+
+			fmt.Printf("extracted: %v\n", simOptions)
+			// todo: handle error and send response to user
+			if data, err := json.Marshal(simOptions); err != nil {
+				fmt.Printf("error marshalling: %v", err)
+			} else {
+				fmt.Printf("marshalled: %s", data)
+			}
+
+			simRes, simErr := simulateCharacter(s, i, "sIshton", "dhydraxis", "usas")
 			// todo: implement err handling
 			if simErr != nil {
 				fmt.Printf("sim err: %v\n", simErr)
 				return
 			}
+
+			fmt.Printf("Sim interaction data: %v", i.Interaction.Data.Type())
 
 			response := &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -113,12 +206,12 @@ func (s SaintError) Error() string {
 	return "Something bad happened"
 }
 
-func simulateCharacter(s *discordgo.Session, i *discordgo.InteractionCreate) (*interfaces.SimulationResponse, error) {
+func simulateCharacter(s *discordgo.Session, i *discordgo.InteractionCreate, characterName string, characterRealm string, characterRegion string) (*interfaces.SimulationResponse, error) {
 
 	wowCharacter := interfaces.WoWCharacter{
-		CharacterName: utils.StrPtr("Ishton"),
-		Realm:         utils.StrPtr("hydraxis"),
-		Region:        utils.StrPtr("us"),
+		CharacterName: utils.StrPtr(characterName),
+		Realm:         utils.StrPtr(characterRealm),
+		Region:        utils.StrPtr(characterRegion),
 	}
 
 	requestData := interfaces.SimulateJSONRequestBody{
@@ -185,11 +278,7 @@ func init() {
 			if h, ok := commandHandlers[SaintCommandInteraction(i.ApplicationCommandData().Name)]; ok {
 				h(s, i)
 			}
-		case discordgo.InteractionMessageComponent:
-			fmt.Printf("Interaction occurred: %v\n", i.MessageComponentData().CustomID)
-			if h, ok := componentHandlers[i.MessageComponentData().CustomID]; ok {
-				h(s, i)
-			}
+
 		default:
 			fmt.Printf("Received interaction of type %v, but we do not have any handlers for this type of interaction", i.Type)
 		}

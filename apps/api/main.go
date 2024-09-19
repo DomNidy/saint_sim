@@ -1,47 +1,50 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
+	"time"
 
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
-	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
+	utils "github.com/DomNidy/saint_sim/pkg/utils"
 	gin "github.com/gin-gonic/gin"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
-
-func failOnError(err error, msg string) {
-	if err != nil {
-		log.Panicf("%s:%s", msg, err)
-	}
-}
 
 // TODO: /health endpoint openapi definition
 // TODO: /simulate endpoint impl
 
 func main() {
-	RABBITMQ_USER := secrets.LoadSecret("RABBITMQ_USER")
-	RABBITMQ_PASS := secrets.LoadSecret("RABBITMQ_PASS")
-	RABBITMQ_PORT := secrets.LoadSecret("RABBITMQ_PORT")
-	RABBITMQ_HOST := secrets.LoadSecret("RABBITMQ_HOST")
-	connectionURI := fmt.Sprintf("amqp://%s:%s@%s:%s", RABBITMQ_USER.Value(), RABBITMQ_PASS.Value(), RABBITMQ_HOST.Value(), RABBITMQ_PORT.Value())
-	// Connect to rabbitmq
-	conn, err := amqp.Dial(connectionURI)
-	failOnError(err, "Failed to connect to rabbitmq")
+	conn, ch := utils.InitRabbitMQConnection()
 	defer conn.Close()
+	defer ch.Close()
+
+	// Declare queue to publish msgs to
+	q, err := ch.QueueDeclare(
+		"simulation_queue", // name
+		false,              // durable
+		false,              // delete when unused
+		false,              // exclusive
+		false,              // no-wait
+		nil,                //arguments
+	)
+	utils.FailOnError(err, "Failed to declare a queue")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
 	// Setup api server
 	r := gin.Default()
 	r.GET("/health", func(c *gin.Context) {
-
 		c.JSON(200, gin.H{
 			"status": "healthy",
 		})
 	})
 	// todo: continue implementation
 	r.POST("/simulate", func(c *gin.Context) {
-		var simOptions interfaces.SimulationOptions
+		var simOptions interfaces.SimulateJSONRequestBody
 
 		if err := c.ShouldBindJSON(&simOptions); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -53,7 +56,25 @@ func main() {
 		fmt.Printf("realm name: %s\n", *simOptions.WowCharacter.Realm)
 		fmt.Printf("regions name: %s\n", *simOptions.WowCharacter.Region)
 
-		// todo: post to rabbitmq
+		msgBodyJson, err := json.Marshal(simOptions)
+		utils.FailOnError(err, "Failed to marshal json")
+
+		err = ch.PublishWithContext(ctx,
+			"",     // exchange
+			q.Name, // routing key
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "application/json",
+				Body:        msgBodyJson,
+			},
+		)
+		utils.FailOnError(err, "Failed to publish msg to queue")
+		fmt.Printf(" [x] Sent %s\n", msgBodyJson)
+
+		c.JSON(200, interfaces.SimulationResponse{
+			SimulationId: utils.StrPtr(""),
+		})
 	})
 	r.Run("0.0.0.0:8080")
 }
