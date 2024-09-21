@@ -44,15 +44,25 @@ components:
 
     SimulationOptions:
       type: object
-      description: Specifices sim options, and the character of interest to sim
+      description: Specifices sim options, and the character of interest to sim, send this to the api
       properties:
         wow_character:
           $ref: "#/components/schemas/WoWCharacter"
 
     SimulationResponse:
       type: object
-      description: Object containing information about a simulation operation
+      description: Object containing information about a simulation operation, returned from api
       properties:
         simulation_id:
           type: string
-          description: Used to identify the ID of the sim in postgres, query this to read sim results
+          description: Used to identify a simulation request in postgres
+
+    SimulationMessageBody:
+      type: object
+      description:
+        This JSON object is included in a rabbitmq message, then that message gets published to the simulation_queue.
+        Consumers of the simulation queue (simulation_worker) will use this JSON object to carry out the simulation.
+      properties:
+        simulation_id:
+          type: string
+          description: Used to identify a simulation request in postgres

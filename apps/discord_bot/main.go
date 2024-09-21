@@ -27,14 +27,6 @@ const (
 	SaintHelp     SaintCommandInteraction = "help"
 )
 
-// Interactions fired off in resposne to user input in a MessageComponent
-// type SaintMsgComponentInteraction string
-
-// const (
-// 	// Called when they
-// 	SimulateCharacterRealm SaintMsgComponentInteraction = "simulate_character_realm"
-// )
-
 // Utility function used to create an erroneous discord response message
 // (a message that indicates something went wrong)
 func createErrorInteractionResponse(msg string) discordgo.InteractionResponse {

@@ -1,11 +1,12 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
-	// "github.com/jackc/pgx/v5"
+	pgx "github.com/jackc/pgx/v5"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -29,6 +30,10 @@ func FailOnError(err error, msg string) {
 	}
 }
 
+// Creates a rabbit mq channel with a single connection
+// A channel multiplexes connections over a single TCP connection
+// This allows us to logically distinguish between different connections,
+// while getting rid of the overhead of having multiple TCP connections
 func InitRabbitMQConnection() (*amqp.Connection, *amqp.Channel) {
 	RABBITMQ_USER := secrets.LoadSecret("RABBITMQ_USER")
 	RABBITMQ_PASS := secrets.LoadSecret("RABBITMQ_PASS")
@@ -46,10 +51,29 @@ func InitRabbitMQConnection() (*amqp.Connection, *amqp.Channel) {
 	return conn, ch
 }
 
-// func InitPostgresConnection() (*pgx.Conn) {
-// 	context.WithTimeout()
-// 	DB_USER := secrets.LoadSecret("DB_USER")
-// 	DB_PASSWORD := secrets.LoadSecret("DB_PASSWORD")
-// 	connectionURI := fmt.Sprint("")
-// 	conn,err := pgx.Connect()
-// }
+// Declare simulation queue in channel (creates it if it doesn't exist)
+func DeclareSimulationQueue(ch *amqp.Channel) *amqp.Queue {
+	q, err := ch.QueueDeclare(
+		"simulation_queue", // name
+		false,              // durable
+		false,              // delete when unused
+		false,              // exclusive
+		false,              // no-wait
+		nil,                // arguments
+	)
+	FailOnError(err, "Failed to declare simulation_queue for channel")
+	return &q
+}
+
+func InitPostgresConnection(ctx *context.Context) *pgx.Conn {
+	DB_USER := secrets.LoadSecret("DB_USER")
+	DB_PASSWORD := secrets.LoadSecret("DB_PASSWORD")
+	DB_HOST := secrets.LoadSecret("DB_HOST")
+	DB_NAME := secrets.LoadSecret("DB_NAME")
+	connectionURI := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", DB_USER, DB_PASSWORD, DB_HOST, "5432", DB_NAME)
+	log.Printf("Trying to connect to db with uri: %s", connectionURI)
+
+	conn, err := pgx.Connect(*ctx, connectionURI)
+	FailOnError(err, "Failed to create postgres connection")
+	return conn
+}

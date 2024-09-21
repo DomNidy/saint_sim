@@ -32,7 +32,7 @@ if [ -z "$CODEGEN_BINARY_PATH" ]; then
 fi
 
 # use command substitution to capture exit code
-codegen_output=$($CODEGEN_BINARY_PATH --generate types -o $OUTPUT_DIR/api_interfaces.gen.go -package interfaces $API_OPENAPI_SPEC 2>&1)
+codegen_output=$($CODEGEN_BINARY_PATH --generate types,skip-prune -o $OUTPUT_DIR/api_interfaces.gen.go -package interfaces $API_OPENAPI_SPEC 2>&1)
 
 # check exit code of oapi-codegen command
 if [[ $? -eq 0 ]]; then

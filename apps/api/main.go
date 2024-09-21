@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"time"
 
+	api_utils "github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
 	gin "github.com/gin-gonic/gin"
@@ -22,18 +23,7 @@ func main() {
 	defer ch.Close()
 
 	// Declare queue to publish msgs to
-	q, err := ch.QueueDeclare(
-		"simulation_queue", // name
-		false,              // durable
-		false,              // delete when unused
-		false,              // exclusive
-		false,              // no-wait
-		nil,                //arguments
-	)
-	utils.FailOnError(err, "Failed to declare a queue")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	q := utils.DeclareSimulationQueue(ch)
 
 	// Setup api server
 	r := gin.Default()
@@ -44,21 +34,23 @@ func main() {
 	})
 	// todo: continue implementation
 	r.POST("/simulate", func(c *gin.Context) {
-		var simOptions interfaces.SimulateJSONRequestBody
-
+		var simOptions interfaces.SimulationOptions
+		// todo: this should return an error if the request json body does not match the SimulationOptions type definition
 		if err := c.ShouldBindJSON(&simOptions); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		fmt.Println("Got sim options:")
-		fmt.Printf("char name: %s\n", *simOptions.WowCharacter.CharacterName)
-		fmt.Printf("realm name: %s\n", *simOptions.WowCharacter.Realm)
-		fmt.Printf("regions name: %s\n", *simOptions.WowCharacter.Region)
+		// Create SimulationMessageBody
+		simulationId := api_utils.GenerateUUID()
+		simulationMessageBody, err := json.Marshal(interfaces.SimulationMessageBody{
+			SimulationId: &simulationId,
+		})
+		utils.FailOnError(err, "Failed to marshal SimulationMessageBody into JSON")
+		log.Printf("Marshalled SimulationMessageBody into JSON object: %s", string(simulationMessageBody))
 
-		msgBodyJson, err := json.Marshal(simOptions)
-		utils.FailOnError(err, "Failed to marshal json")
-
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 		err = ch.PublishWithContext(ctx,
 			"",     // exchange
 			q.Name, // routing key
@@ -66,14 +58,14 @@ func main() {
 			false,
 			amqp.Publishing{
 				ContentType: "application/json",
-				Body:        msgBodyJson,
+				Body:        simulationMessageBody,
 			},
 		)
 		utils.FailOnError(err, "Failed to publish msg to queue")
-		fmt.Printf(" [x] Sent %s\n", msgBodyJson)
+		log.Printf(" [x] Sent %s\n", simulationMessageBody)
 
 		c.JSON(200, interfaces.SimulationResponse{
-			SimulationId: utils.StrPtr("some_id_here"),
+			SimulationId: utils.StrPtr(string(simulationId[:])),
 		})
 	})
 	r.Run("0.0.0.0:8080")

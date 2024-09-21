@@ -41,6 +41,10 @@ services:
       - RABBITMQ_PORT=${RABBITMQ_PORT}
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
     # https://docs.docker.com/reference/compose-file/services/#healthcheck
     healthcheck:
       test: ["CMD", "curl", "localhost:8080/health"]
@@ -80,6 +84,8 @@ services:
       - RABBITMQ_PASS=${RABBITMQ_PASS}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
     depends_on:
       rabbitmq:
         condition: service_healthy

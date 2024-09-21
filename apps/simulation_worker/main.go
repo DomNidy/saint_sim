@@ -11,7 +11,6 @@ import (
 	interfaces "github.com/DomNidy/saint_sim/pkg/interfaces"
 	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func performSim(region, realm, name string) {
@@ -37,32 +36,13 @@ func performSim(region, realm, name string) {
 }
 
 func main() {
-	// Setup rabitmq
-	RABBITMQ_USER := secrets.LoadSecret("RABBITMQ_USER")
-	RABBITMQ_PASS := secrets.LoadSecret("RABBITMQ_PASS")
-	RABBITMQ_PORT := secrets.LoadSecret("RABBITMQ_PORT")
-	RABBITMQ_HOST := secrets.LoadSecret("RABBITMQ_HOST")
-	connectionURI := fmt.Sprintf("amqp://%s:%s@%s:%s", RABBITMQ_USER.Value(), RABBITMQ_PASS.Value(), RABBITMQ_HOST.Value(), RABBITMQ_PORT.Value())
-	// Connect to rabbitmq
-	conn, err := amqp.Dial(connectionURI)
-	utils.FailOnError(err, "Failed to connect to rabbitmq")
+	// Setup rabbit mq connection
+	conn, ch := utils.InitRabbitMQConnection()
 	defer conn.Close()
-
-	// setup channel
-	ch, err := conn.Channel()
-	utils.FailOnError(err, "Failed to open a channel")
 	defer ch.Close()
 
 	// declare queue
-	q, err := ch.QueueDeclare(
-		"simulation_queue", // name
-		false,              // durable
-		false,              // delete when unused
-		false,              // exclusive
-		false,              // no-wait
-		nil,                // arguments
-	)
-	utils.FailOnError(err, "Failed to declare a queue")
+	q := utils.DeclareSimulationQueue(ch)
 
 	// Immediately start receiving queued messages
 	msgs, err := ch.Consume(
@@ -74,7 +54,7 @@ func main() {
 		false, // no-wait
 		nil,   // args
 	)
-	utils.FailOnError(err, "Failed to register a consumer")
+	utils.FailOnError(err, "Failed to register as consumer")
 
 	var forever chan struct{}
 	var receivedCount uint64
@@ -84,19 +64,20 @@ func main() {
 			log.Printf("Received a message: %s\n", d.Body)
 			log.Printf("receivedCount = %d\n", receivedCount)
 
-			var simRequestMsg interfaces.SimulateJSONRequestBody
+			var simRequestMsg interfaces.SimulationMessageBody
 
 			// todo: figure out how to validate the request object
 			err := json.Unmarshal(d.Body, &simRequestMsg)
 			if err != nil {
 				log.Printf("error unmarshalling json: %v", err)
 			}
-			fmt.Println("Received simulation request:")
-			fmt.Printf("	character_name: %s\n", *simRequestMsg.WowCharacter.CharacterName)
-			fmt.Printf("	realm: %s\n", *simRequestMsg.WowCharacter.Realm)
-			fmt.Printf("	region: %s\n", *simRequestMsg.WowCharacter.Region)
+			log.Printf("Received simulation request: %s", string(d.Body))
 
-			performSim(*simRequestMsg.WowCharacter.Region, *simRequestMsg.WowCharacter.Realm, *simRequestMsg.WowCharacter.CharacterName)
+			// fmt.Printf("	character_name: %s\n", *simRequestMsg.WowCharacter.CharacterName)
+			// fmt.Printf("	realm: %s\n", *simRequestMsg.WowCharacter.Realm)
+			// fmt.Printf("	region: %s\n", *simRequestMsg.WowCharacter.Region)
+
+			// performSim(*simRequestMsg.WowCharacter.Region, *simRequestMsg.WowCharacter.Realm, *simRequestMsg.WowCharacter.CharacterName)
 
 			receivedCount += 1
 		}
