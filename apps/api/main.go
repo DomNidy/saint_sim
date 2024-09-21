@@ -73,7 +73,7 @@ func main() {
 		fmt.Printf(" [x] Sent %s\n", msgBodyJson)
 
 		c.JSON(200, interfaces.SimulationResponse{
-			SimulationId: utils.StrPtr(""),
+			SimulationId: utils.StrPtr("some_id_here"),
 		})
 	})
 	r.Run("0.0.0.0:8080")

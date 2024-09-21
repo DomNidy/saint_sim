@@ -181,6 +181,7 @@ var (
 
 			// Send simulation request to api
 			simRes, err := simulateCharacter(s, i, &simOptions)
+			log.Printf("%s %v", err, err)
 			if err != nil {
 				errResponse := createErrorInteractionResponse("Failed to create simulation request")
 				err := s.InteractionRespond(i.Interaction, &errResponse)
@@ -214,32 +215,34 @@ func (s SaintError) Error() string {
 }
 
 func simulateCharacter(s *discordgo.Session, i *discordgo.InteractionCreate, options *interfaces.SimulationOptions) (*interfaces.SimulationResponse, error) {
-	// Convert requestData to JSON
+	url := "http://saint_api:8080/simulate"
 	jsonData, err := json.Marshal(options)
 	if err != nil {
 		fmt.Printf("Error marshaling request data: %v\n", err)
 		return nil, err
 	}
 
-	url := "http://saint_api:8080/simulate"
-
-	// Send the POST request with the JSON body
+	// Send the sim request to API
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		fmt.Printf("Error sending POST request: %v\n", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	// Check the response status code
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("Unexpected response status: %v\n", resp.StatusCode)
-		return nil, SaintError{}
+		return nil, fmt.Errorf("unexpected response status from api: %v", resp.StatusCode)
 	}
 
-	// Todo parse json response
-	var simRespose interfaces.SimulationResponse = interfaces.SimulationResponse{
-		SimulationId: utils.StrPtr("abc"),
+	var simRespose interfaces.SimulationResponse
+
+	// Strict decoder
+	// this will return an error if an unknown field is returned from the response json
+	decoder := json.NewDecoder(resp.Body)
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&simRespose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal json response data: %v", err)
 	}
 
 	return &simRespose, nil
@@ -286,7 +289,7 @@ func init() {
 
 	cmdIDS := make(map[string]string, len(commands))
 	for _, cmd := range commands {
-		rcmd, err := s.ApplicationCommandCreate(constants.ApplicationID.Value(), constants.GuildID, &cmd)
+		rcmd, err := s.ApplicationCommandCreate(constants.ApplicationID.Value(), "", &cmd)
 		if err != nil {
 			log.Fatalf("Failed to register command with name '%q': %v", cmd.Name, err)
 		} else {
