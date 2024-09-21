@@ -35,6 +35,17 @@ const (
 // 	SimulateCharacterRealm SaintMsgComponentInteraction = "simulate_character_realm"
 // )
 
+// Utility function used to create an erroneous discord response message
+// (a message that indicates something went wrong)
+func createErrorInteractionResponse(msg string) discordgo.InteractionResponse {
+	return discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: msg,
+		},
+	}
+}
+
 var (
 
 	// Slash commands
@@ -117,24 +128,15 @@ var (
 
 			// Handle case where this handler receives incorrect interaction type (we need application command interactions only)
 			if _, ok := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData); !ok {
-				errResponse := &discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: "Something went wrong, please try again.",
-					},
-				}
-				err := s.InteractionRespond(i.Interaction, errResponse)
-
+				errResponse := createErrorInteractionResponse("Something went wrong, please try again")
+				err := s.InteractionRespond(i.Interaction, &errResponse)
 				if err != nil {
-					fmt.Printf("error sending error response: %v\n", errResponse.Data)
-					panic(err)
+					log.Panicf("error sending error response: %v\n", errResponse.Data)
 				}
-
 				return
 			}
 
 			fmt.Printf("sim command data: %v\n", i.Interaction.ApplicationCommandData())
-
 			// Unmarshall received options into SimulationOptions struct so we can validate it
 			// seems like we need to explicitly create the WoWCharacter struct inside, as go wont allocate
 			// memory for the struct itsself (because we accept a pointer to a struct), so it just
@@ -142,6 +144,7 @@ var (
 			simOptions := interfaces.SimulationOptions{
 				WowCharacter: &interfaces.WoWCharacter{},
 			}
+
 			for _, option := range i.ApplicationCommandData().Options {
 				fmt.Printf("option %v\n", option)
 				switch option.Name {
@@ -165,31 +168,35 @@ var (
 				}
 			}
 
-			fmt.Printf("extracted: %v\n", simOptions)
-			// todo: handle error and send response to user
-			if data, err := json.Marshal(simOptions); err != nil {
-				fmt.Printf("error marshalling: %v", err)
-			} else {
-				fmt.Printf("marshalled: %s", data)
-			}
-
-			simRes, simErr := simulateCharacter(s, i, "sIshton", "dhydraxis", "usas")
-			// todo: implement err handling
-			if simErr != nil {
-				fmt.Printf("sim err: %v\n", simErr)
+			// TODO: Make this validation less scuffed and more robust
+			if simOptions.WowCharacter == nil || simOptions.WowCharacter.CharacterName == nil || simOptions.WowCharacter.Realm == nil || simOptions.WowCharacter.Region == nil {
+				log.Printf("invalid sim options received: %v", simOptions)
+				errResponse := createErrorInteractionResponse("Invalid arguments, please try again.")
+				err := s.InteractionRespond(i.Interaction, &errResponse)
+				if err != nil {
+					log.Panicf("Error sending error response: %v", err)
+				}
 				return
 			}
 
-			fmt.Printf("Sim interaction data: %v", i.Interaction.Data.Type())
+			// Send simulation request to api
+			simRes, err := simulateCharacter(s, i, &simOptions)
+			if err != nil {
+				errResponse := createErrorInteractionResponse("Failed to create simulation request")
+				err := s.InteractionRespond(i.Interaction, &errResponse)
+				log.Panicf("Failed to create simulation request: %v", err)
+			}
 
+			// Create discord response object
 			response := &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: *simRes.SimulationId,
+					Content: *utils.StrPtr(fmt.Sprintf("Simulation was successfully submitted. (operation_id: %s)", *simRes.SimulationId)),
 				},
 			}
 
-			err := s.InteractionRespond(i.Interaction, response)
+			// Send discord response, indicating status of their simulation request
+			err = s.InteractionRespond(i.Interaction, response)
 			if err != nil {
 				fmt.Println(response.Data)
 				panic(err)
@@ -206,26 +213,14 @@ func (s SaintError) Error() string {
 	return "Something bad happened"
 }
 
-func simulateCharacter(s *discordgo.Session, i *discordgo.InteractionCreate, characterName string, characterRealm string, characterRegion string) (*interfaces.SimulationResponse, error) {
-
-	wowCharacter := interfaces.WoWCharacter{
-		CharacterName: utils.StrPtr(characterName),
-		Realm:         utils.StrPtr(characterRealm),
-		Region:        utils.StrPtr(characterRegion),
-	}
-
-	requestData := interfaces.SimulateJSONRequestBody{
-		WowCharacter: &wowCharacter,
-	}
-
+func simulateCharacter(s *discordgo.Session, i *discordgo.InteractionCreate, options *interfaces.SimulationOptions) (*interfaces.SimulationResponse, error) {
 	// Convert requestData to JSON
-	jsonData, err := json.Marshal(requestData)
+	jsonData, err := json.Marshal(options)
 	if err != nil {
 		fmt.Printf("Error marshaling request data: %v\n", err)
 		return nil, err
 	}
 
-	// Define the API URL
 	url := "http://saint_api:8080/simulate"
 
 	// Send the POST request with the JSON body
@@ -242,6 +237,7 @@ func simulateCharacter(s *discordgo.Session, i *discordgo.InteractionCreate, cha
 		return nil, SaintError{}
 	}
 
+	// Todo parse json response
 	var simRespose interfaces.SimulationResponse = interfaces.SimulationResponse{
 		SimulationId: utils.StrPtr("abc"),
 	}

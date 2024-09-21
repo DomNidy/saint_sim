@@ -26,12 +26,12 @@ func performSim(region, realm, name string) {
 	}
 	fmt.Println(simCommand.Args)
 	if err := simCommand.Run(); err != nil {
-		log.Fatalf("Failed to execute sim binary: %v", err)
+		log.Printf("Failed to execute sim binary: %v", err)
 	}
 
 	data, err := os.ReadFile(outputFilePath)
 	if err != nil {
-		log.Fatalf("Failed to read sim output file: %v", err)
+		log.Printf("Failed to read sim output file: %v", err)
 	}
 	fmt.Printf("Sim data: %v\n", data)
 }

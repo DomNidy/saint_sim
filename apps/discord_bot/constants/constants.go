@@ -8,5 +8,5 @@ var (
 	DiscordToken  = secrets.LoadSecret("DISCORD_TOKEN")
 	ApplicationID = secrets.LoadSecret("APPLICATION_ID")
 	// todo: find a better way of doing this
-	GuildID = "897919702565814323"
+	GuildID = "640276404474347520"
 )
