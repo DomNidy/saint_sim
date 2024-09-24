@@ -8,7 +8,7 @@ _The project structure is subject to change as things are ironed out throughout 
 
 ### A Modular Monolithic Monorepo
 
-The project is structured in such a way that each app in `/app` can be deployed independently as a micro-service, or the entire application can be deployed as a monolith. I made this decision because I want to be able to independently scale the `/apps/simulation_worker`, as this task (WoW character simulations) is fairly computationally intensive, and would benefit from the ability to spin up multiply servers to handle sims (if needed).
+The project is structured in such a way that each app in `/app` can be deployed independently as a micro-service, or the entire application can be deployed as a monolith. I made this decision because I want to be able to independently scale the `/apps/simulation_worker`, as this task (WoW character simulations) is fairly computationally intensive, and would benefit from the ability to spin up multiple servers to perform sims (if needed).
 
 We use [go workspaces](https://go.dev/doc/tutorial/workspaces) to manage the multiple different modules used in this repository.
 
@@ -22,7 +22,7 @@ We use [go workspaces](https://go.dev/doc/tutorial/workspaces) to manage the mul
   - `/pkg/interfaces`: Contains automatically generated, shared interfaces/types
   - `/pkg/utils`: Miscellanious shared utilities
 
-- `/db`: Contains postgres db initialization scripts. These scripts are copied into the postgres container, then executed. (Note: these only are executed if the postgres db container is started with a data directory that is empty.)
+- `/db`: Contains postgres db initialization scripts, which are copied into the postgres container, then executed. _(Note: these only are executed if the postgres container is started with an empty data directory, read the [image docs](https://hub.docker.com/_/postgres) for more details.)_
 
 ## Management UI's
 
