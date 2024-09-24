@@ -10,6 +10,8 @@ _The project structure is subject to change as things are ironed out throughout 
 
 The project is structured in such a way that each app in `/app` can be deployed independently as a micro-service, or the entire application can be deployed as a monolith. I made this decision because I want to be able to independently scale the `/apps/simulation_worker`, as this task (WoW character simulations) is fairly computationally intensive, and would benefit from the ability to spin up multiple servers to perform sims (if needed).
 
+If I just wanted to scale the simulation worker independently, I wouln't need `/apps/api`, but I decided to introduce it over sending the simulation requets from `/apps/discord_bot` directly to the rabbitmq broker, as this would make it easier to allow multiple frontends to call the API. With this approach, if you wanted to create a web frontend that performs sims, you need only hit `/apps/api`.
+
 We use [go workspaces](https://go.dev/doc/tutorial/workspaces) to manage the multiple different modules used in this repository.
 
 - `/apps`: Directory containing the various applications
@@ -19,7 +21,7 @@ We use [go workspaces](https://go.dev/doc/tutorial/workspaces) to manage the mul
 - `/pkg`: Directory containing modules shared and used throughout the applications defined in `/apps`
 
   - `/pkg/secrets`: Utility for reading secrets into memory
-  - `/pkg/interfaces`: Contains automatically generated, shared interfaces/types
+  - `/pkg/interfaces`: Contains automatically generated, shared types
   - `/pkg/utils`: Miscellanious shared utilities
 
 - `/db`: Contains postgres db initialization scripts, which are copied into the postgres container, then executed. _(Note: these only are executed if the postgres container is started with an empty data directory, read the [image docs](https://hub.docker.com/_/postgres) for more details.)_
@@ -38,7 +40,7 @@ Use this to view the queues.
 
 ## Running
 
-We use docker and docker compose to build and deploy the applications. To make the modules inside of `/pkg` available in our dockerfiles, we use the `additional_contexts` argument in our `docker-compose.yml` file.
+Docker and Docker compose are used to build and run the app locally. To make the modules inside of `/pkg` available in our dockerfiles, we use the `additional_contexts` argument in our `docker-compose.yml` file.
 
 The secrets used in `docker-compose.yml` should be stored in a .env file, collocated in the same directory.
 
