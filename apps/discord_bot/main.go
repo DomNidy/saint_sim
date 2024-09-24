@@ -160,13 +160,12 @@ var (
 				}
 			}
 
-			// TODO: Make this validation less scuffed and more robust
-			if simOptions.WowCharacter == nil || simOptions.WowCharacter.CharacterName == nil || simOptions.WowCharacter.Realm == nil || simOptions.WowCharacter.Region == nil {
+			if !utils.IsValidSimOptions(&simOptions) {
 				log.Printf("invalid sim options received: %v", simOptions)
 				errResponse := createErrorInteractionResponse("Invalid arguments, please try again.")
 				err := s.InteractionRespond(i.Interaction, &errResponse)
 				if err != nil {
-					log.Panicf("Error sending error response: %v", err)
+					log.Printf("Error sending error response: %v", err)
 				}
 				return
 			}
@@ -177,7 +176,8 @@ var (
 			if err != nil {
 				errResponse := createErrorInteractionResponse("Failed to create simulation request")
 				err := s.InteractionRespond(i.Interaction, &errResponse)
-				log.Panicf("Failed to create simulation request: %v", err)
+				log.Printf("Failed to create simulation request: %v", err)
+				return
 			}
 
 			// Create discord response object

@@ -1,3 +1,5 @@
+github.com/DomNidy/saint_sim/pkg/interfaces v0.0.0-20240924131456-3eecee8cdc49 h1:a8t+0xjHN+XLdb3TmqgWk8mzIjZJWp8wJxlDThwXJfY=
+github.com/DomNidy/saint_sim/pkg/interfaces v0.0.0-20240924131456-3eecee8cdc49/go.mod h1:gn6PO9+xqWwrny2vtnbq7MZ/OM7QSWQF6EHRH82fR+c=
 github.com/DomNidy/saint_sim/pkg/secrets v0.0.0-20240921172804-c498d4d6ce60 h1:o55xWgcI2hQ83zrXNuo7rJzs2XyA+ney8JpX8QT7gYo=
 github.com/DomNidy/saint_sim/pkg/secrets v0.0.0-20240921172804-c498d4d6ce60/go.mod h1:ygq0a7zB9rEd9gdm5s/1ZR1prxWRcRDQ7V8oB/fhDhY=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

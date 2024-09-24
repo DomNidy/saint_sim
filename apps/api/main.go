@@ -18,6 +18,9 @@ import (
 // TODO: /simulate endpoint impl
 
 func main() {
+	db := utils.InitPostgresConnectionPool(context.Background())
+	defer db.Close()
+
 	conn, ch := utils.InitRabbitMQConnection()
 	defer conn.Close()
 	defer ch.Close()
@@ -35,9 +38,25 @@ func main() {
 	// todo: continue implementation
 	r.POST("/simulate", func(c *gin.Context) {
 		var simOptions interfaces.SimulationOptions
+
+		// bind and validate json from request
 		// todo: this should return an error if the request json body does not match the SimulationOptions type definition
 		if err := c.ShouldBindJSON(&simOptions); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Validate sim options to prevent rce
+		if !utils.IsValidSimOptions(&simOptions) {
+			log.Printf("Sim options were invalid!")
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+			return
+		}
+
+		receivedJson, err := json.Marshal(simOptions)
+		if err != nil {
+			log.Printf("Error converting to json: %v", receivedJson)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
 		}
 
@@ -46,8 +65,21 @@ func main() {
 		simulationMessageBody, err := json.Marshal(interfaces.SimulationMessageBody{
 			SimulationId: &simulationId,
 		})
-		utils.FailOnError(err, "Failed to marshal SimulationMessageBody into JSON")
+		if err != nil {
+			log.Printf("Error converting to json: %v", receivedJson)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		log.Printf("Got simulation request options: %s", string(receivedJson))
 		log.Printf("Marshalled SimulationMessageBody into JSON object: %s", string(simulationMessageBody))
+
+		// Write operation request to db
+		_, err = db.Exec(context.Background(), "INSERT INTO simulation_request (id, options) VALUES ($1, $2)", simulationId, simOptions)
+
+		if err != nil {
+			log.Printf("%v", err)
+		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -63,7 +95,6 @@ func main() {
 		)
 		utils.FailOnError(err, "Failed to publish msg to queue")
 		log.Printf(" [x] Sent %s\n", simulationMessageBody)
-
 		c.JSON(200, interfaces.SimulationResponse{
 			SimulationId: utils.StrPtr(string(simulationId[:])),
 		})

@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 
+	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
-	pgx "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -32,8 +34,8 @@ func FailOnError(err error, msg string) {
 
 // Creates a rabbit mq channel with a single connection
 // A channel multiplexes connections over a single TCP connection
-// This allows us to logically distinguish between different connections,
-// while getting rid of the overhead of having multiple TCP connections
+// This allows us to logically distinguish between different 'connections',
+// while ony needing a single TCP connection
 func InitRabbitMQConnection() (*amqp.Connection, *amqp.Channel) {
 	RABBITMQ_USER := secrets.LoadSecret("RABBITMQ_USER")
 	RABBITMQ_PASS := secrets.LoadSecret("RABBITMQ_PASS")
@@ -65,15 +67,35 @@ func DeclareSimulationQueue(ch *amqp.Channel) *amqp.Queue {
 	return &q
 }
 
-func InitPostgresConnection(ctx *context.Context) *pgx.Conn {
-	DB_USER := secrets.LoadSecret("DB_USER")
-	DB_PASSWORD := secrets.LoadSecret("DB_PASSWORD")
-	DB_HOST := secrets.LoadSecret("DB_HOST")
-	DB_NAME := secrets.LoadSecret("DB_NAME")
-	connectionURI := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", DB_USER, DB_PASSWORD, DB_HOST, "5432", DB_NAME)
-	log.Printf("Trying to connect to db with uri: %s", connectionURI)
+// Create a postgres connection pool
+// This is concurrency safe
+func InitPostgresConnectionPool(ctx context.Context) *pgxpool.Pool {
+	DB_USER := secrets.LoadSecret("DB_USER").Value()
+	DB_PASSWORD := secrets.LoadSecret("DB_PASSWORD").Value()
+	DB_HOST := secrets.LoadSecret("DB_HOST").Value()
+	DB_NAME := secrets.LoadSecret("DB_NAME").Value()
+	DB_PORT := "5432"
+	connectionURI := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME)
+	log.Printf("Connecting to postgres database with name '%s' at %s:%s", DB_NAME, DB_HOST, DB_PORT)
 
-	conn, err := pgx.Connect(*ctx, connectionURI)
+	pool, err := pgxpool.New(ctx, connectionURI)
 	FailOnError(err, "Failed to create postgres connection")
-	return conn
+	return pool
+}
+
+func IsValidSimOptions(options *interfaces.SimulationOptions) bool {
+	if !isValidInput(*options.WowCharacter.CharacterName) || !isValidInput(*options.WowCharacter.Realm) || !isValidInput(*options.WowCharacter.Region) {
+		return false
+	}
+
+	return true
+}
+
+// * Important
+// Utility to validate command line arguments received before they are used to execute the simc command on the sim worker
+// Also use this in other places where the user input is passed, like at the api, discord bot, etc.
+// allows alphanumeric chars, and underscores (underscores are safe to allow, right?)
+func isValidInput(input string) bool {
+	valid := regexp.MustCompilePOSIX(`^[[:alnum:]_-]+$`)
+	return valid.MatchString(input)
 }

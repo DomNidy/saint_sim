@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -13,6 +14,7 @@ import (
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
 )
 
+// TODO: This probably has an RCE vulnerability, so we gonna have to fix that
 func performSim(region, realm, name string) {
 
 	simcBinaryPath := secrets.LoadSecret("SIMC_BINARY_PATH")
@@ -23,7 +25,7 @@ func performSim(region, realm, name string) {
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
-	fmt.Println(simCommand.Args)
+	fmt.Println(simCommand.String())
 	if err := simCommand.Run(); err != nil {
 		log.Printf("Failed to execute sim binary: %v", err)
 	}
@@ -36,6 +38,11 @@ func performSim(region, realm, name string) {
 }
 
 func main() {
+	ctx := context.Background()
+	// Setup postgres connection
+	db := utils.InitPostgresConnectionPool(ctx)
+	defer db.Close()
+
 	// Setup rabbit mq connection
 	conn, ch := utils.InitRabbitMQConnection()
 	defer conn.Close()
@@ -61,24 +68,45 @@ func main() {
 
 	go func() {
 		for d := range msgs {
+			receivedCount += 1
 			log.Printf("Received a message: %s\n", d.Body)
 			log.Printf("receivedCount = %d\n", receivedCount)
 
 			var simRequestMsg interfaces.SimulationMessageBody
 
-			// todo: figure out how to validate the request object
+			// todo: handle this error, and finish this message
 			err := json.Unmarshal(d.Body, &simRequestMsg)
 			if err != nil {
 				log.Printf("error unmarshalling json: %v", err)
+				continue
 			}
 
-			// fmt.Printf("	character_name: %s\n", *simRequestMsg.WowCharacter.CharacterName)
-			// fmt.Printf("	realm: %s\n", *simRequestMsg.WowCharacter.Realm)
-			// fmt.Printf("	region: %s\n", *simRequestMsg.WowCharacter.Region)
+			// Query the sim options json object from simulation_request table
+			var simOptionsJson []byte
+			err = db.QueryRow(context.Background(), "select options from simulation_request where id = $1", simRequestMsg.SimulationId).Scan(&simOptionsJson)
+			if err != nil {
+				log.Printf("err occured during query: %v", err)
+				continue
+			}
 
-			// performSim(*simRequestMsg.WowCharacter.Region, *simRequestMsg.WowCharacter.Realm, *simRequestMsg.WowCharacter.CharacterName)
+			// Validating the returned json from db
+			var simOptions interfaces.SimulationOptions
+			err = json.Unmarshal(simOptionsJson, &simOptions)
+			if err != nil {
+				log.Printf("error unmarshalling json: %v", err)
+				continue
+			}
 
-			receivedCount += 1
+			log.Print("Received simulation request with options:")
+			log.Printf("  %v", string(simOptionsJson))
+
+			if !utils.IsValidSimOptions(&simOptions) {
+				log.Printf("Invalid sim options received, potential RCE attempted: %v", string(simOptionsJson))
+				continue
+			} else {
+				performSim(*simOptions.WowCharacter.Region, *simOptions.WowCharacter.Realm, *simOptions.WowCharacter.CharacterName)
+			}
+
 		}
 	}()
 	<-forever
