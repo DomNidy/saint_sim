@@ -6,6 +6,7 @@ require (
 	github.com/DomNidy/saint_sim/pkg/interfaces v0.0.0-20240909170054-f086fd5cd144
 	github.com/DomNidy/saint_sim/pkg/utils v0.0.0-20240921041450-2e346d580dc8
 	github.com/gin-gonic/gin v1.10.0
+	github.com/google/uuid v1.6.0
 	github.com/rabbitmq/amqp091-go v1.10.0
 )
 
@@ -40,7 +41,6 @@ require (
 
 require (
 	github.com/DomNidy/saint_sim/pkg/secrets v0.0.0-20240909170054-f086fd5cd144 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect

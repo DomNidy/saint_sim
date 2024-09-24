@@ -71,7 +71,6 @@ func main() {
 			if err != nil {
 				log.Printf("error unmarshalling json: %v", err)
 			}
-			log.Printf("Received simulation request: %s", string(d.Body))
 
 			// fmt.Printf("	character_name: %s\n", *simRequestMsg.WowCharacter.CharacterName)
 			// fmt.Printf("	realm: %s\n", *simRequestMsg.WowCharacter.Realm)

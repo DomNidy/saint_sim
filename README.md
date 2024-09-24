@@ -6,6 +6,10 @@ The `saint_sim` project aims to provide World of Warcraft players with helpful i
 
 _The project structure is subject to change as things are ironed out throughout development._
 
+### A Modular Monolithic Monorepo
+
+The project is structured in such a way that each app in `/app` can be deployed independently as a micro-service, or the entire application can be deployed as a monolith. I made this decision because I want to be able to independently scale the `/apps/simulation_worker`, as this task (WoW character simulations) is fairly computationally intensive, and would benefit from the ability to spin up multiply servers to handle sims (if needed).
+
 We use [go workspaces](https://go.dev/doc/tutorial/workspaces) to manage the multiple different modules used in this repository.
 
 - `/apps`: Directory containing the various applications
