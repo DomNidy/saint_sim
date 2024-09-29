@@ -18,7 +18,10 @@ services:
       - saint_network
     depends_on:
       api:
+        condition: service_healthy
+      postgres:
         condition: service_started
+
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - APPLICATION_ID=${APPLICATION_ID}
@@ -26,6 +29,10 @@ services:
       - RABBITMQ_PORT=${RABBITMQ_PORT}
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
 
   api:
     container_name: saint_api

@@ -15,7 +15,7 @@ import (
 )
 
 // TODO: This probably has an RCE vulnerability, so we gonna have to fix that
-func performSim(region, realm, name string) {
+func performSim(region, realm, name string) (*[]byte, error) {
 
 	simcBinaryPath := secrets.LoadSecret("SIMC_BINARY_PATH")
 	outputFilePath := fmt.Sprintf("%v-%v-%v-%d.txt", region, realm, name, time.Now().Unix())
@@ -32,9 +32,10 @@ func performSim(region, realm, name string) {
 
 	data, err := os.ReadFile(outputFilePath)
 	if err != nil {
-		log.Printf("Failed to read sim output file: %v", err)
+		return nil, fmt.Errorf("failed to read sim output file: %v", err)
+
 	}
-	fmt.Printf("Sim data: %v\n", data)
+	return &data, nil
 }
 
 func main() {
@@ -103,10 +104,20 @@ func main() {
 			if !utils.IsValidSimOptions(&simOptions) {
 				log.Printf("Invalid sim options received, potential RCE attempted: %v", string(simOptionsJson))
 				continue
-			} else {
-				performSim(*simOptions.WowCharacter.Region, *simOptions.WowCharacter.Realm, *simOptions.WowCharacter.CharacterName)
 			}
 
+			simulationResult, err := performSim(*simOptions.WowCharacter.Region, *simOptions.WowCharacter.Realm, *simOptions.WowCharacter.CharacterName)
+			if err != nil {
+				log.Printf("error while performing sim: %v", err)
+				continue
+			}
+
+			insert, err := db.Exec(context.Background(), "insert into simulation_data (from_request, sim_result) values ($1, $2)", *simRequestMsg.SimulationId, *simulationResult)
+			if err != nil {
+				log.Printf("error trying to insert sim data to db: %v", err)
+				continue
+			}
+			log.Printf("inserted sim data %v", insert.String())
 		}
 	}()
 	<-forever

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,23 +10,18 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/DomNidy/saint_sim/apps/discord_bot/commands"
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	"github.com/DomNidy/saint_sim/pkg/utils"
 	"github.com/bwmarrin/discordgo"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Commands
-//	 /simulate <character_name> <region> <realm> : This command will then send a message component to the user so they can further customize their simulation options
-
-// Interactions fired off in response to application commands (slash commands)
-type SaintCommandInteraction string
-
-const (
-	SaintSimulate SaintCommandInteraction = "simulate"
-	SaintHelp     SaintCommandInteraction = "help"
-)
+var s *discordgo.Session
+var db *pgxpool.Pool
 
 // Utility function used to create an erroneous discord response message
 // (a message that indicates something went wrong)
@@ -38,85 +34,43 @@ func createErrorInteractionResponse(msg string) discordgo.InteractionResponse {
 	}
 }
 
-var (
+// When we receive a simulation request and forward it to the api, spawn a new thread and periodically
+// check for results for the simulation with this sim id
+type SimulationInteractionContext struct {
+	DiscordMessageId string // the discord message id that the sim was initiated from
+	SimulationId     string // the resulting sim id
+}
 
-	// Slash commands
-	commands = []discordgo.ApplicationCommand{
-		{
-			Name:        string(SaintSimulate),
-			Description: "Simulate your characters DPS.",
-			Type:        discordgo.ChatApplicationCommand,
-			Options: []*discordgo.ApplicationCommandOption{
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Required:    true,
-					Description: "What region do you play on?",
-					Name:        "region",
-					Choices: []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "eu",
-							Value: "eu",
-						},
-						{
-							Name:  "us",
-							Value: "us",
-						},
-						{
-							Name:  "kr",
-							Value: "kr",
-						}, {
-							Name:  "tw",
-							Value: "tw",
-						}, {
-							Name:  "cn",
-							Value: "cn",
-						},
-					},
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Required:    true,
-					Name:        "realm",
-					Description: "What realm is your character on?",
-					Choices: []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "us-thrall",
-							Value: "thrall",
-						},
-						{
-							Name:  "us-hydraxis",
-							Value: "hydraxis",
-						},
-						{
-							Name:  "eu-silvermoon",
-							Value: "silvermoon",
-						}, {
-							Name:  "eu-draenor",
-							Value: "draenor",
-						},
-					},
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Required:    true,
-					Description: "What is your characters name?",
-					Name:        "character_name",
-					MinLength:   utils.IntPtr(2),
-					MaxLength:   12,
-				},
-			},
-		},
-		{
-			Name: string(SaintHelp),
+func periodicCheckSimStatus(ctx context.Context, simInteraction SimulationInteractionContext) {
+	log.Printf("Periodically checking sim %v, for msg id %v", simInteraction.SimulationId, simInteraction.DiscordMessageId)
+	for {
+		select {
+		case <-ctx.Done():
+			log.Printf("Periodic check sim jod %v cancelled", simInteraction.SimulationId)
+			return
+		default:
+			time.Sleep(2 * time.Second)
+			log.Printf("Checking sim status for sim %v", simInteraction.SimulationId)
 
-			Description: "View help",
-		},
+			var simRes string
+			err := db.QueryRow(ctx, "select sim_result from simulation_data where from_request = $1", simInteraction.SimulationId).Scan(&simRes)
+			if err != nil {
+				log.Printf("didnt find sim result yet")
+				continue
+			}
+
+			log.Printf("%v", simRes)
+			return
+
+		}
 	}
+}
 
-	commandHandlers = map[SaintCommandInteraction]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+var (
+	commandHandlers = map[commands.SaintCommandInteraction]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		// https://github.com/bwmarrin/discordgo/tree/master/examples/components
 		// https://github.com/kevcenteno/discordgo/blob/f8c5d6c837ef0cd4db6a4b7d03e301d83f3708c4/examples/components/main.go
-		SaintSimulate: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		commands.SaintSimulate: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 			// Handle case where this handler receives incorrect interaction type (we need application command interactions only)
 			if _, ok := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData); !ok {
@@ -137,26 +91,22 @@ var (
 				WowCharacter: &interfaces.WoWCharacter{},
 			}
 
+			// todo: clean this bad parsing up
 			for _, option := range i.ApplicationCommandData().Options {
-				fmt.Printf("option %v\n", option)
 				switch option.Name {
 				case "character_name":
-					fmt.Println("character_name found")
 					if characterName, ok := option.Value.(string); ok {
 						simOptions.WowCharacter.CharacterName = &characterName
 					}
 				case "realm":
-					fmt.Println("realm found")
 					if realm, ok := option.Value.(string); ok {
 						simOptions.WowCharacter.Realm = &realm
 					}
 				case "region":
-					fmt.Println("region found")
 					if region, ok := option.Value.(string); ok {
 						simOptions.WowCharacter.Region = &region
 					}
-				default:
-					fmt.Println("defaulted")
+
 				}
 			}
 
@@ -171,8 +121,13 @@ var (
 			}
 
 			// Send simulation request to api
-			simRes, err := simulateCharacter(s, i, &simOptions)
-			log.Printf("%s %v", err, err)
+			iJson, err := json.Marshal(i.Interaction)
+			if err != nil {
+				log.Printf("failed to marshal interaction to json: %v", err)
+			}
+			log.Printf("%v", string(iJson))
+
+			simRes, err := sendSimulationRequest(s, i, &simOptions)
 			if err != nil {
 				errResponse := createErrorInteractionResponse("Failed to create simulation request")
 				err := s.InteractionRespond(i.Interaction, &errResponse)
@@ -194,19 +149,17 @@ var (
 				fmt.Println(response.Data)
 				panic(err)
 			}
+
+			// TODO: i.Message.ID is undefined because the user doesnt actually send a normal message, its an interaction
+			// TODO: inspect the json printed in the logs to figure out how to provide status updates (maybe just send our own messages?)
+			// TODO: Maybe use defer?
+			// If all was good, spawn up new thread to periodically check for sim results
+			go periodicCheckSimStatus(context.Background(), SimulationInteractionContext{DiscordMessageId: i.Message.ID, SimulationId: *simRes.SimulationId})
 		},
 	}
 )
 
-var s *discordgo.Session
-
-type SaintError struct{}
-
-func (s SaintError) Error() string {
-	return "Something bad happened"
-}
-
-func simulateCharacter(s *discordgo.Session, i *discordgo.InteractionCreate, options *interfaces.SimulationOptions) (*interfaces.SimulationResponse, error) {
+func sendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate, options *interfaces.SimulationOptions) (*interfaces.SimulationResponse, error) {
 	url := "http://saint_api:8080/simulate"
 	jsonData, err := json.Marshal(options)
 	if err != nil {
@@ -240,8 +193,8 @@ func simulateCharacter(s *discordgo.Session, i *discordgo.InteractionCreate, opt
 	return &simRespose, nil
 }
 
-// Create session object
 func init() {
+	// Setup discord bot
 	fmt.Println("Loaded secrets:")
 	fmt.Printf("%s: %s\n", constants.DiscordToken.Key(), constants.DiscordToken.MaskedValue())
 
@@ -251,9 +204,6 @@ func init() {
 		log.Fatalf("Error occured during discord session creation: %v", err)
 		return
 	}
-}
-
-func init() {
 
 	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
@@ -261,26 +211,22 @@ func init() {
 
 	// Add interaction handlers
 	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-
-		fmt.Printf("%s occured\n", i.ID)
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
 			fmt.Printf("Interaction occurred: %v\n", i.ApplicationCommandData().Name)
-			if h, ok := commandHandlers[SaintCommandInteraction(i.ApplicationCommandData().Name)]; ok {
+			if h, ok := commandHandlers[commands.SaintCommandInteraction(i.ApplicationCommandData().Name)]; ok {
 				h(s, i)
 			}
-
 		default:
 			fmt.Printf("Received interaction of type %v, but we do not have any handlers for this type of interaction", i.Type)
 		}
-
 	})
 
 	// Register application commands
 	log.Printf("Registering commands...")
 
-	cmdIDS := make(map[string]string, len(commands))
-	for _, cmd := range commands {
+	cmdIDS := make(map[string]string, len(commands.Commands))
+	for _, cmd := range commands.Commands {
 		rcmd, err := s.ApplicationCommandCreate(constants.ApplicationID.Value(), "", &cmd)
 		if err != nil {
 			log.Fatalf("Failed to register command with name '%q': %v", cmd.Name, err)
@@ -293,6 +239,10 @@ func init() {
 }
 
 func main() {
+	ctx := context.Background()
+	// Setup postgres connection
+	db := utils.InitPostgresConnectionPool(ctx)
+	defer db.Close()
 
 	// Open websocket connection
 	err := s.Open()
