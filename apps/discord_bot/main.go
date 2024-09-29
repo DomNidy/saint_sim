@@ -14,8 +14,10 @@ import (
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/commands"
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
+	"github.com/DomNidy/saint_sim/apps/discord_bot/utils"
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
-	"github.com/DomNidy/saint_sim/pkg/utils"
+	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -83,34 +85,9 @@ var (
 			}
 
 			fmt.Printf("sim command data: %v\n", i.Interaction.ApplicationCommandData())
-			// Unmarshall received options into SimulationOptions struct so we can validate it
-			// seems like we need to explicitly create the WoWCharacter struct inside, as go wont allocate
-			// memory for the struct itsself (because we accept a pointer to a struct), so it just
-			// allocates memory for the pointer, not the struct.
-			simOptions := interfaces.SimulationOptions{
-				WowCharacter: &interfaces.WoWCharacter{},
-			}
+			simOptions, err := utils.ValidateInteractionSimOptions(i.ApplicationCommandData().Options)
 
-			// todo: clean this bad parsing up
-			for _, option := range i.ApplicationCommandData().Options {
-				switch option.Name {
-				case "character_name":
-					if characterName, ok := option.Value.(string); ok {
-						simOptions.WowCharacter.CharacterName = &characterName
-					}
-				case "realm":
-					if realm, ok := option.Value.(string); ok {
-						simOptions.WowCharacter.Realm = &realm
-					}
-				case "region":
-					if region, ok := option.Value.(string); ok {
-						simOptions.WowCharacter.Region = &region
-					}
-
-				}
-			}
-
-			if !utils.IsValidSimOptions(&simOptions) {
+			if err != nil {
 				log.Printf("invalid sim options received: %v", simOptions)
 				errResponse := createErrorInteractionResponse("Invalid arguments, please try again.")
 				err := s.InteractionRespond(i.Interaction, &errResponse)
@@ -127,7 +104,7 @@ var (
 			}
 			log.Printf("%v", string(iJson))
 
-			simRes, err := sendSimulationRequest(s, i, &simOptions)
+			simRes, err := sendSimulationRequest(s, i, simOptions)
 			if err != nil {
 				errResponse := createErrorInteractionResponse("Failed to create simulation request")
 				err := s.InteractionRespond(i.Interaction, &errResponse)
@@ -139,7 +116,7 @@ var (
 			response := &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: *utils.StrPtr(fmt.Sprintf("Simulation was successfully submitted. (operation_id: %s)", *simRes.SimulationId)),
+					Content: *saintutils.StrPtr(fmt.Sprintf("Simulation was successfully submitted. (operation_id: %s)", *simRes.SimulationId)),
 				},
 			}
 
@@ -241,7 +218,7 @@ func init() {
 func main() {
 	ctx := context.Background()
 	// Setup postgres connection
-	db := utils.InitPostgresConnectionPool(ctx)
+	db := saintutils.InitPostgresConnectionPool(ctx)
 	defer db.Close()
 
 	// Open websocket connection
