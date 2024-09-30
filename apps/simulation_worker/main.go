@@ -113,6 +113,7 @@ func main() {
 			}
 
 			insert, err := db.Exec(context.Background(), "insert into simulation_data (from_request, sim_result) values ($1, $2)", *simRequestMsg.SimulationId, *simulationResult)
+			log.Printf("trying to run: %s", insert.String())
 			if err != nil {
 				log.Printf("error trying to insert sim data to db: %v", err)
 				continue

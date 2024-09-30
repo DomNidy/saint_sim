@@ -1,21 +1,17 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/commands"
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
 	"github.com/DomNidy/saint_sim/apps/discord_bot/utils"
-	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
 
 	"github.com/bwmarrin/discordgo"
@@ -43,35 +39,8 @@ type SimulationInteractionContext struct {
 	SimulationId     string // the resulting sim id
 }
 
-func periodicCheckSimStatus(ctx context.Context, simInteraction SimulationInteractionContext) {
-	log.Printf("Periodically checking sim %v, for msg id %v", simInteraction.SimulationId, simInteraction.DiscordMessageId)
-	for {
-		select {
-		case <-ctx.Done():
-			log.Printf("Periodic check sim jod %v cancelled", simInteraction.SimulationId)
-			return
-		default:
-			time.Sleep(2 * time.Second)
-			log.Printf("Checking sim status for sim %v", simInteraction.SimulationId)
-
-			var simRes string
-			err := db.QueryRow(ctx, "select sim_result from simulation_data where from_request = $1", simInteraction.SimulationId).Scan(&simRes)
-			if err != nil {
-				log.Printf("didnt find sim result yet")
-				continue
-			}
-
-			log.Printf("%v", simRes)
-			return
-
-		}
-	}
-}
-
 var (
 	commandHandlers = map[commands.SaintCommandInteraction]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-		// https://github.com/bwmarrin/discordgo/tree/master/examples/components
-		// https://github.com/kevcenteno/discordgo/blob/f8c5d6c837ef0cd4db6a4b7d03e301d83f3708c4/examples/components/main.go
 		commands.SaintSimulate: func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 			// Handle case where this handler receives incorrect interaction type (we need application command interactions only)
@@ -84,9 +53,7 @@ var (
 				return
 			}
 
-			fmt.Printf("sim command data: %v\n", i.Interaction.ApplicationCommandData())
 			simOptions, err := utils.ValidateInteractionSimOptions(i.ApplicationCommandData().Options)
-
 			if err != nil {
 				log.Printf("invalid sim options received: %v", simOptions)
 				errResponse := createErrorInteractionResponse("Invalid arguments, please try again.")
@@ -104,7 +71,7 @@ var (
 			}
 			log.Printf("%v", string(iJson))
 
-			simRes, err := sendSimulationRequest(s, i, simOptions)
+			simRes, err := utils.SendSimulationRequest(s, i, simOptions)
 			if err != nil {
 				errResponse := createErrorInteractionResponse("Failed to create simulation request")
 				err := s.InteractionRespond(i.Interaction, &errResponse)
@@ -131,43 +98,30 @@ var (
 			// TODO: inspect the json printed in the logs to figure out how to provide status updates (maybe just send our own messages?)
 			// TODO: Maybe use defer?
 			// If all was good, spawn up new thread to periodically check for sim results
-			go periodicCheckSimStatus(context.Background(), SimulationInteractionContext{DiscordMessageId: i.Message.ID, SimulationId: *simRes.SimulationId})
+
+			log.Printf("inter type: %v", i.Member.User.ID)
 		},
 	}
 )
 
-func sendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate, options *interfaces.SimulationOptions) (*interfaces.SimulationResponse, error) {
-	url := "http://saint_api:8080/simulate"
-	jsonData, err := json.Marshal(options)
+// We will listen for new sim result trigger to be executed
+// This is so we can respond to discord users with the sim results
+func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn) error {
+
+	_, err := conn.Exec(ctx, "listen new_simulation_data")
 	if err != nil {
-		fmt.Printf("Error marshaling request data: %v\n", err)
-		return nil, err
+		log.Fatalf("Failed to listen on new_simulation_data channel:")
 	}
 
-	// Send the sim request to API
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Check the response status code
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected response status from api: %v", resp.StatusCode)
+	log.Printf("listening for new sim data...")
+	for {
+		notification, err := conn.Conn().WaitForNotification(ctx)
+		if err != nil {
+			return err
+		}
+		log.Printf("notification received: %v", notification.Payload)
 	}
 
-	var simRespose interfaces.SimulationResponse
-
-	// Strict decoder
-	// this will return an error if an unknown field is returned from the response json
-	decoder := json.NewDecoder(resp.Body)
-	decoder.DisallowUnknownFields()
-	err = decoder.Decode(&simRespose)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal json response data: %v", err)
-	}
-
-	return &simRespose, nil
 }
 
 func init() {
@@ -221,8 +175,16 @@ func main() {
 	db := saintutils.InitPostgresConnectionPool(ctx)
 	defer db.Close()
 
+	// get a connection to listen for sim result trigger
+	conn, err := db.Acquire(ctx)
+	if err != nil {
+		log.Fatalf("Failed to get conn from pool: %v", err)
+	}
+
+	go ListenForSimResults(ctx, conn)
+
 	// Open websocket connection
-	err := s.Open()
+	err = s.Open()
 	if err != nil {
 		log.Fatalf("Cannot open the session: %v", err)
 	}

@@ -96,7 +96,6 @@ func IsValidSimOptions(options *interfaces.SimulationOptions) bool {
 // Also use this in other places where the user input is passed, like at the api, discord bot, etc.
 // allows alphanumeric chars, and underscores (underscores are safe to allow, right?)
 func isValidInput(input string) bool {
-
 	valid := regexp.MustCompilePOSIX(`^[[:alnum:]_-]+$`)
 	return valid.MatchString(input)
 }

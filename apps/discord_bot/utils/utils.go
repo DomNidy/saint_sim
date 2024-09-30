@@ -1,7 +1,10 @@
 package utils
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
@@ -53,4 +56,38 @@ func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.Applicatio
 	}
 
 	return &simOptions, nil
+}
+
+func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate, options *interfaces.SimulationOptions) (*interfaces.SimulationResponse, error) {
+	url := "http://saint_api:8080/simulate"
+	jsonData, err := json.Marshal(options)
+	if err != nil {
+		fmt.Printf("Error marshaling request data: %v\n", err)
+		return nil, err
+	}
+
+	// Send the sim request to API
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Check the response status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected response status from api: %v", resp.StatusCode)
+	}
+
+	var simRespose interfaces.SimulationResponse
+
+	// Strict decoder
+	// this will return an error if an unknown field is returned from the response json
+	decoder := json.NewDecoder(resp.Body)
+	decoder.DisallowUnknownFields()
+	err = decoder.Decode(&simRespose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal json response data: %v", err)
+	}
+
+	return &simRespose, nil
 }
