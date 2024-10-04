@@ -60,6 +60,18 @@ func main() {
 			return
 		}
 
+		// Make sure the wow character actually exists before sending sim msg
+		exists, err := api_utils.CheckWowCharacterExists(simOptions.WowCharacter)
+		if err != nil {
+			log.Printf("Error checking for character existence: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		} else if !exists {
+			log.Printf("WoW character does not exist")
+			c.JSON(http.StatusNotFound, gin.H{"message": "WoW character does not exist"})
+			return
+		}
+
 		// Create SimulationMessageBody
 		simulationId := api_utils.GenerateUUID()
 		simulationMessageBody, err := json.Marshal(interfaces.SimulationMessageBody{

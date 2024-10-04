@@ -104,7 +104,7 @@ func RegisterApplicationCommands(s *discordgo.Session, guildId string) {
 	}
 }
 
-// Adds the necessary handlers for to bot session
+// Adds the necessary handlers to the bot session
 // we add a handler to be notified when session is ready,
 // and a handler to be notified of interactions
 func AddHandlers(s *discordgo.Session) {

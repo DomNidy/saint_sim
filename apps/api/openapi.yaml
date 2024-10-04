@@ -21,6 +21,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/SimulationResponse"
+        "404":
+          description: Simulation request failed to locate the WoWCharacter from the wow armory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     WoWCharacter:
@@ -66,3 +73,11 @@ components:
         simulation_id:
           type: string
           description: Used to identify a simulation request in postgres
+
+    ErrorResponse:
+      type: object
+      description: Error response returned by API when something goes wrong
+      properties:
+        message:
+          type: string
+          description: Message explaining the error

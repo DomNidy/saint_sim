@@ -10,34 +10,13 @@ import (
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/commands"
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
+	resultlistener "github.com/DomNidy/saint_sim/apps/discord_bot/result_listener"
 	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var s *discordgo.Session
-var db *pgxpool.Pool
-
-// We will listen for new sim result trigger to be executed
-// This is so we can respond to discord users with the sim results
-func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn) error {
-
-	_, err := conn.Exec(ctx, "listen new_simulation_data")
-	if err != nil {
-		log.Fatalf("Failed to listen on new_simulation_data channel:")
-	}
-
-	log.Printf("listening for new sim data...")
-	for {
-		notification, err := conn.Conn().WaitForNotification(ctx)
-		if err != nil {
-			return err
-		}
-		log.Printf("notification received: %v", notification.Payload)
-	}
-
-}
 
 func init() {
 	// Setup discord bot
@@ -70,7 +49,7 @@ func main() {
 		log.Fatalf("Failed to get conn from pool: %v", err)
 	}
 
-	go ListenForSimResults(ctx, conn)
+	go resultlistener.ListenForSimResults(ctx, conn, s)
 
 	// Open websocket connection
 	err = s.Open()

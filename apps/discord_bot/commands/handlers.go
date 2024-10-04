@@ -3,8 +3,10 @@ package commands
 import (
 	"fmt"
 
+	resultlistener "github.com/DomNidy/saint_sim/apps/discord_bot/result_listener"
 	utils "github.com/DomNidy/saint_sim/apps/discord_bot/utils"
 	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
+
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -46,10 +48,24 @@ func handleInteraction_SaintSimulate(s *discordgo.Session, i *discordgo.Interact
 	// Send simulation request to api
 	simRes, err := utils.SendSimulationRequest(s, i, simOptions)
 	if err != nil {
-		interResponse := utils.CreateErrorInteractionResponse("Failed to send simulation request to saint API")
+		interResponse := utils.CreateErrorInteractionResponse(fmt.Sprintf("Failed to create simulation request: %v", err.Error()))
 		s.InteractionRespond(i.Interaction, &interResponse)
 		return err
 	}
+
+	// Extract the user id from the interaction
+	var userId string
+	if member := i.Member; member != nil {
+		userId = member.User.ID
+	} else if discordUser := i.User; discordUser != nil {
+		userId = discordUser.ID
+	}
+	// Create sim request id -> discord user id mapping
+	requestOrigin := &resultlistener.SimRequestOrigin{
+		DiscordUserId:    userId,
+		DiscordChannelId: i.ChannelID,
+	}
+	resultlistener.AddOutboundSimRequestMapping(*simRes.SimulationId, requestOrigin)
 
 	// Create discord response object
 	response := &discordgo.InteractionResponse{
@@ -58,7 +74,6 @@ func handleInteraction_SaintSimulate(s *discordgo.Session, i *discordgo.Interact
 			Content: *saintutils.StrPtr(fmt.Sprintf("Simulation was successfully submitted. (operation_id: %s)", *simRes.SimulationId)),
 		},
 	}
-
 	// Send discord response, indicating status of their simulation request
 	err = s.InteractionRespond(i.Interaction, response)
 	if err != nil {

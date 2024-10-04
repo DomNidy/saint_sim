@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
@@ -69,24 +70,36 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 	// Send the sim request to API
 	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, err
+		log.Printf("error sending request to api: %v", err)
+		return nil, fmt.Errorf("internal server error occurred")
 	}
 	defer resp.Body.Close()
 
 	// Check the response status code
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected response status from api: %v", resp.StatusCode)
+		var errResp interface{}
+		decodeErr := json.NewDecoder(resp.Body).Decode(&errResp)
+		// Ensure the returned type correctly matches ErrorResponse type
+		apiErr, ok := errResp.(interfaces.ErrorResponse)
+		if !ok || decodeErr != nil {
+			return nil, fmt.Errorf("could not find WoW character")
+		} else if apiErr.Message == nil {
+			// Ensure apiErr.Message is not nil before dereferencing it
+			return nil, fmt.Errorf("could not find WoW character")
+		}
+
+		return nil, fmt.Errorf(*apiErr.Message)
 	}
 
 	var simRespose interfaces.SimulationResponse
-
 	// Strict decoder
 	// this will return an error if an unknown field is returned from the response json
 	decoder := json.NewDecoder(resp.Body)
 	decoder.DisallowUnknownFields()
 	err = decoder.Decode(&simRespose)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal json response data: %v", err)
+		log.Printf("failed to unmarshal json response data: %v", err)
+		return nil, fmt.Errorf("internal server error occured")
 	}
 
 	return &simRespose, nil
