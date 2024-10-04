@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
 	"github.com/bwmarrin/discordgo"
@@ -59,10 +60,9 @@ func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.Applicatio
 }
 
 func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate, options *interfaces.SimulationOptions) (*interfaces.SimulationResponse, error) {
-	url := "http://saint_api:8080/simulate"
+	url := constants.SaintApiUrl.Value() + "/simulate"
 	jsonData, err := json.Marshal(options)
 	if err != nil {
-		fmt.Printf("Error marshaling request data: %v\n", err)
 		return nil, err
 	}
 
@@ -90,4 +90,15 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 	}
 
 	return &simRespose, nil
+}
+
+// Utility function used to create an erroneous discord response message
+// (a message that indicates something went wrong)
+func CreateErrorInteractionResponse(msg string) discordgo.InteractionResponse {
+	return discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: msg,
+		},
+	}
 }
