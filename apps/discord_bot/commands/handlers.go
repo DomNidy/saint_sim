@@ -65,13 +65,13 @@ func handleInteraction_SaintSimulate(s *discordgo.Session, i *discordgo.Interact
 		DiscordUserId:    userId,
 		DiscordChannelId: i.ChannelID,
 	}
-	resultlistener.AddOutboundSimRequestMapping(*simRes.SimulationId, requestOrigin)
+	resultlistener.AddOutboundSimRequestMapping(*simRes.SimulationRequestId, requestOrigin)
 
 	// Create discord response object
 	response := &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: *saintutils.StrPtr(fmt.Sprintf("Simulation was successfully submitted. (operation_id: %s)", *simRes.SimulationId)),
+			Content: *saintutils.StrPtr(fmt.Sprintf("Simulation was successfully submitted. (operation_id: %s)", *simRes.SimulationRequestId)),
 		},
 	}
 	// Send discord response, indicating status of their simulation request

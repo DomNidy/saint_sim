@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/DomNidy/saint_sim/apps/simulation_worker/data"
 	interfaces "github.com/DomNidy/saint_sim/pkg/interfaces"
 	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
@@ -106,19 +107,19 @@ func main() {
 				continue
 			}
 
-			simulationResult, err := performSim(*simOptions.WowCharacter.Region, *simOptions.WowCharacter.Realm, *simOptions.WowCharacter.CharacterName)
+			simulationResult, err := performSim(simOptions.WowCharacter.Region, simOptions.WowCharacter.Realm, simOptions.WowCharacter.CharacterName)
 			if err != nil {
 				log.Printf("error while performing sim: %v", err)
 				continue
 			}
-
-			insert, err := db.Exec(context.Background(), "insert into simulation_data (from_request, sim_result) values ($1, $2)", *simRequestMsg.SimulationId, *simulationResult)
-			log.Printf("trying to run: %s", insert.String())
+			err = data.InsertSimulationData(db, &interfaces.SimDataInsert{
+				FromRequest: *simRequestMsg.SimulationId,
+				SimResult:   string(*simulationResult),
+			})
 			if err != nil {
 				log.Printf("error trying to insert sim data to db: %v", err)
 				continue
 			}
-			log.Printf("inserted sim data %v", insert.String())
 		}
 	}()
 	<-forever

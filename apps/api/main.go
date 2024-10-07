@@ -5,17 +5,17 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	api_utils "github.com/DomNidy/saint_sim/apps/api/api_utils"
+	"github.com/DomNidy/saint_sim/apps/api/repositories"
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
 	gin "github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
-
-// TODO: /health endpoint openapi definition
-// TODO: /simulate endpoint impl
 
 func main() {
 	db := utils.InitPostgresConnectionPool(context.Background())
@@ -35,12 +35,9 @@ func main() {
 			"status": "healthy",
 		})
 	})
-	// todo: continue implementation
+	// todo: implement auth
 	r.POST("/simulate", func(c *gin.Context) {
 		var simOptions interfaces.SimulationOptions
-
-		// bind and validate json from request
-		// todo: this should return an error if the request json body does not match the SimulationOptions type definition
 		if err := c.ShouldBindJSON(&simOptions); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
@@ -61,7 +58,7 @@ func main() {
 		}
 
 		// Make sure the wow character actually exists before sending sim msg
-		exists, err := api_utils.CheckWowCharacterExists(simOptions.WowCharacter)
+		exists, err := api_utils.CheckWowCharacterExists(&simOptions.WowCharacter)
 		if err != nil {
 			log.Printf("Error checking for character existence: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -73,9 +70,9 @@ func main() {
 		}
 
 		// Create SimulationMessageBody
-		simulationId := api_utils.GenerateUUID()
+		simulationRequestId := api_utils.GenerateUUID()
 		simulationMessageBody, err := json.Marshal(interfaces.SimulationMessageBody{
-			SimulationId: &simulationId,
+			SimulationId: &simulationRequestId,
 		})
 		if err != nil {
 			log.Printf("Error converting to json: %v", receivedJson)
@@ -87,7 +84,7 @@ func main() {
 		log.Printf("Marshalled SimulationMessageBody into JSON object: %s", string(simulationMessageBody))
 
 		// Write operation request to db
-		_, err = db.Exec(context.Background(), "INSERT INTO simulation_request (id, options) VALUES ($1, $2)", simulationId, simOptions)
+		_, err = db.Exec(context.Background(), "INSERT INTO simulation_request (id, options) VALUES ($1, $2)", simulationRequestId, simOptions)
 
 		if err != nil {
 			log.Printf("%v", err)
@@ -108,8 +105,33 @@ func main() {
 		utils.FailOnError(err, "Failed to publish msg to queue")
 		log.Printf(" [x] Sent %s\n", simulationMessageBody)
 		c.JSON(200, interfaces.SimulationResponse{
-			SimulationId: utils.StrPtr(string(simulationId[:])),
+			SimulationRequestId: utils.StrPtr(string(simulationRequestId[:])),
 		})
+	})
+	r.GET("/simulate/:id", func(c *gin.Context) {
+		// get sim id from params & convert to int
+		simulationIdStr, _ := c.Params.Get("id")
+		simulationId, err := strconv.Atoi(simulationIdStr)
+		if err != nil {
+			log.Printf("%v", err.Error())
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Missing or invalid simulation id"})
+			return
+		}
+
+		repo := repositories.NewSimDataRepository(db)
+		data, err := repo.GetSimData(simulationId)
+		if err != nil {
+			log.Printf("error getting sim data:", err)
+			if err == pgx.ErrNoRows {
+				c.JSON(http.StatusNotFound, gin.H{"error": "Could not find simulation data with this id"})
+				return
+			}
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+
+		c.JSON(http.StatusOK, data)
+
 	})
 	r.Run("0.0.0.0:8080")
 }

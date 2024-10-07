@@ -84,7 +84,7 @@ func InitPostgresConnectionPool(ctx context.Context) *pgxpool.Pool {
 }
 
 func IsValidSimOptions(options *interfaces.SimulationOptions) bool {
-	if !isValidInput(*options.WowCharacter.CharacterName) || !isValidInput(*options.WowCharacter.Realm) || !isValidInput(*options.WowCharacter.Region) {
+	if !isValidInput(options.WowCharacter.CharacterName) || !isValidInput(options.WowCharacter.Realm) || !isValidInput(options.WowCharacter.Region) {
 		return false
 	}
 

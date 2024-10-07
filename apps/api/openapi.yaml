@@ -1,47 +1,109 @@
+# https://swagger.io/specification/
 openapi: 3.0.3
 info:
   title: Saint API
   version: 1.0.0
   description: |-
     This API responsible for the saint business logic. The discord bot, and, potentially more services in the future, will call this API.
+
 paths:
   /simulate:
     post:
       operationId: simulate
       requestBody:
+        required: true
         description: "Simulate character dps"
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/SimulationOptions"
+              $ref: "#/components/schemas/simulation_options"
+      security:
+        - SaintBotAuth: []
+        - UserAuth: []
+      # https://swagger.io/docs/specification/v3_0/describing-parameters/
+      parameters:
+        - name: Discord-User-Id
+          in: header
+          required: false
+          schema:
+            type: string
+          description: This header MUST be present for requests originating from the Saint Discord bot. Not required when requested directly from a user.
       responses:
         "200":
           description: Simulation request was received
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SimulationResponse"
+                $ref: "#/components/schemas/simulation_response"
         "404":
           description: Simulation request failed to locate the WoWCharacter from the wow armory
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
+                $ref: "#/components/schemas/error_response"
+  /simulate/{id}:
+    get:
+      parameters:
+        - in: path
+          required: true
+          name: id
+          description: The simulation id we want to get data for. (This is different from the simulation request id)
+          schema:
+            type: integer
+      description: View the results of a simulation operation
+      responses:
+        "200":
+          description: Results of the simulation operation with the provided id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/simulation_data"
 components:
+  securitySchemes:
+    SaintBotAuth:
+      description: |
+        Schema that the Saint Discord bot uses to authenticate with our API
+        Use the `Authorization: Bot <bot_jwt_token>` header to authenticate
+        Note: Certain endpoints may require a Discord-User-Id header to be provided
+        when using this authentication scheme.
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    UserAuth:
+      description: |
+        Schema that any frontend client uses to authenticate with our API
+        Use the `Authorization: Bearer <user_jwt_token>` header to authenticate
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
-    WoWCharacter:
+    wow_character:
       type: object
       description: Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc.
+      required:
+        - region
+        - realm
+        - character_name
       properties:
         region:
           type: string
           description: Identifies the region in which the characters realm is located
           example: us
+          enum:
+            - us
+            - eu
+            - kr
+            - tw
+            - cn
         realm:
           type: string
           description: The realm which the character is located on
-          example: Hydraxis
+          example: hydraxis
+          enum:
+            - thrall
+            - hydraxis
+            - silvermoon
+            - draenor
         character_name:
           type: string
           description: The name of the WoW character
@@ -49,22 +111,41 @@ components:
           minLength: 2
           maxLength: 12
 
-    SimulationOptions:
+    simulation_options:
       type: object
       description: Specifices sim options, and the character of interest to sim, send this to the api
+      required:
+        - wow_character
       properties:
         wow_character:
-          $ref: "#/components/schemas/WoWCharacter"
+          $ref: "#/components/schemas/wow_character"
 
-    SimulationResponse:
+    simulation_response:
       type: object
       description: Object containing information about a simulation operation, returned from api
       properties:
-        simulation_id:
+        simulation_request_id:
           type: string
           description: Used to identify a simulation request in postgres
 
-    SimulationMessageBody:
+    simulation_data:
+      type: object
+      description: The output of a simulation.
+      properties:
+        id:
+          type: integer
+          description: ID of this simulation
+          example: 42
+        from_request:
+          type: string
+          description: The ID of the simulation request that initated this simulation
+          example: "41e9a22f-d2c1-48b2-b234-15db461049d4"
+        sim_result:
+          type: string
+          description: The actual data produced from the simulation operation
+          example: "..."
+
+    simulation_message_body:
       type: object
       description:
         This JSON object is included in a rabbitmq message, then that message gets published to the simulation_queue.
@@ -74,7 +155,7 @@ components:
           type: string
           description: Used to identify a simulation request in postgres
 
-    ErrorResponse:
+    error_response:
       type: object
       description: Error response returned by API when something goes wrong
       properties:
