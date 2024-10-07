@@ -10,9 +10,10 @@ paths:
   /simulate:
     post:
       operationId: simulate
+      description: Request a simulation, powered by SimC.
       requestBody:
         required: true
-        description: "Simulate character dps"
+        description: "Specify simulation options and wow characters here."
         content:
           application/json:
             schema:
@@ -35,14 +36,19 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/simulation_response"
-        "404":
-          description: Simulation request failed to locate the WoWCharacter from the wow armory
+        "400":
+          description: When one or more of the simulation options were invalid. For example, passing an invalid region or realm for the wow character may cause this.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/error_response"
+        "404":
+          $ref: "#/components/responses/not_found_error"
+        "500":
+          $ref: "#/components/responses/internal_error"
   /simulate/{id}:
     get:
+      description: View the results of a simulation operation
       parameters:
         - in: path
           required: true
@@ -50,7 +56,6 @@ paths:
           description: The simulation id we want to get data for. (This is different from the simulation request id)
           schema:
             type: integer
-      description: View the results of a simulation operation
       responses:
         "200":
           description: Results of the simulation operation with the provided id
@@ -58,7 +63,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/simulation_data"
+        "404":
+          $ref: "#/components/responses/not_found_error"
+        "500":
+          $ref: "#/components/responses/internal_error"
+
 components:
+  responses:
+    not_found_error:
+      description: Returned when the api could not locate a requested resource.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/error_response"
+    internal_error:
+      description: Returned whenever an internal server error occurs. This usually means the cause for the error was out of the control of the caller.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/error_response"
   securitySchemes:
     SaintBotAuth:
       description: |
@@ -79,7 +102,7 @@ components:
   schemas:
     wow_character:
       type: object
-      description: Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc.
+      description: Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
       required:
         - region
         - realm

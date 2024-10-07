@@ -57,6 +57,17 @@ func main() {
 			return
 		}
 
+		// Make sure the provided realm & regions exist
+		if !utils.IsValidWowRealm(string(simOptions.WowCharacter.Realm)) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wow realm"})
+			return
+		}
+
+		if !utils.IsValidWowRegion(string(simOptions.WowCharacter.Region)) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wow region"})
+			return
+		}
+
 		// Make sure the wow character actually exists before sending sim msg
 		exists, err := api_utils.CheckWowCharacterExists(&simOptions.WowCharacter)
 		if err != nil {

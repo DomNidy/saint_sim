@@ -84,7 +84,9 @@ func InitPostgresConnectionPool(ctx context.Context) *pgxpool.Pool {
 }
 
 func IsValidSimOptions(options *interfaces.SimulationOptions) bool {
-	if !isValidInput(options.WowCharacter.CharacterName) || !isValidInput(options.WowCharacter.Realm) || !isValidInput(options.WowCharacter.Region) {
+	if !isValidInput(options.WowCharacter.CharacterName) ||
+		!isValidInput(string(options.WowCharacter.Realm)) ||
+		!isValidInput(string(options.WowCharacter.Region)) {
 		return false
 	}
 
@@ -98,4 +100,29 @@ func IsValidSimOptions(options *interfaces.SimulationOptions) bool {
 func isValidInput(input string) bool {
 	valid := regexp.MustCompilePOSIX(`^[[:alnum:]_-]+$`)
 	return valid.MatchString(input)
+}
+
+func IsValidWowRegion(region string) bool {
+	_, exists := validWowRegions[interfaces.WowCharacterRegion(region)]
+	return exists
+}
+
+func IsValidWowRealm(realm string) bool {
+	_, exists := validWowRealms[interfaces.WowCharacterRealm(realm)]
+	return exists
+}
+
+var validWowRealms = map[interfaces.WowCharacterRealm]struct{}{
+	interfaces.Draenor:    {},
+	interfaces.Hydraxis:   {},
+	interfaces.Silvermoon: {},
+	interfaces.Thrall:     {},
+}
+
+var validWowRegions = map[interfaces.WowCharacterRegion]struct{}{
+	interfaces.Us: {},
+	interfaces.Eu: {},
+	interfaces.Tw: {},
+	interfaces.Cn: {},
+	interfaces.Kr: {},
 }

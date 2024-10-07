@@ -31,13 +31,13 @@ func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.Applicatio
 			}
 		case "realm":
 			if realm, ok := option.Value.(string); ok {
-				simOptions.WowCharacter.Realm = realm
+				simOptions.WowCharacter.Realm = interfaces.WowCharacterRealm(realm)
 			} else {
 				return nil, fmt.Errorf("realm must be a string")
 			}
 		case "region":
 			if region, ok := option.Value.(string); ok {
-				simOptions.WowCharacter.Region = region
+				simOptions.WowCharacter.Region = interfaces.WowCharacterRegion(region)
 			} else {
 				return nil, fmt.Errorf("region must be a string")
 			}
@@ -54,6 +54,13 @@ func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.Applicatio
 	if simOptions.WowCharacter.Region == "" {
 		return nil, fmt.Errorf("region is missing or empty")
 	}
+
+	if !saintutils.IsValidWowRealm(string(simOptions.WowCharacter.Realm)) {
+		return nil, fmt.Errorf("invalid wow realm")
+	}
+	if !saintutils.IsValidWowRegion(string(simOptions.WowCharacter.Region)) {
+		return nil, fmt.Errorf("invalid wow reigon")
+	} 
 
 	if !saintutils.IsValidSimOptions(&simOptions) {
 		return nil, fmt.Errorf("invalid sim options according to saintutils")
@@ -142,3 +149,4 @@ func ParseSimcReport(data, mentionUser string) string {
 	}
 	return final
 }
+

@@ -8,10 +8,39 @@ const (
 	UserAuthScopes     = "UserAuth.Scopes"
 )
 
+// Defines values for WowCharacterRealm.
+const (
+	Draenor    WowCharacterRealm = "draenor"
+	Hydraxis   WowCharacterRealm = "hydraxis"
+	Silvermoon WowCharacterRealm = "silvermoon"
+	Thrall     WowCharacterRealm = "thrall"
+)
+
+// Defines values for WowCharacterRegion.
+const (
+	Cn WowCharacterRegion = "cn"
+	Eu WowCharacterRegion = "eu"
+	Kr WowCharacterRegion = "kr"
+	Tw WowCharacterRegion = "tw"
+	Us WowCharacterRegion = "us"
+)
+
 // ErrorResponse Error response returned by API when something goes wrong
 type ErrorResponse struct {
 	// Message Message explaining the error
 	Message *string `json:"message,omitempty"`
+}
+
+// SimulationData The output of a simulation.
+type SimulationData struct {
+	// FromRequest The ID of the simulation request that initated this simulation
+	FromRequest *string `json:"from_request,omitempty"`
+
+	// Id ID of this simulation
+	Id *int `json:"id,omitempty"`
+
+	// SimResult The actual data produced from the simulation operation
+	SimResult *string `json:"sim_result,omitempty"`
 }
 
 // SimulationMessageBody This JSON object is included in a rabbitmq message, then that message gets published to the simulation_queue. Consumers of the simulation queue (simulation_worker) will use this JSON object to carry out the simulation.
@@ -22,7 +51,7 @@ type SimulationMessageBody struct {
 
 // SimulationOptions Specifices sim options, and the character of interest to sim, send this to the api
 type SimulationOptions struct {
-	// WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc.
+	// WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
 	WowCharacter WowCharacter `json:"wow_character"`
 }
 
@@ -32,21 +61,33 @@ type SimulationResponse struct {
 	SimulationRequestId *string `json:"simulation_request_id,omitempty"`
 }
 
-// WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc.
+// WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
 type WowCharacter struct {
 	// CharacterName The name of the WoW character
 	CharacterName string `json:"character_name"`
 
 	// Realm The realm which the character is located on
-	Realm string `json:"realm"`
+	Realm WowCharacterRealm `json:"realm"`
 
 	// Region Identifies the region in which the characters realm is located
-	Region string `json:"region"`
+	Region WowCharacterRegion `json:"region"`
 }
+
+// WowCharacterRealm The realm which the character is located on
+type WowCharacterRealm string
+
+// WowCharacterRegion Identifies the region in which the characters realm is located
+type WowCharacterRegion string
+
+// InternalError Error response returned by API when something goes wrong
+type InternalError = ErrorResponse
+
+// NotFoundError Error response returned by API when something goes wrong
+type NotFoundError = ErrorResponse
 
 // SimulateParams defines parameters for Simulate.
 type SimulateParams struct {
-	// DiscordUserId This header MUST be present for requests originating from the Saint Discord bot. This allows us to apply authentication & rate-limiting to Discord users based on their Discord user id. Not required when requested directly from user.
+	// DiscordUserId This header MUST be present for requests originating from the Saint Discord bot. Not required when requested directly from a user.
 	DiscordUserId *string `json:"Discord-User-Id,omitempty"`
 }
 

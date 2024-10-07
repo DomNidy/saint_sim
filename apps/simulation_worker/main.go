@@ -107,7 +107,7 @@ func main() {
 				continue
 			}
 
-			simulationResult, err := performSim(simOptions.WowCharacter.Region, simOptions.WowCharacter.Realm, simOptions.WowCharacter.CharacterName)
+			simulationResult, err := performSim(string(simOptions.WowCharacter.Region), string(simOptions.WowCharacter.Realm), simOptions.WowCharacter.CharacterName)
 			if err != nil {
 				log.Printf("error while performing sim: %v", err)
 				continue

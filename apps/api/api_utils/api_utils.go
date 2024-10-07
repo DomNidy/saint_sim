@@ -16,9 +16,8 @@ func GenerateUUID() string {
 
 // Check to see if a WoWCharacter actually exists on wow armory
 func CheckWowCharacterExists(character *interfaces.WowCharacter) (bool, error) {
-	url := fmt.Sprintf("https://worldofwarcraft.blizzard.com/en-us/character/%v/%v/%v", character.Region, character.Realm, character.CharacterName)
+	url := fmt.Sprintf("https://worldofwarcraft.blizzard.com/en-us/character/%s/%s/%s", character.Region, character.Realm, character.CharacterName)
 	log.Printf("Checking if char exists at url: %v", url)
-
 	res, err := http.Get(url)
 	if err != nil {
 		return false, err
