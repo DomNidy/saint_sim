@@ -12,7 +12,7 @@ The project is structured in such a way that each app in `/apps` can be deployed
 
 If I just wanted to scale the simulation worker independently, I wouldn't need `/apps/api`, but I decided to introduce this API instead of sending the simulation requets from `/apps/discord_bot` directly to the rabbitmq broker as this would allow multiple frontends to call the API. With this approach, if you wanted to create a web frontend that performs sims, you need only hit `/apps/api`.
 
-We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to include packages from different go modules in this repository.
+We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to share packages from different go modules in this repository.
 
 - `/apps`: Directory containing the various applications
   - `/apps/discord_bot`: The Discord bot application _(forwards requests to `api`)_
@@ -24,17 +24,17 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to in
   - `/pkg/interfaces`: Contains automatically generated, shared types
   - `/pkg/utils`: Miscellanious shared utilities
 
-- `/db`: Contains postgres db initialization scripts, which are copied into the postgres container, then executed. _(Note: these only are executed if the postgres container is started with an empty data directory, read the [image docs](https://hub.docker.com/_/postgres) for more details.)_.
+- `/db`: Contains postgres db initialization scripts, which are copied into the postgres container, then executed. _(Note: these only are executed if the postgres container is started with an empty data directory, read the [image docs](https://hub.docker.com/_/postgres) for more details)_
 
 ## Environment variables & configuration
 
 The services defined in `docker-compose.yml` depend on environment variables at runtime. You can create a `.env` file in the root directory, and define your secrets in there.
 
-To view an example `.env` file configuration, you can read the `.env.example` file. Generally, if there is a networking related error, the issue will lie with the configuration of these environment variables, or the `docker-compose.yml` configuration.
+To view an example `.env` file configuration, you can read the `.env.example` file. Generally, if there is a networking or authentication related error, the issue will lie with the configuration of these environment variables, and or the `docker-compose.yml` configuration _(as `docker-compose.yml` reads the environment variables)_
 
-### `discord_bot` api key
+### Authenticating the `discord_bot` with the `api`
 
-In order for the `discord_bot` to authenticate with the `api`, you will need to generate an API key, hash it with sha256, and then insert this key into the database. You can use the `generate_api_key.sh` script when running locally in order to automatically do this, but you **still need to pass this key as an environment variable to** `discord_bot`. _Note: The database needs to be running in order for it to actually be inserted_
+In order for the `discord_bot` to authenticate with the saint api, the `discord_bot` uses an api key. To deploy the `discord_bot`, you will need to generate an API key, hash it with sha256, and then insert this key into the database. You can use the `generate_api_key.sh` script when running locally in order to do this automatically, but you **still need to pass this key as an environment variable to** `discord_bot`. _(Note: The database needs to be running in order for the API key to actually be inserted)_
 
 ## Management UI's
 
@@ -50,11 +50,11 @@ Use this to view the queues.
 
 ## Running
 
-Docker and Docker compose are used to build and run the app locally. To make the modules inside of `/pkg` available in our dockerfiles, we use the `additional_contexts` argument in our `docker-compose.yml` file.
+Docker and Docker compose are used to build and run the app locally _(and to deploy as a monolith)_. To make the modules inside of `/pkg` available in our dockerfiles, we use the `additional_contexts` argument in our `docker-compose.yml` file.
 
 The secrets used in `docker-compose.yml` should be stored in a .env file, collocated in the same directory.
 
-**Important**: If you are running the `discord_bot`, ensure you have generated an API key, and inserted this key into the database. This can be done automatically with the `generate_api_key.sh` script.
+**Important**: If you are running the `discord_bot`, ensure you have generated an API key, inserted this key into the database, and updated the `.env` file with this key. This can be done automatically with the `generate_api_key.sh` script _(the script will not automatically update the `.env` file, you still need to do this manually)_
 
 ### To start/stop the all services (containers) locally
 
