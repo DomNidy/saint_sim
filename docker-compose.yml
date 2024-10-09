@@ -34,6 +34,7 @@ services:
       - DB_HOST=${DB_HOST}
       - DB_NAME=${DB_NAME}
       - SAINT_API_URL=${SAINT_API_URL}
+      - SAINT_API_KEY=${SAINT_API_KEY}
 
   api:
     container_name: saint_api

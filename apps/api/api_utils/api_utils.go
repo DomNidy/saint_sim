@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/http"
 
+	"crypto/sha256"
+
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	uuid "github.com/google/uuid"
 )
@@ -12,6 +14,11 @@ import (
 // Use to generate UUID for simulation operations & results
 func GenerateUUID() string {
 	return uuid.New().String()
+}
+
+func HashApiKey(apiKey string) string {
+	bytes := sha256.Sum256([]byte(apiKey))
+	return fmt.Sprintf("%x", bytes)
 }
 
 // Check to see if a WoWCharacter actually exists on wow armory

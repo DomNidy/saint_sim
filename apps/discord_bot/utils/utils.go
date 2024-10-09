@@ -60,7 +60,7 @@ func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.Applicatio
 	}
 	if !saintutils.IsValidWowRegion(string(simOptions.WowCharacter.Region)) {
 		return nil, fmt.Errorf("invalid wow reigon")
-	} 
+	}
 
 	if !saintutils.IsValidSimOptions(&simOptions) {
 		return nil, fmt.Errorf("invalid sim options according to saintutils")
@@ -77,13 +77,30 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 	}
 
 	// Send the sim request to API
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	apiReq, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, fmt.Errorf("error creating request %v", err)
+	}
+	apiReq.Header.Set("Api-Key", constants.SaintApiKey.Value())
+
+	// TODO: Probably should stop creating this on each call of this function (http.Client caches tcp connections in internal state)
+	// TODO: we can just re-use the client, and it's concurrency safe for multiple goroutines
+	client := &http.Client{}
+	resp, err := client.Do(apiReq)
 	if err != nil {
 		log.Printf("error sending request to api: %v", err)
 		return nil, fmt.Errorf("internal server error occurred")
 	}
 	defer resp.Body.Close()
 
+	// this only occurs when the discord bot fails to authenticate with it's api key
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, fmt.Errorf("internal server error occured, please try again later")
+	}
+
+	// TODO: Currently, a lot of our api responses dont actually correctly use the ErrorResponse interface,
+	// TODO: so this interface assertions is never correct.
+	// TODO: we should update the api responses to use that interface.
 	// Check the response status code
 	if resp.StatusCode != http.StatusOK {
 		var errResp interface{}
@@ -149,4 +166,3 @@ func ParseSimcReport(data, mentionUser string) string {
 	}
 	return final
 }
-

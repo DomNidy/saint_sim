@@ -8,6 +8,7 @@ var (
 	DiscordToken  = secrets.LoadSecret("DISCORD_TOKEN")
 	ApplicationID = secrets.LoadSecret("APPLICATION_ID")
 	SaintApiUrl   = secrets.LoadSecret("SAINT_API_URL")
+	SaintApiKey   = secrets.LoadSecret("SAINT_API_KEY")
 	// todo: find a better way of doing this
 	GuildID = "640276404474347520"
 )

@@ -8,13 +8,15 @@ import (
 	"strconv"
 	"time"
 
+	amqp "github.com/rabbitmq/amqp091-go"
+
 	api_utils "github.com/DomNidy/saint_sim/apps/api/api_utils"
+	"github.com/DomNidy/saint_sim/apps/api/handlers"
 	"github.com/DomNidy/saint_sim/apps/api/repositories"
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
 	gin "github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func main() {
@@ -35,11 +37,14 @@ func main() {
 			"status": "healthy",
 		})
 	})
-	// todo: implement auth
-	r.POST("/simulate", func(c *gin.Context) {
+
+	// Authorization group: https://gin-gonic.com/zh-tw/docs/examples/using-middleware/
+	authorized := r.Group("/", handlers.AuthRequire(db))
+
+	authorized.POST("/simulate", func(c *gin.Context) {
 		var simOptions interfaces.SimulationOptions
 		if err := c.ShouldBindJSON(&simOptions); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid simulation options"})
 			return
 		}
 
@@ -132,7 +137,7 @@ func main() {
 		repo := repositories.NewSimDataRepository(db)
 		data, err := repo.GetSimData(simulationId)
 		if err != nil {
-			log.Printf("error getting sim data:", err)
+			log.Printf("error getting sim data: %v", err.Error())
 			if err == pgx.ErrNoRows {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Could not find simulation data with this id"})
 				return
