@@ -8,9 +8,9 @@ _The project structure is subject to change as things are ironed out throughout 
 
 ### A Modular Monolithic Monorepo
 
-The project is structured in such a way that each app in `/app` can be deployed independently as a micro-service, or the entire application can be deployed as a monolith. I made this decision because I want to be able to independently scale the `/apps/simulation_worker`, as this task (WoW character simulations) is fairly computationally intensive, and would benefit from the ability to spin up multiple servers to perform sims (if needed).
+The project is structured in such a way that each app in `/apps` can be deployed independently as a micro-service, or the entire application can be deployed as a monolith. I made this decision because I want to be able to independently scale the `/apps/simulation_worker`, as this task (WoW character simulations) is fairly computationally intensive, and would benefit from the ability to spin up multiple servers to perform sims (if needed).
 
-If I just wanted to scale the simulation worker independently, I wouln't need `/apps/api`, but I decided to introduce this API instead of sending the simulation requets from `/apps/discord_bot` directly to the rabbitmq broker, as this would make it easier to allow multiple frontends to call the API. With this approach, if you wanted to create a web frontend that performs sims, you need only hit `/apps/api`.
+If I just wanted to scale the simulation worker independently, I wouldn't need `/apps/api`, but I decided to introduce this API instead of sending the simulation requets from `/apps/discord_bot` directly to the rabbitmq broker as this would allow multiple frontends to call the API. With this approach, if you wanted to create a web frontend that performs sims, you need only hit `/apps/api`.
 
 We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to include packages from different go modules in this repository.
 
@@ -24,7 +24,7 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to in
   - `/pkg/interfaces`: Contains automatically generated, shared types
   - `/pkg/utils`: Miscellanious shared utilities
 
-- `/db`: Contains postgres db initialization scripts, which are copied into the postgres container, then executed. _(Note: these only are executed if the postgres container is started with an empty data directory, read the [image docs](https://hub.docker.com/_/postgres) for more details.)\_
+- `/db`: Contains postgres db initialization scripts, which are copied into the postgres container, then executed. _(Note: these only are executed if the postgres container is started with an empty data directory, read the [image docs](https://hub.docker.com/_/postgres) for more details.)_.
 
 ## Environment variables & configuration
 
