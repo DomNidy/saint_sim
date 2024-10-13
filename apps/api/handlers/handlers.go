@@ -12,7 +12,6 @@ import (
 // Middleware: Authenticates requests
 func AuthRequire(db *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Printf("Auth Middleware")
 		apiKey := c.GetHeader("Api-Key")
 		if apiKey == "" {
 			log.Printf("No API key provided in request")
@@ -26,7 +25,8 @@ func AuthRequire(db *pgxpool.Pool) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 			return
 		}
-		log.Printf("service name for key: %s", serviceName)
+
+		// Ensure the api key is authorized for this service
 		if serviceName != "api" {
 			log.Printf("api key '%s' was issued for a service other than 'api': '%s'", apiKey, serviceName)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
