@@ -1,13 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
-	"time"
 
 	"github.com/DomNidy/saint_sim/apps/simulation_worker/data"
 	interfaces "github.com/DomNidy/saint_sim/pkg/interfaces"
@@ -19,24 +19,28 @@ import (
 func performSim(region, realm, name string) (*[]byte, error) {
 
 	simcBinaryPath := secrets.LoadSecret("SIMC_BINARY_PATH")
-	outputFilePath := fmt.Sprintf("%v-%v-%v-%d.txt", region, realm, name, time.Now().Unix())
+
+	// Command to invoke simc and perform the sim
 	simCommand := exec.Cmd{
-		Path:   simcBinaryPath.Value(),
-		Args:   []string{simcBinaryPath.Value(), fmt.Sprintf("armory=%v,%v,%v", region, realm, name), fmt.Sprintf("output=%v", outputFilePath)},
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
+		Path: simcBinaryPath.Value(),
+		Args: []string{simcBinaryPath.Value(), fmt.Sprintf("armory=%v,%v,%v", region, realm, name)},
 	}
-	fmt.Println(simCommand.String())
+
+	// Capture output of sim command and write it to this buffer
+	var outputBuffer bytes.Buffer
+	simCommand.Stdout = &outputBuffer
+	simCommand.Stderr = os.Stderr
+
+	// Run the sim command
 	if err := simCommand.Run(); err != nil {
 		log.Printf("Failed to execute sim binary: %v", err)
+		return nil, err
 	}
 
-	data, err := os.ReadFile(outputFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read sim output file: %v", err)
+	// Get the output as a byte slice
+	simResult := outputBuffer.Bytes()
 
-	}
-	return &data, nil
+	return &simResult, nil
 }
 
 func main() {

@@ -53,7 +53,7 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		// Find the user who requested this sim
 		requestOrigin, exists := OutboundSimRequests[simRes.simReqId]
 		if !exists {
-			log.Printf("Received notification of sim data but no mapping to the request origin exists.")
+			log.Printf("Received notification of sim data, but no mapping to the request origin exists.")
 			continue
 		}
 

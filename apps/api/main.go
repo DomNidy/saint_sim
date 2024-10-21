@@ -99,7 +99,9 @@ func main() {
 		log.Printf("Got simulation request options: %s", string(receivedJson))
 		log.Printf("Marshalled SimulationMessageBody into JSON object: %s", string(simulationMessageBody))
 
-		// Write operation request to db
+		// Create the simulation_request entry in the DB
+		// TODO: We can add request origin information here so we can later determine if we should trigger the discord notification postgres channel
+		// TODO: We will need to update the 'notify_simulation_data' trigger in the db to check for this info.
 		_, err = db.Exec(context.Background(), "INSERT INTO simulation_request (id, options) VALUES ($1, $2)", simulationRequestId, simOptions)
 
 		if err != nil {
