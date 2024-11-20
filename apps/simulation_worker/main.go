@@ -15,16 +15,11 @@ import (
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
 )
 
-// TODO: This probably has an RCE vulnerability, so we gonna have to fix that
 func performSim(region, realm, name string) (*[]byte, error) {
-
 	simcBinaryPath := secrets.LoadSecret("SIMC_BINARY_PATH")
 
 	// Command to invoke simc and perform the sim
-	simCommand := exec.Cmd{
-		Path: simcBinaryPath.Value(),
-		Args: []string{simcBinaryPath.Value(), fmt.Sprintf("armory=%v,%v,%v", region, realm, name)},
-	}
+	simCommand := exec.Command(simcBinaryPath.Value(), fmt.Sprintf("armory=%v,%v,%v", region, realm, name))
 
 	// Capture output of sim command and write it to this buffer
 	var outputBuffer bytes.Buffer
