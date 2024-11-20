@@ -23,9 +23,9 @@ func (repo *SimDataRepositoryImpl) GetSimData(id int) (*interfaces.SimDataGet, e
 	simData := &interfaces.SimDataGet{}
 
 	err := repo.db.QueryRow(context.Background(),
-		"SELECT id, from_request, sim_result FROM simulation_data WHERE id=$1", id).Scan(
+		"SELECT id, request_id, sim_result FROM simulation_data WHERE id=$1", id).Scan(
 		&simData.ID,
-		&simData.FromRequest,
+		&simData.RequestID,
 		&simData.SimResult,
 	)
 

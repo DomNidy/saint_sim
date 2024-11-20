@@ -112,8 +112,8 @@ func main() {
 				continue
 			}
 			err = data.InsertSimulationData(db, &interfaces.SimDataInsert{
-				FromRequest: *simRequestMsg.SimulationId,
-				SimResult:   string(*simulationResult),
+				RequestID: *simRequestMsg.SimulationId,
+				SimResult: string(*simulationResult),
 			})
 			if err != nil {
 				log.Printf("error trying to insert sim data to db: %v", err)

@@ -55,9 +55,10 @@ func main() {
 			return
 		}
 
+		// Marshal back
 		receivedJson, err := json.Marshal(simOptions)
 		if err != nil {
-			log.Printf("Error converting to json: %v", receivedJson)
+			log.Printf("Error converting to json: %v, %v", receivedJson, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
 		}
@@ -91,7 +92,7 @@ func main() {
 			SimulationId: &simulationRequestId,
 		})
 		if err != nil {
-			log.Printf("Error converting to json: %v", receivedJson)
+			log.Printf("Error converting to json: %v, %v", receivedJson, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
 		}
@@ -126,7 +127,7 @@ func main() {
 			SimulationRequestId: utils.StrPtr(string(simulationRequestId[:])),
 		})
 	})
-	r.GET("/simulate/:id", func(c *gin.Context) {
+	r.GET("/report/:id", func(c *gin.Context) {
 		// get sim id from params & convert to int
 		simulationIdStr, _ := c.Params.Get("id")
 		simulationId, err := strconv.Atoi(simulationIdStr)

@@ -8,7 +8,7 @@ import (
 )
 
 func InsertSimulationData(db *pgxpool.Pool, data *interfaces.SimDataInsert) error {
-	_, err := db.Exec(context.Background(), "INSERT INTO simulation_data (from_request, sim_result) VALUES ($1, $2)", data.FromRequest, data.SimResult)
+	_, err := db.Exec(context.Background(), "INSERT INTO simulation_data (request_id, sim_result) VALUES ($1, $2)", data.RequestID, data.SimResult)
 	if err != nil {
 		return err
 	}

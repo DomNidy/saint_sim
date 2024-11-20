@@ -44,7 +44,7 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 			data      string
 		}{}
 		// Query for simulation_data and scan it into the struct
-		err = conn.QueryRow(ctx, "select id, from_request, sim_result from simulation_data where from_request = $1", notification.Payload).Scan(&simRes.simDataId, &simRes.simReqId, &simRes.data)
+		err = conn.QueryRow(ctx, "select id, request_id, sim_result from simulation_data where request_id = $1", notification.Payload).Scan(&simRes.simDataId, &simRes.simReqId, &simRes.data)
 		if err != nil {
 			log.Printf("Error while scanning to simRes: %v", err)
 			continue

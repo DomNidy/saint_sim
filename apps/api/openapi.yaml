@@ -46,7 +46,7 @@ paths:
           $ref: "#/components/responses/not_found_error"
         "500":
           $ref: "#/components/responses/internal_error"
-  /simulate/{id}:
+  /report/{id}:
     get:
       description: View the results of a simulation operation
       parameters:
@@ -159,7 +159,7 @@ components:
           type: integer
           description: ID of this simulation
           example: 42
-        from_request:
+        request_id:
           type: string
           description: The ID of the simulation request that initated this simulation
           example: "41e9a22f-d2c1-48b2-b234-15db461049d4"

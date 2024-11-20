@@ -28,7 +28,7 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
   - `/apps/discord_bot`: The Discord bot application _(forwards requests to `api`)_
   - `/apps/api`: The API server application
   - `/apps/simulation_worker`: Application which handles simulation requests from users by invoking `simc`, then persists the results to the database
-- `/pkg`: Directory containing modules and packages shared throughout `/apps`
+- `/pkg`: Directory containing packages shared and used throughout `/apps`
 
   - `/pkg/secrets`: Utility for reading secrets into memory
   - `/pkg/interfaces`: Contains automatically generated, shared types

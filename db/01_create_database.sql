@@ -16,7 +16,7 @@ SET xmloption = content;
 SET client_min_messages = warning;
 SET row_security = off;
 
-ALTER TABLE IF EXISTS ONLY public.simulation_data DROP CONSTRAINT IF EXISTS simulation_data_from_request_fkey;
+ALTER TABLE IF EXISTS ONLY public.simulation_data DROP CONSTRAINT IF EXISTS simulation_data_request_id_fkey;
 DROP TRIGGER IF EXISTS update_timestamp_trigger ON public.api_keys;
 DROP TRIGGER IF EXISTS new_simulation_data ON public.simulation_data;
 DROP TRIGGER IF EXISTS new_sim_result ON public.simulation_data;
@@ -104,7 +104,7 @@ BEGIN
 
 
 
-	PERFORM pg_notify('new_simulation_data', NEW.from_request::text);
+	PERFORM pg_notify('new_simulation_data', NEW.request_id::text);
 
 
 
@@ -200,7 +200,7 @@ CREATE SEQUENCE public.simulation_data_id_seq
 
 CREATE TABLE public.simulation_data (
     id integer DEFAULT nextval('public.simulation_data_id_seq'::regclass) NOT NULL,
-    from_request uuid NOT NULL,
+    request_id uuid NOT NULL,
     sim_result text NOT NULL
 );
 
@@ -281,11 +281,11 @@ CREATE TRIGGER update_timestamp_trigger BEFORE UPDATE ON public.api_keys FOR EAC
 
 
 --
--- Name: simulation_data simulation_data_from_request_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+-- Name: simulation_data simulation_data_request_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.simulation_data
-    ADD CONSTRAINT simulation_data_from_request_fkey FOREIGN KEY (from_request) REFERENCES public.simulation_request(id) ON DELETE CASCADE;
+    ADD CONSTRAINT simulation_data_request_id_fkey FOREIGN KEY (request_id) REFERENCES public.simulation_request(id) ON DELETE CASCADE;
 
 
 --

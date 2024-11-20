@@ -95,6 +95,7 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 
 	// this only occurs when the discord bot fails to authenticate with it's api key
 	if resp.StatusCode == http.StatusForbidden {
+		log.Printf("WARNING: Failed to authenticate with saint API. Please ensure the API key has been set in the environment variables, and is correct.")
 		return nil, fmt.Errorf("internal server error occured, please try again later")
 	}
 

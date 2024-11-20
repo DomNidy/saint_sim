@@ -33,8 +33,8 @@ type ErrorResponse struct {
 
 // SimulationData The output of a simulation.
 type SimulationData struct {
-	// FromRequest The ID of the simulation request that initated this simulation
-	FromRequest *string `json:"from_request,omitempty"`
+	// RequestID The ID of the simulation request that initated this simulation
+	RequestID *string `json:"request_id,omitempty"`
 
 	// Id ID of this simulation
 	Id *int `json:"id,omitempty"`
