@@ -4,6 +4,7 @@ use (
 	./apps/api
 	./apps/discord_bot
 	./apps/simulation_worker
+	./pkg/auth
 	./pkg/interfaces
 	./pkg/secrets
 	./pkg/utils

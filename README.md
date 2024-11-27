@@ -2,22 +2,6 @@
 
 The `saint_sim` project aims to provide World of Warcraft players with helpful insights to improve their character's effectiveness and make informed gearing decisions. We provide an interface for the core simulation engine, [simc](https://github.com/simulationcraft/simc), offering an API server and Discord bot.
 
-## Project Architecture & Philosophy
-
-### A Modular Monolithic Monorepo
-
-The project is structured in such a way that each app in `/apps` can be deployed independently as a micro-service, or the entire application can be deployed as a monolith. This philosophy allows `simulation_worker` to be scaled separately. This is beneficial because WoW character simulations are computationally intensive, and would benefit from the ability to spin up multiple servers to perform simulations (if needed).
-
-If I just wanted to scale `simulation_worker` independently, the `api` layer would be unnecessary, as I could send sim requests directly to a message queue and process them asynchronously. However, introducing an API layer and using it as a proxy for sim requests offers many benefits, such as:
-
-- Decoupling the front-end (Discord) from business logic _(which makes it easier to add support for additional front-end clients like web apps)_.
-
-- Promoting better separation of concerns _(which makes development easier as the codebase grows)_
-
-- Making it easier to add additional features \*(as a product of more constrained SoC)
-
-Currently, the front end (Discord) forwards simulation requests from users to a RabbitMQ broker, which then routes the request to a worker (a container running the `/simulation_worker` service). After the simulation is processed, the results are persisted to the database.
-
 ## Project Structure
 
 _The project structure is subject to change as things are ironed out throughout development._
@@ -30,11 +14,12 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
   - `/apps/simulation_worker`: Application which handles simulation requests from users by invoking `simc`, then persists the results to the database
 - `/pkg`: Directory containing packages shared and used throughout `/apps`
 
+  - `/pkg/auth`: Provides mechanisms for authenticating user requests
   - `/pkg/secrets`: Utility for reading secrets into memory
   - `/pkg/interfaces`: Contains automatically generated, shared types
   - `/pkg/utils`: Miscellaneous shared utilities
 
-- `/db`: Contains Postgres db initialization scripts, which are copied into the Postgres container, and then executed. _(Note: these only are executed if the Postgres container is started with an empty data directory, read the [image docs](https://hub.docker.com/_/postgres) for more details)_
+- `/db`: Contains SQL scripts used to initialize Postgres. These are copied into the Postgres container on launch and executed. *(Note: these only are executed if the Postgres container is started with an empty data directory, read the [image docs](https://hub.docker.com/_/postgres) for more details)*
 
 ## Running
 
@@ -64,15 +49,28 @@ The services defined in `docker-compose.yml` depend on environment variables at 
 
 ## Management UI's
 
-The ports that management UIs are hosted on can be configured in the `docker-compose.yml` file. The credentials used to login to these UIs should be specified in the `.env` file, located in the same directory as the compose file. Here are the default ports:
+The ports that management UIs are hosted on can be configured in the `docker-compose.yml` file. The credentials used to login them should be specified in the `.env` file, located in the same directory as the compose file. Here are the default ports:
 
-### pgAdmin - `http://localhost:5050`
+| Service  | Description                             | URL                      |
+| -------- | --------------------------------------- | ------------------------ |
+| pgAdmin  | Use this to inspect the Postgres DB.    | `http://localhost:5050`  |
+| RabbitMQ | Use this to monitor the message queues. | `http://localhost:15672` |
 
-Use this to inspect the Postgres DB.
+## Project Architecture & Philosophy
 
-### RabbitMQ Management - `http://localhost:15672`
+### A Modular Monolithic Monorepo
 
-Use this to view the queues.
+The project is structured in such a way that each app in `/apps` can be deployed independently as a micro-service, or the entire application can be deployed as a monolith. This philosophy allows `simulation_worker` to be scaled separately. This is beneficial because WoW character simulations are computationally intensive, and would benefit from the ability to spin up multiple servers to perform simulations (if needed).
+
+If I just wanted to scale `simulation_worker` independently, the `api` layer would be unnecessary, as I could send sim requests directly to a message queue and process them asynchronously. However, introducing an API layer and using it as a proxy for sim requests offers many benefits, such as:
+
+- Decoupling the front-end (Discord) from business logic _(which makes it easier to add support for additional front-end clients like web apps)_.
+
+- Promoting better separation of concerns _(which makes development easier as the codebase grows)_
+
+- Making it easier to add additional features *(as a product of more constrained SoC)*
+
+Currently, the front end (Discord) forwards simulation requests from users to a RabbitMQ broker, which then routes the request to a worker (a container running the `/simulation_worker` service). After the simulation is processed, the results are persisted to the database.
 
 ## FAQ / Info
 
