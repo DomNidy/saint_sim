@@ -1,37 +1,87 @@
 package auth
 
-// JWT that native users use to authenticate.
-//
-// This is distinct from the `ForeignUserJWTPayload`
-// used by the Saint Discord bot.
-//
-// A native user refers to an end user that directly
-// interacts with the Saint API (i.e. their requests aren't
-// proxied through the Saint Discord bot). This is in contrast
-// to a foreign user.
-type NativeUserJWTPayload struct {
-	// Native user ID
-	Subject  string `json:"sub"`
-	IssuedAt uint32 `json:"iat"`
-	// TODO: Continue creating type
+import (
+	"crypto/rsa"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/golang-jwt/jwt/v4"
+)
+
+// Utility function to generate current timestamp in seconds
+func CurrentUnixTimestamp() uint32 {
+	return uint32(time.Now().Unix())
 }
 
-// JWT that foreign users will be authenticated with.
-//
-// A foreign user refers to an end user that
-// interacts with the Saint API through the
-// Saint Discord bot. This is distinct from the
-// `NativeUserJWTPayload` used by native users.
-//
-// The reason there are two different JWT types is
-// because the Saint Discord bot needs to authenticate
-// different data.
-//
-// With this, we can make JWTs that do things like:
-// - discord-server-scoped JWTs (access control based
-//      on the originating discord server)
-// - discord-user-scoped JWTs (access control based
-//      on specific discord user id)
-type ForeignUserJWTPayload struct {
-	// TODO: Continue creating type
+// LoadPrivateKey loads an RSA private key from a PEM file
+func LoadPrivateKey(path string) (*rsa.PrivateKey, error) {
+	privateKeyBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key file: %w", err)
+	}
+
+	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	return privateKey, nil
+}
+
+// LoadPublicKey loads an RSA public key from a PEM file
+func LoadPublicKey(path string) (*rsa.PublicKey, error) {
+	publicKeyBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read public key file: %w", err)
+	}
+
+	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyBytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %w", err)
+	}
+
+	return publicKey, nil
+}
+
+// SignJWT signs a JWT using RS256 with the provided payload
+func SignJWT(payload map[string]interface{}, privateKey *rsa.PrivateKey) (string, error) {
+	claims := jwt.MapClaims(payload)
+
+	// Add standard claims if not provided
+	if _, ok := claims["iat"]; !ok {
+		claims["iat"] = CurrentUnixTimestamp()
+	}
+	if _, ok := claims["exp"]; !ok {
+		claims["exp"] = CurrentUnixTimestamp() + 1*3600 // Default expiration: 1 hour
+	}
+
+	// Create a new token with the claims
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+
+	// Sign the token using the private key
+	signedToken, err := token.SignedString(privateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign token: %w", err)
+	}
+
+	return signedToken, nil
+}
+
+// VerifyJWT verifies a JWT using RS256 with the public key
+func VerifyJWT(tokenString string, publicKey *rsa.PublicKey) (*jwt.Token, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Ensure the signing method is RS256
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+
+		return publicKey, nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify token: %w", err)
+	}
+
+	return token, nil
 }

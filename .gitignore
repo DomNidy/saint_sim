@@ -20,5 +20,6 @@
 # env file
 .env
 
+*.pem
 *.secret.txt
 secrets/*.txt
