@@ -11,8 +11,7 @@ package auth
 // to a foreign user.
 type NativeUserJWTPayload struct {
 	// Native user ID
-	Subject string `json:"sub"`
-
+	Subject  string `json:"sub"`
 	IssuedAt uint32 `json:"iat"`
 	// TODO: Continue creating type
 }
