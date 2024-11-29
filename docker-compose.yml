@@ -33,8 +33,25 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_HOST=${DB_HOST}
       - DB_NAME=${DB_NAME}
-      - SAINT_API_URL=${SAINT_API_URL}
-      - SAINT_API_KEY=${SAINT_API_KEY}
+      - SAINT_GATEWAY_URL=${SAINT_GATEWAY_URL}
+      - SAINT_GATEWAY_KEY=${SAINT_GATEWAY_KEY}
+
+  gateway:
+    container_name: saint_gateway
+    build:
+      context: ./apps/gateway
+      additional_contexts:
+        root: ./
+        pkg: ./pkg
+      tags:
+        - "saint_gateway:latest"
+    networks:
+      - saint_network
+    ports:
+      - 7000:7000
+    depends_on:
+      api:
+        condition: service_healthy
 
   api:
     container_name: saint_api

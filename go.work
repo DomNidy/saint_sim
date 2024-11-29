@@ -3,6 +3,7 @@ go 1.21.6
 use (
 	./apps/api
 	./apps/discord_bot
+	./apps/gateway
 	./apps/simulation_worker
 	./pkg/auth
 	./pkg/interfaces

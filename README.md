@@ -9,17 +9,18 @@ _The project structure is subject to change as things are ironed out throughout 
 We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to share packages from different go modules in this repository.
 
 - `/apps`: Directory containing the various applications
-  - `/apps/discord_bot`: The Discord bot application _(forwards requests to `api`)_
-  - `/apps/api`: The API server application
+  - `/apps/gateway`: Receives requests from front-end clients and routes them to appropriate backend services.
+  - `/apps/discord_bot`: The Discord bot application _(forwards requests to `gateway`)_
+  - `/apps/api`: Rest API.
   - `/apps/simulation_worker`: Application which handles simulation requests from users by invoking `simc`, then persists the results to the database
-- `/pkg`: Directory containing packages shared and used throughout `/apps`
+- `/pkg`: Directory containing modules shared and used throughout `/apps`
 
   - `/pkg/auth`: Provides mechanisms for authenticating user requests
   - `/pkg/secrets`: Utility for reading secrets into memory
   - `/pkg/interfaces`: Contains automatically generated, shared types
   - `/pkg/utils`: Miscellaneous shared utilities
 
-- `/db`: Contains SQL scripts used to initialize Postgres. These are copied into the Postgres container on launch and executed. *(Note: these only are executed if the Postgres container is started with an empty data directory, read the [image docs](https://hub.docker.com/_/postgres) for more details)*
+- `/db`: Contains SQL scripts used to initialize Postgres. These are copied into the Postgres container on launch and executed. _(Note: these only are executed if the Postgres container is started with an empty data directory, read the [image docs](https://hub.docker.com/_/postgres) for more details)\_
 
 ## Running
 
@@ -43,9 +44,9 @@ The services defined in `docker-compose.yml` depend on environment variables at 
 
 > Docker and Docker compose are used to containerize and run the app locally, and the `docker-compose.yml` file depends on environment variables at runtime.
 
-### Authenticating the `discord_bot` with the `api`
+### Authenticating the `discord_bot` with the `gateway`
 
-`discord_bot` authenticates with the saint API using an API key. If you wish to run the `discord_bot`, you must generate an API key, hash it with sha256, and then insert it into the database. You can use the `generate_api_key.sh` script to do this automatically when running locally, but **you still need to update the `.env` file with the `SAINT_API_KEY`** so `discord_bot` has access to it at runtime. _(Note: The database needs to be running in order for the API key to actually be inserted)_
+`discord_bot` authenticates with the Saint gateway using a gateway key (API key). If you wish to run the `discord_bot`, you must generate an API key, hash it with sha256, and then insert it into the database. You can use the `generate_gateway_key.sh` script to do this automatically when running locally, but **you still need to update the `.env` file with the `SAINT_GATEWAY_KEY`** so `discord_bot` has access to it at runtime. _(Note: The database needs to be running in order for the gateway key to actually be inserted)_
 
 ## Management UI's
 
@@ -68,7 +69,7 @@ If I just wanted to scale `simulation_worker` independently, the `api` layer wou
 
 - Promoting better separation of concerns _(which makes development easier as the codebase grows)_
 
-- Making it easier to add additional features *(as a product of more constrained SoC)*
+- Making it easier to add additional features _(as a product of more constrained SoC)_
 
 Currently, the front end (Discord) forwards simulation requests from users to a RabbitMQ broker, which then routes the request to a worker (a container running the `/simulation_worker` service). After the simulation is processed, the results are persisted to the database.
 

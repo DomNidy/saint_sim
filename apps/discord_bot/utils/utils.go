@@ -70,7 +70,7 @@ func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.Applicatio
 }
 
 func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate, options *interfaces.SimulationOptions) (*interfaces.SimulationResponse, error) {
-	url := constants.SaintApiUrl.Value() + "/simulate"
+	url := constants.SaintGatewayUrl.Value() + "/simulate"
 	jsonData, err := json.Marshal(options)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,7 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 	if err != nil {
 		return nil, fmt.Errorf("error creating request %v", err)
 	}
-	apiReq.Header.Set("Api-Key", constants.SaintApiKey.Value())
+	apiReq.Header.Set("Api-Key", constants.SaintGatewayKey.Value())
 
 	// TODO: Probably should stop creating this on each call of this function (http.Client caches tcp connections in internal state)
 	// TODO: we can just re-use the client, and it's concurrency safe for multiple goroutines

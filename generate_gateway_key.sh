@@ -1,5 +1,5 @@
 #!/bin/bash
-# This script generates an API key to authenticate with the `api`
+# This script generates an API key to authenticate with the `gateway`
 # Inserts the generated API key into the `api_keys` table of the locally running Postgres database
 
 # Generate & hash the API key
@@ -18,7 +18,7 @@ fi
 
 # Insert the generated API key into the database
 docker exec -it $postgres_container_id psql -U postgres -c \
-"INSERT INTO api_keys (api_key, service_name) VALUES ('$hashed_api_key', 'api');"
+    "INSERT INTO api_keys (api_key, service_name) VALUES ('$hashed_api_key', 'gateway');"
 
 if [ $? -eq 0 ]; then
     echo "Success: Inserted API key into the database."
