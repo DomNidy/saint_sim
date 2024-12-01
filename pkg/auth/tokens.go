@@ -1,5 +1,10 @@
 package auth
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // JWT that native users use to authenticate.
 // This is presented in a HTTP header as: "Authorization: Bearer <jwt>"
 //
@@ -37,10 +42,10 @@ type NativeUserJWTPayload struct {
 // different data.
 //
 // With this, we can make JWTs that do things like:
-// - discord-server-scoped JWTs (access control based
-//      on the originating discord server)
-// - discord-user-scoped JWTs (access control based
-//      on specific discord user id)
+//   - discord-server-scoped JWTs (access control based
+//     on the originating discord server)
+//   - discord-user-scoped JWTs (access control based
+//     on specific discord user id)
 type ForeignUserJWTPayload struct {
 	// Discord user ID or bot ID
 	Subject string `json:"sub"` // The unique identifier for the Discord user/bot
@@ -55,9 +60,49 @@ type ForeignUserJWTPayload struct {
 	Expiration uint32 `json:"exp"`
 
 	// Custom claims for Discord-specific context
-	DiscordServerID string `json:"discord_server_id"` // The server ID for scoping access
+	DiscordServerID string `json:"discord_server_id,omitempty"` // The server ID for scoping access
 
 	DiscordUserID string `json:"discord_user_id,omitempty"` // Optional specific user ID for scoping access
 
 	Permissions []string `json:"permissions,omitempty"` // Optional permissions granted to this token
+}
+
+type JWTPayload interface {
+	// Return the JWT payload as map
+	ToMap() (map[string]interface{}, error)
+}
+
+// This method converts a `ForeignUserJWTPayload` type to map[string]interface{}
+//
+// This is needed as the golang-jwt library expects the payload to be of type map[string]interface{}
+// To perform this conversion, we simply marshal the struct into json, then unmarshal it
+// into map[string]interface{} type. This method uses the struct tags of `ForeignUserJWTPayload`
+// to perform marshalling and unmarshalling.
+func (t *ForeignUserJWTPayload) ToMap() (map[string]interface{}, error) {
+	res, err := json.Marshal(t)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JWT payload into json: %w", err)
+	}
+
+	var resMap map[string]interface{}
+	if err := json.Unmarshal(res, &resMap); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JWT payload into map: %w", err)
+	}
+
+	return resMap, nil
+}
+
+// This method converts a `NativeUserJWTPayload` type to map[string]interface{}
+func (t *NativeUserJWTPayload) ToMap() (map[string]interface{}, error) {
+	res, err := json.Marshal(t)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JWT payload into json: %w", err)
+	}
+
+	var resMap map[string]interface{}
+	if err := json.Unmarshal(res, &resMap); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JWT payload into map: %w", err)
+	}
+
+	return resMap, nil
 }

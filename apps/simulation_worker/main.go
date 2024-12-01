@@ -16,7 +16,7 @@ import (
 )
 
 func performSim(region, realm, name string) (*[]byte, error) {
-	simcBinaryPath := secrets.LoadSecret("SIMC_BINARY_PATH")
+	simcBinaryPath := secrets.LoadSecretFromEnv("SIMC_BINARY_PATH")
 
 	// Command to invoke simc and perform the sim
 	simCommand := exec.Command(simcBinaryPath.Value(), fmt.Sprintf("armory=%v,%v,%v", region, realm, name))

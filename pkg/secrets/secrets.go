@@ -43,7 +43,7 @@ func NewSecret(key, value string) Secret {
 }
 
 // Panics on error
-func LoadSecret(key string) Secret {
+func LoadSecretFromEnv(key string) Secret {
 	var secret Secret = nil
 
 	if value, exists := os.LookupEnv(key); exists {

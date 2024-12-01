@@ -37,10 +37,10 @@ func FailOnError(err error, msg string) {
 // This allows us to logically distinguish between different 'connections',
 // while ony needing a single TCP connection
 func InitRabbitMQConnection() (*amqp.Connection, *amqp.Channel) {
-	RABBITMQ_USER := secrets.LoadSecret("RABBITMQ_USER")
-	RABBITMQ_PASS := secrets.LoadSecret("RABBITMQ_PASS")
-	RABBITMQ_PORT := secrets.LoadSecret("RABBITMQ_PORT")
-	RABBITMQ_HOST := secrets.LoadSecret("RABBITMQ_HOST")
+	RABBITMQ_USER := secrets.LoadSecretFromEnv("RABBITMQ_USER")
+	RABBITMQ_PASS := secrets.LoadSecretFromEnv("RABBITMQ_PASS")
+	RABBITMQ_PORT := secrets.LoadSecretFromEnv("RABBITMQ_PORT")
+	RABBITMQ_HOST := secrets.LoadSecretFromEnv("RABBITMQ_HOST")
 	connectionURI := fmt.Sprintf("amqp://%s:%s@%s:%s", RABBITMQ_USER.Value(), RABBITMQ_PASS.Value(), RABBITMQ_HOST.Value(), RABBITMQ_PORT.Value())
 
 	conn, err := amqp.Dial(connectionURI)
@@ -70,10 +70,10 @@ func DeclareSimulationQueue(ch *amqp.Channel) *amqp.Queue {
 // Create a postgres connection pool
 // This is concurrency safe
 func InitPostgresConnectionPool(ctx context.Context) *pgxpool.Pool {
-	DB_USER := secrets.LoadSecret("DB_USER").Value()
-	DB_PASSWORD := secrets.LoadSecret("DB_PASSWORD").Value()
-	DB_HOST := secrets.LoadSecret("DB_HOST").Value()
-	DB_NAME := secrets.LoadSecret("DB_NAME").Value()
+	DB_USER := secrets.LoadSecretFromEnv("DB_USER").Value()
+	DB_PASSWORD := secrets.LoadSecretFromEnv("DB_PASSWORD").Value()
+	DB_HOST := secrets.LoadSecretFromEnv("DB_HOST").Value()
+	DB_NAME := secrets.LoadSecretFromEnv("DB_NAME").Value()
 	DB_PORT := "5432"
 	connectionURI := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME)
 	log.Printf("Connecting to postgres database with name '%s' at %s:%s", DB_NAME, DB_HOST, DB_PORT)

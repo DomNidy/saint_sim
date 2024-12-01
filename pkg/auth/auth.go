@@ -3,6 +3,7 @@ package auth
 import (
 	"crypto/rsa"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -15,33 +16,33 @@ func CurrentUnixTimestamp() uint32 {
 }
 
 // LoadPrivateKey loads an RSA private key from a PEM file
-func LoadPrivateKey(path string) (*rsa.PrivateKey, error) {
+func LoadPrivateKey(path string) *rsa.PrivateKey {
 	privateKeyBytes, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read private key file: %w", err)
+		log.Fatalf("failed to read private key file: %v", err)
 	}
 
 	privateKey, err := jwt.ParseRSAPrivateKeyFromPEM(privateKeyBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key: %w", err)
+		log.Fatalf("failed to parse private key: %v", err)
 	}
 
-	return privateKey, nil
+	return privateKey
 }
 
 // LoadPublicKey loads an RSA public key from a PEM file
-func LoadPublicKey(path string) (*rsa.PublicKey, error) {
+func LoadPublicKey(path string) *rsa.PublicKey {
 	publicKeyBytes, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read public key file: %w", err)
+		log.Fatalf("failed to read public key file: %v", err)
 	}
 
 	publicKey, err := jwt.ParseRSAPublicKeyFromPEM(publicKeyBytes)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse public key: %w", err)
+		log.Fatalf("failed to parse public key: %v", err)
 	}
 
-	return publicKey, nil
+	return publicKey
 }
 
 // SignJWT signs a JWT using RS256 with the provided payload
@@ -56,6 +57,7 @@ func SignJWT(payload map[string]interface{}, privateKey *rsa.PrivateKey) (string
 		claims["exp"] = CurrentUnixTimestamp() + 1*3600 // Default expiration: 1 hour
 	}
 
+	// Signing options
 	// Create a new token with the claims
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 
