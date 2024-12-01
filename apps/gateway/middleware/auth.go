@@ -26,6 +26,7 @@ func Authenticate(publicKey *rsa.PublicKey) func(c *gin.Context) {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 		}
 
+		// Make sure token was signed by saint back-end
 		token, err := auth.VerifyJWT(tokenString, publicKey)
 		if err != nil {
 			log.Printf("Failed to validate token: %v ", err)
@@ -37,6 +38,8 @@ func Authenticate(publicKey *rsa.PublicKey) func(c *gin.Context) {
 			log.Printf("Failed to extract token claims")
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 		}
+
+		log.Printf("Claims: %v", claims)
 
 		// Determine the origin of request from the authorization header prefix & token fields
 		var requestOrigin auth.RequestOrigin
@@ -76,5 +79,5 @@ func isJWTValidForOrigin(tokenClaims jwt.MapClaims, origin auth.RequestOrigin) (
 			return false, nil
 		}
 	}
-	return false, fmt.Errorf("Failed to extract request origin field from token")
+	return false, fmt.Errorf("failed to extract request origin field from token")
 }

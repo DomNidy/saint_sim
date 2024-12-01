@@ -6,6 +6,7 @@ import (
 
 	"github.com/DomNidy/saint_sim/apps/gateway/middleware"
 	auth "github.com/DomNidy/saint_sim/pkg/auth"
+	"github.com/DomNidy/saint_sim/pkg/utils"
 	gin "github.com/gin-gonic/gin"
 )
 
@@ -15,42 +16,20 @@ var (
 )
 
 func main() {
-
-	jwtClaims := auth.ForeignUserJWTPayload{
-		Subject:         "Domaz",
-		Issuer:          "gateway",
-		IssuedAt:        auth.CurrentUnixTimestamp(),
-		Expiration:      auth.CurrentUnixTimestamp() + 4*3600,
-		DiscordUserID:   "218526317988151307",
-		DiscordServerID: "",
-		RequestOrigin:   auth.DiscordBotRequestOrigin,
-		Permissions:     []string{"a", "b"},
-	}
-
-	jwtMappedClaims, err := jwtClaims.ToMap()
+	userJwt, err := auth.NewForeignUserJWT(PrivateKey, "12345", utils.StrPtr("9999"), nil)
 	if err != nil {
-		log.Printf("Failed to map jwt claims: %v", err)
+		log.Printf("Error creating jwt: %v", err)
 		return
 	}
+	log.Printf("User jwt: %v", userJwt)
 
-	signedJwt, err := auth.SignJWT(jwtMappedClaims, PrivateKey)
-
-	if err != nil {
-		log.Printf("Error signing jwt: %v", err)
-		return
-	}
-
-	log.Printf("Signed jwt: %v", signedJwt)
-
-	validJWT, err := auth.VerifyJWT(signedJwt, PublicKey)
+	validJWT, err := auth.VerifyJWT(userJwt, PublicKey)
 	if err != nil {
 		log.Printf("Error validating jwt: %v", err)
 		return
 
 	}
-
 	log.Printf("Validated jwt: %v", validJWT)
-	log.Printf("jwt: %v", signedJwt)
 
 	r := gin.Default()
 
@@ -67,6 +46,7 @@ func main() {
 
 	// Authorized endpoints
 	authorized.POST("/simulate", func(c *gin.Context) {
+		// user, exists := c.Get("user")
 		// TODO: Forward request to `api`
 	})
 
