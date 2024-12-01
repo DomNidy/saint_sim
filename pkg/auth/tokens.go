@@ -5,6 +5,17 @@ import (
 	"fmt"
 )
 
+// String that identifies which front-end a token is valid for.
+//
+// A `RequestOrigin` can be extracted from an HTTP request. It is an identifier
+// that details which front-end a request originated from (i.e., "web", or "discord_bot").
+type RequestOrigin string
+
+const (
+	DiscordBotRequestOrigin RequestOrigin = "discord_bot"
+	WebRequestOrigin        RequestOrigin = "web"
+)
+
 // JWT that native users use to authenticate.
 // This is presented in a HTTP header as: "Authorization: Bearer <jwt>"
 //
@@ -27,6 +38,10 @@ type NativeUserJWTPayload struct {
 
 	// Expiration is the timestamp when the token expires
 	Expiration uint32 `json:"exp"`
+
+	// Used to identify the origin (Discord or web app) a token
+	// is valid for.
+	RequestOrigin RequestOrigin `json:"request_origin"`
 }
 
 // JWT that foreign users will be authenticated with.
@@ -47,10 +62,10 @@ type NativeUserJWTPayload struct {
 //   - discord-user-scoped JWTs (access control based
 //     on specific discord user id)
 type ForeignUserJWTPayload struct {
-	// Discord user ID or bot ID
-	Subject string `json:"sub"` // The unique identifier for the Discord user/bot
+	// Discord user ID
+	Subject string `json:"sub"` // The unique identifier for the Discord user
 
-	// Issuer of the token (e.g., Saint API)
+	// Issuer of the token (e.g., gateway)
 	Issuer string `json:"iss"`
 
 	// IssuedAt is the timestamp when the token was issued
@@ -58,6 +73,10 @@ type ForeignUserJWTPayload struct {
 
 	// Expiration is the timestamp when the token expires
 	Expiration uint32 `json:"exp"`
+
+	// Used to identify the origin (Discord or web app) a token
+	// is valid for.
+	RequestOrigin RequestOrigin `json:"request_origin"`
 
 	// Custom claims for Discord-specific context
 	DiscordServerID string `json:"discord_server_id,omitempty"` // The server ID for scoping access

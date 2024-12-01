@@ -23,6 +23,7 @@ func main() {
 		Expiration:      auth.CurrentUnixTimestamp() + 4*3600,
 		DiscordUserID:   "218526317988151307",
 		DiscordServerID: "",
+		RequestOrigin:   auth.DiscordBotRequestOrigin,
 		Permissions:     []string{"a", "b"},
 	}
 
@@ -55,13 +56,20 @@ func main() {
 
 	authorized := r.Group("/", middleware.Authenticate(PublicKey))
 
-	authorized.GET("/health", func(c *gin.Context) {
+	// Health check endpoint
+	r.GET("/health", func(c *gin.Context) {
 		c.JSON(
 			200, gin.H{
 				"status": "healthy",
 			},
 		)
 	})
+
+	// Authorized endpoints
+	authorized.POST("/simulate", func(c *gin.Context) {
+		// TODO: Forward request to `api`
+	})
+
 	r.Run("0.0.0.0:7000")
 
 }
