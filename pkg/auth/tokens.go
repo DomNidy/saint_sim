@@ -135,6 +135,18 @@ func NewForeignUserJWT(privateKey *rsa.PrivateKey, discordUserID string, discord
 	return signedJwt, nil
 }
 
+// Check if a JWT is valid for a request origin
+func IsJWTValidForOrigin(tokenClaims jwt.MapClaims, origin RequestOrigin) (bool, error) {
+	if tokenRequestOrigin, ok := tokenClaims["request_origin"].(string); ok {
+		if tokenRequestOrigin == string(origin) {
+			return true, nil
+		} else {
+			return false, nil
+		}
+	}
+	return false, fmt.Errorf("failed to extract request origin field from token")
+}
+
 // Creates a `ForeignUserJWTClaims` object with the specified params.
 func createDiscordUserClaims(discordUserID string, discordServerID *string, permissions *[]string) ForeignUserJWTClaims {
 	return ForeignUserJWTClaims{

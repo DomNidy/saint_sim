@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"crypto/rsa"
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -27,19 +26,22 @@ func Authenticate(publicKey *rsa.PublicKey) func(c *gin.Context) {
 		if !found {
 			log.Warnf("Failed to parse Authorization header: %v", authHeader)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			return
 		}
 
 		// Make sure token was signed by saint back-end
 		token, err := auth.VerifyJWT(tokenString, publicKey)
 		if err != nil {
-			log.Errorf("Failed to validate token: %v ", err)
+			log.Errorf(err.Error())
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			return
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok || !token.Valid {
 			log.Errorf("Failed to extract token claims")
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			return
 		}
 
 		// Determine the origin of request from the authorization header prefix & token fields
@@ -51,34 +53,26 @@ func Authenticate(publicKey *rsa.PublicKey) func(c *gin.Context) {
 		} else {
 			log.Errorf("Received unrecognized prefix for Authorization header")
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			return
 		}
 
 		// Check if the provided JWT is valid for the origin of this request
 		// This is more for consistency & organization rather than security
-		validForOrigin, err := isJWTValidForOrigin(claims, requestOrigin)
+		validForOrigin, err := auth.IsJWTValidForOrigin(claims, requestOrigin)
 		if !validForOrigin {
 			log.Errorf("Request from origin %v, cannot be authenticated with provided token (token is not valid for this origin)", requestOrigin)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			return
 		} else if err != nil {
 			log.Errorf("Error while checking if token is valid for origin: %v", err)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			return
 		}
 
+		log.Debugf(token.Raw)
 		// Store the token in request context
 		c.Set("user", token)
 		c.Next()
 	}
 
-}
-
-// Check if a JWT is valid for a request origin
-func isJWTValidForOrigin(tokenClaims jwt.MapClaims, origin auth.RequestOrigin) (bool, error) {
-	if tokenRequestOrigin, ok := tokenClaims["request_origin"].(string); ok {
-		if tokenRequestOrigin == string(origin) {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
-	return false, fmt.Errorf("failed to extract request origin field from token")
 }
