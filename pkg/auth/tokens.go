@@ -24,14 +24,14 @@ const (
 // This is presented in a HTTP header as: "Authorization: Bearer <jwt>"
 // Registered claim names: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1
 //
-// This is distinct from the `ForeignUserJWTClaims`
+// This is distinct from the `ForeignUserClaims`
 // used by the Saint Discord bot.
 //
 // A native user refers to an end user that directly
 // interacts with the Saint API (i.e. their requests aren't
 // proxied through the Saint Discord bot). This is in contrast
 // to a foreign user.
-type NativeUserJWTClaims struct {
+type NativeUserClaims struct {
 	jwt.RegisteredClaims
 	// Used to identify the origin (Discord or web app) a token
 	// is valid for.
@@ -45,7 +45,7 @@ type NativeUserJWTClaims struct {
 // A foreign user refers to an end user that
 // interacts with the Saint API through the
 // Saint Discord bot. This is distinct from the
-// `NativeUserJWTClaims` used by native users.
+// `NativeUserClaims` used by native users.
 //
 // The reason there are two different JWT types is
 // because the Saint Discord bot needs to authenticate
@@ -57,7 +57,7 @@ type NativeUserJWTClaims struct {
 //   - discord-user-scoped JWTs (access control based
 //     on specific discord user id)
 
-type ForeignUserJWTClaims struct {
+type ForeignUserClaims struct {
 	jwt.RegisteredClaims
 	DiscordClaims
 
@@ -81,13 +81,13 @@ type JWTPayload interface {
 	ToMap() (map[string]interface{}, error)
 }
 
-// This method converts a `ForeignUserJWTClaims` type to map[string]interface{}
+// This method converts a `ForeignUserClaims` type to map[string]interface{}
 //
 // This is needed as the golang-jwt library expects the payload to be of type map[string]interface{}
 // To perform this conversion, we simply marshal the struct into json, then unmarshal it
-// into map[string]interface{} type. This method uses the struct tags of `ForeignUserJWTClaims`
+// into map[string]interface{} type. This method uses the struct tags of `ForeignUserClaims`
 // to perform marshalling and unmarshalling.
-func (t *ForeignUserJWTClaims) ToMap() (map[string]interface{}, error) {
+func (t *ForeignUserClaims) ToMap() (map[string]interface{}, error) {
 	res, err := json.Marshal(t)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal JWT payload into json: %w", err)
@@ -101,8 +101,8 @@ func (t *ForeignUserJWTClaims) ToMap() (map[string]interface{}, error) {
 	return resMap, nil
 }
 
-// This method converts a `NativeUserJWTClaims` type to map[string]interface{}
-func (t *NativeUserJWTClaims) ToMap() (map[string]interface{}, error) {
+// This method converts a `NativeUserClaims` type to map[string]interface{}
+func (t *NativeUserClaims) ToMap() (map[string]interface{}, error) {
 	res, err := json.Marshal(t)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal JWT payload into json: %w", err)
@@ -147,9 +147,9 @@ func IsJWTValidForOrigin(tokenClaims jwt.MapClaims, origin RequestOrigin) (bool,
 	return false, fmt.Errorf("failed to extract request origin field from token")
 }
 
-// Creates a `ForeignUserJWTClaims` object with the specified params.
-func createDiscordUserClaims(discordUserID string, discordServerID *string, permissions *[]string) ForeignUserJWTClaims {
-	return ForeignUserJWTClaims{
+// Creates a `ForeignUserClaims` object with the specified params.
+func createDiscordUserClaims(discordUserID string, discordServerID *string, permissions *[]string) ForeignUserClaims {
+	return ForeignUserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   discordUserID, //* Issued to a discord user
 			Issuer:    "gateway",
