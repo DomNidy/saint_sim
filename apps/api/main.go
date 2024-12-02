@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -15,11 +14,14 @@ import (
 	"github.com/DomNidy/saint_sim/apps/api/repositories"
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
+	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 	gin "github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 )
 
 func main() {
+	log := logging.GetLogger()
+
 	db := utils.InitPostgresConnectionPool(context.Background())
 	defer db.Close()
 
@@ -58,7 +60,7 @@ func main() {
 		// Marshal back
 		receivedJson, err := json.Marshal(simOptions)
 		if err != nil {
-			log.Printf("Error converting to json: %v, %v", receivedJson, err)
+			log.Errorf("Error converting to json: %v, %v", receivedJson, err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
 		}
@@ -122,7 +124,7 @@ func main() {
 			},
 		)
 		utils.FailOnError(err, "Failed to publish msg to queue")
-		log.Printf(" [x] Sent %s\n", simulationMessageBody)
+		log.Infof(" [x] Sent %s\n", simulationMessageBody)
 		c.JSON(200, interfaces.SimulationResponse{
 			SimulationRequestId: utils.StrPtr(string(simulationRequestId[:])),
 		})

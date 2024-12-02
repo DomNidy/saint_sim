@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -12,8 +11,11 @@ import (
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
+	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 	"github.com/bwmarrin/discordgo"
 )
+
+var log = logging.GetLogger()
 
 // Pass the slice of interaction options received from discord command here
 func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.ApplicationCommandInteractionDataOption) (*interfaces.SimulationOptions, error) {
@@ -88,14 +90,14 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 	client := &http.Client{}
 	resp, err := client.Do(apiReq)
 	if err != nil {
-		log.Printf("error sending request to api: %v", err)
+		log.Errorf("error sending request to api: %v", err)
 		return nil, fmt.Errorf("internal server error occurred")
 	}
 	defer resp.Body.Close()
 
 	// this only occurs when the discord bot fails to authenticate with it's api key
 	if resp.StatusCode == http.StatusForbidden {
-		log.Printf("WARNING: Failed to authenticate with saint API. Please ensure the API key has been set in the environment variables, and is correct.")
+		log.Warnf("Failed to authenticate with saint API. Please ensure the API key has been set in the environment variables, and is correct.")
 		return nil, fmt.Errorf("internal server error occured, please try again later")
 	}
 
@@ -125,7 +127,7 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 	decoder.DisallowUnknownFields()
 	err = decoder.Decode(&simRespose)
 	if err != nil {
-		log.Printf("failed to unmarshal json response data: %v", err)
+		log.Errorf("failed to unmarshal json response data: %v", err)
 		return nil, fmt.Errorf("internal server error occured")
 	}
 
@@ -148,7 +150,7 @@ func CreateErrorInteractionResponse(msg string) discordgo.InteractionResponse {
 func ParseSimcReport(data, mentionUser string) string {
 	reg, err := regexp.Compile(`([D|H]PS *\w+:(\n *[0-9]+\b .*)+|https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)|((\bConstant\b Buffs:)\n *(\b.*\b)*))`)
 	if err != nil {
-		log.Printf("Failed to compile regular expression, simply returning the truncated sim data")
+		log.Warnf("Failed to compile regular expression, simply returning the truncated sim data")
 		return data[0:1000]
 	}
 

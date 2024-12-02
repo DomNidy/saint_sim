@@ -3,14 +3,17 @@ package middleware
 import (
 	"crypto/rsa"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
+
+	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 
 	auth "github.com/DomNidy/saint_sim/pkg/auth"
 	gin "github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
 )
+
+var log = logging.GetLogger()
 
 // Middleware that authenticates requests from both native and foreign users
 func Authenticate(publicKey *rsa.PublicKey) func(c *gin.Context) {
@@ -22,24 +25,22 @@ func Authenticate(publicKey *rsa.PublicKey) func(c *gin.Context) {
 
 		// If the Authorization header wasn't formatted properly (separated by spaces)
 		if !found {
-			log.Printf("Failed to parse Authorization header: %v", authHeader)
+			log.Warnf("Failed to parse Authorization header: %v", authHeader)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 		}
 
 		// Make sure token was signed by saint back-end
 		token, err := auth.VerifyJWT(tokenString, publicKey)
 		if err != nil {
-			log.Printf("Failed to validate token: %v ", err)
+			log.Errorf("Failed to validate token: %v ", err)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 		}
 
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok || !token.Valid {
-			log.Printf("Failed to extract token claims")
+			log.Errorf("Failed to extract token claims")
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 		}
-
-		log.Printf("Claims: %v", claims)
 
 		// Determine the origin of request from the authorization header prefix & token fields
 		var requestOrigin auth.RequestOrigin
@@ -48,7 +49,7 @@ func Authenticate(publicKey *rsa.PublicKey) func(c *gin.Context) {
 		} else if headerPrefix == "Bearer" {
 			requestOrigin = auth.WebRequestOrigin
 		} else {
-			log.Printf("Received unrecognized prefix for Authorization header")
+			log.Errorf("Received unrecognized prefix for Authorization header")
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 		}
 
@@ -56,10 +57,10 @@ func Authenticate(publicKey *rsa.PublicKey) func(c *gin.Context) {
 		// This is more for consistency & organization rather than security
 		validForOrigin, err := isJWTValidForOrigin(claims, requestOrigin)
 		if !validForOrigin {
-			log.Printf("Request from origin %v, cannot be authenticated with provided token (token is not valid for this origin)", requestOrigin)
+			log.Errorf("Request from origin %v, cannot be authenticated with provided token (token is not valid for this origin)", requestOrigin)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 		} else if err != nil {
-			log.Printf("Error while checking if token is valid for origin: %v", err)
+			log.Errorf("Error while checking if token is valid for origin: %v", err)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 		}
 

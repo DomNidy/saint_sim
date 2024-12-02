@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,11 +11,14 @@ import (
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
 	resultlistener "github.com/DomNidy/saint_sim/apps/discord_bot/result_listener"
 	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
+	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 var s *discordgo.Session
+
+var log = logging.GetLogger()
 
 func init() {
 	// Setup discord bot

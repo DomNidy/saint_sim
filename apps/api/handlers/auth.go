@@ -1,8 +1,9 @@
 package handlers
 
 import (
-	"log"
 	"net/http"
+
+	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 
 	"github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/gin-gonic/gin"
@@ -14,7 +15,7 @@ func AuthRequire(db *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		apiKey := c.GetHeader("Api-Key")
 		if apiKey == "" {
-			log.Printf("No API key provided in request")
+			logging.GetLogger().Printf("No API key provided in request")
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 			return
 		}
@@ -28,7 +29,7 @@ func AuthRequire(db *pgxpool.Pool) gin.HandlerFunc {
 
 		// Ensure the api key is authorized for this service
 		if serviceName != "api" {
-			log.Printf("api key '%s' was issued for a service other than 'api': '%s'", apiKey, serviceName)
+			logging.GetLogger().Printf("api key '%s' was issued for a service other than 'api': '%s'", apiKey, serviceName)
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 			return
 		}

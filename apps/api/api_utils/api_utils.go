@@ -2,8 +2,9 @@ package api_utils
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+
+	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 
 	"crypto/sha256"
 
@@ -24,7 +25,7 @@ func HashApiKey(apiKey string) string {
 // Check to see if a WoWCharacter actually exists on wow armory
 func CheckWowCharacterExists(character *interfaces.WowCharacter) (bool, error) {
 	url := fmt.Sprintf("https://worldofwarcraft.blizzard.com/en-us/character/%s/%s/%s", character.Region, character.Realm, character.CharacterName)
-	log.Printf("Checking if char exists at url: %v", url)
+	logging.GetLogger().Debugf("Checking if char exists at url: %v", url)
 	res, err := http.Get(url)
 	if err != nil {
 		return false, err

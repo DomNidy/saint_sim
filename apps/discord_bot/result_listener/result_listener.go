@@ -3,12 +3,15 @@ package resultlistener
 import (
 	"context"
 	"fmt"
-	"log"
+
+	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/utils"
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var log = logging.GetLogger()
 
 // stores discord user id and discord channel id of user who invoked a simrequest
 type SimRequestOrigin struct {
@@ -28,14 +31,14 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		log.Fatalf("Failed to listen on new_simulation_data channel:")
 	}
 
-	log.Printf("listening for new sim data...")
+	log.Debugf("listening for new sim data...")
 	for {
 		notification, err := conn.Conn().WaitForNotification(ctx)
 		if err != nil {
-			log.Printf("Error while waiting for notification: %v", err)
+			log.Errorf("Error while waiting for notification: %v", err)
 			continue
 		}
-		log.Printf("new simulation_data received, id: %v", notification.Payload)
+		log.Debugf("new simulation_data received, id: %v", notification.Payload)
 
 		// Create struct to store simulation_data in
 		simRes := struct {
@@ -46,14 +49,14 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		// Query for simulation_data and scan it into the struct
 		err = conn.QueryRow(ctx, "select id, request_id, sim_result from simulation_data where request_id = $1", notification.Payload).Scan(&simRes.simDataId, &simRes.simReqId, &simRes.data)
 		if err != nil {
-			log.Printf("Error while scanning to simRes: %v", err)
+			log.Errorf("Error while scanning to simRes: %v", err)
 			continue
 		}
 
 		// Find the user who requested this sim
 		requestOrigin, exists := OutboundSimRequests[simRes.simReqId]
 		if !exists {
-			log.Printf("Received notification of sim data, but no mapping to the request origin exists.")
+			log.Errorf("Received notification of sim data, but no mapping to the request origin exists.")
 			continue
 		}
 
@@ -64,7 +67,7 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		messageContent := utils.ParseSimcReport(simRes.data, fmt.Sprintf("<@%v>, your sim request %v has been processed:\n", requestOrigin.DiscordUserId, simRes.simReqId))
 		_, err = s.ChannelMessageSend(requestOrigin.DiscordChannelId, messageContent)
 		if err != nil {
-			log.Printf("Failed to send message in discord channel with sim data: %v", err)
+			log.Errorf("Failed to send message in discord channel with sim data: %v", err)
 			continue
 		}
 	}
@@ -76,5 +79,5 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 // we can use the mapping to notify the discord user of the results.
 func AddOutboundSimRequestMapping(simRequestId string, requestOrigin *SimRequestOrigin) {
 	OutboundSimRequests[simRequestId] = requestOrigin
-	log.Printf("Added outbound sim request mapping: %v (sim req id) -> %v (discord user id)", simRequestId, requestOrigin.DiscordUserId)
+	log.Debugf("Added outbound sim request mapping: %v (sim req id) -> %v (discord user id)", simRequestId, requestOrigin.DiscordUserId)
 }

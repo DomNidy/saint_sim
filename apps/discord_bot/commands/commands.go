@@ -1,13 +1,14 @@
 package commands
 
 import (
-	"log"
-
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
 	"github.com/DomNidy/saint_sim/pkg/utils"
+	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+var log = logging.GetLogger()
 
 // Interactions fired off in response to application commands (slash commands)
 type SaintCommandInteraction string

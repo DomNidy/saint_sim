@@ -3,10 +3,12 @@ package utils
 import (
 	"context"
 	"fmt"
-	"log"
+
 	"regexp"
 
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
+	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
+
 	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
 	"github.com/jackc/pgx/v5/pgxpool"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -28,7 +30,7 @@ func StrPtr(s string) *string {
 // Utility function used to open up rabbitmq connections, channels, queues, etc. easier
 func FailOnError(err error, msg string) {
 	if err != nil {
-		log.Panicf("%s:%s", msg, err)
+		logging.GetLogger().Panicf("%s:%s", msg, err)
 	}
 }
 
@@ -76,7 +78,7 @@ func InitPostgresConnectionPool(ctx context.Context) *pgxpool.Pool {
 	DB_NAME := secrets.LoadSecretFromEnv("DB_NAME").Value()
 	DB_PORT := "5432"
 	connectionURI := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s", DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME)
-	log.Printf("Connecting to postgres database with name '%s' at %s:%s", DB_NAME, DB_HOST, DB_PORT)
+	logging.GetLogger().Printf("Connecting to postgres database with name '%s' at %s:%s", DB_NAME, DB_HOST, DB_PORT)
 
 	pool, err := pgxpool.New(ctx, connectionURI)
 	FailOnError(err, "Failed to create postgres connection")
