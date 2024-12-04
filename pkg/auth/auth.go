@@ -123,16 +123,16 @@ func ParseAndIdentifyToken(tokenString string, requestOrigin tokens.RequestOrigi
 	if !ok {
 		return nil, fmt.Errorf("failed to assert token.Claims to jwt.MapClaims type")
 	}
+	log.Printf("ParseAndIdentifyToken extracted claims: %v", claims)
 
 	// First, differentiate between the two claim types by reading their `request_origin` fields
-	_tokenOrigin, err := getTokenOrigin(claims)
+	tokenOrigin, err := getTokenOrigin(claims)
 	if err != nil {
 		log.Warnf("Received a token which was successfully validated, but did not have a request_origin field. This implies that we issued this token ourselves, and forgot to include the request_origin field. Review the token generation functionality.")
 		return nil, errors.New(err.Error())
 	}
 
-	tokenOrigin := tokens.RequestOrigin(_tokenOrigin)
-	if requestOrigin != tokens.RequestOrigin(tokenOrigin) {
+	if requestOrigin != tokenOrigin {
 		log.Errorf("A token was received from request origin '%v', but the token's `request_origin` field indicates the token is only valid for request origin '%v'", requestOrigin, tokenOrigin)
 		return nil, fmt.Errorf("token's origin '%v' does not match the provided request origin '%v'", tokenOrigin, requestOrigin)
 	}
@@ -140,18 +140,15 @@ func ParseAndIdentifyToken(tokenString string, requestOrigin tokens.RequestOrigi
 	log.Debugf("Found token origin: %v", tokenOrigin)
 	log.Debugf("Token's claims: %v", claims)
 
-	// TODO: mapstructure decoding isn't able to properly match the keys from the map[string]interface{} raw data type
-	// TODO: to fields in the result struct. We need to probably use a custom decoder hook
-	// Convert the jwt.MapClaims to the custom claim type structs based on tokenOrigin
-	if tokenOrigin == tokens.DiscordBotRequestOrigin {
+	// Convert the token's claims to the correct struct type based on the `request_origin` claim
+	switch tokenOrigin {
+	case tokens.DiscordBotRequestOrigin:
 		var foreignUserClaims tokens.ForeignUserClaims
 
-		var metadata mapstructure.Metadata
-
 		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			Metadata:   &metadata,
 			Result:     &foreignUserClaims,
 			DecodeHook: decoderhooks.DecodeJwtMapClaimsToForeignUserClaims(),
+			MatchName:  decoderhooks.ForeignUserClaimsMatchNameFn,
 		})
 
 		if err != nil {
@@ -162,36 +159,28 @@ func ParseAndIdentifyToken(tokenString string, requestOrigin tokens.RequestOrigi
 			log.Errorf(err.Error())
 		}
 
-		log.Debugf("metadata: %v, res: %v", metadata, foreignUserClaims)
 		log.Debugf("Decoded token into ForeignUserClaims struct, data: %v", foreignUserClaims)
 
 		return foreignUserClaims, nil
-	} else if tokenOrigin == tokens.WebRequestOrigin {
-		var nativeUserClaims tokens.NativeUserClaims
-
-		if err := mapstructure.Decode(claims, &nativeUserClaims); err != nil {
-			return nil, fmt.Errorf("token had request_origin of '%v', but could not decode the claim data to the corresponding claim type struct: %v", tokenOrigin, err.Error())
-		}
-
-		return nativeUserClaims, nil
-
+	case tokens.WebRequestOrigin:
+		return nil, fmt.Errorf("decoder not implemented for this token type")
+	default:
+		return nil, fmt.Errorf("token had unrecognized `request_origin` '%v'", tokenOrigin)
 	}
-
-	return nil, fmt.Errorf("unrecognized `request_origin` field '%v', should be one of '%v', %v'", tokenOrigin, tokens.DiscordBotRequestOrigin, tokens.WebRequestOrigin)
 
 }
 
 // Returns the `request_origin` field from the token as a string, error if it wasn't present
-func getTokenOrigin(claims jwt.MapClaims) (string, error) {
+func getTokenOrigin(claims jwt.MapClaims) (tokens.RequestOrigin, error) {
 	tokenOrigin, ok := claims["request_origin"]
 	if !ok {
 		return "", fmt.Errorf("token's claims had no request_origin field")
 	}
 
-	tokenOriginStr, ok := tokenOrigin.(string)
+	origin, ok := tokenOrigin.(string)
 	if !ok {
 		return "", fmt.Errorf("token's `request_origin` field was present, but it could not be asserted to string type")
 	}
 
-	return tokenOriginStr, nil
+	return tokens.RequestOrigin(origin), nil
 }
