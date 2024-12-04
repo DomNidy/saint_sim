@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	tokens "github.com/DomNidy/saint_sim/pkg/auth/tokens"
+	"github.com/DomNidy/saint_sim/pkg/utils"
 	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -18,15 +21,6 @@ var log = logging.GetLogger()
 // The key 'jsonTag' is a struct field JSON tag which was matched with a key of the `mapKeys`.
 // The value 'StructFieldName' is the name of the field of the `structType` struct. (which is
 // tagged with 'jsonTag').
-//
-// The relation between keys of `mapKeys` and the tags of `structType` should be bijective
-// (one-to-one correspondance).
-//
-// This should be called in decoder hook functions and passed a list of the keys
-// in the decoder's input data map, as well as the struct type the decoder hook decodes to.
-//
-// Note: The uniqueness property of bijectivity is upheld by the Go compiler (Meaning you
-// will receive warnings at compile time if a struct maps multiple fields to the same json tag)
 //
 // Example:
 // ...in decoder hook fn
@@ -40,25 +34,24 @@ var log = logging.GetLogger()
 //
 // - The type we are decoding to
 //
-//	type SomeStructToDecodeInto struct {
-//	    Username string `json:"user_name"`,
-//	    Age int `json:"user_age"`,
-//	}
+//		type SomeStructToDecodeInto struct {
+//		    Username string `json:"user_name"`,
+//		    Age int `json:"user_age"`,
+//		}
 //
-//	if correspondingFieldPairs, err := checkMapKeysAndStructJsonTagsAreBijective([]string{"user_name"}, reflect.TypeOf(SomeStructToMapTo)); err != nil {
-//	    ...in this example, this will execute because `mapKeys` forgot to include the `"user_age"` key,
-//	    ...which is expected because of the `Age` field's JSON tag in `SomeStructToMapTo`
-//	}
-func checkMapKeysAndStructJsonTagsAreBijective(mapKeys []string, structType reflect.Type) (map[string]string, error) {
+//		if correspondingFieldPairs, err := getJsonPropertyNameStructFieldNameMapping(reflect.TypeOf(SomeStructToMapTo))
+//	 if err != nil { ... return }
+//	 correspondingFieldPairs will be a map: { "user_name":"Username", "user_age":"Age"}
+func getJsonPropertyNameStructFieldNameMapping(structType reflect.Type) (map[string]string, error) {
 	if structType.Kind() != reflect.Struct {
-		return nil, fmt.Errorf("bijection check was called on a type which was not a struct kind")
+		return nil, fmt.Errorf("tried to get json property mapping for a type that was not a struct kind")
 	}
 
 	fields := reflect.VisibleFields(structType)
 
 	// Maps JSON tags to the name of the struct field
 	// they were found in (e.g., "user_name":"Username")
-	jsonTagToStructFieldName := make(map[string]string, len(mapKeys))
+	jsonTagToStructFieldName := make(map[string]string)
 
 	// For each field in structType, read it's tags
 	for _, field := range fields {
@@ -92,8 +85,8 @@ func DecodeJwtMapClaimsToForeignUserClaims() mapstructure.DecodeHookFuncKind {
 	return func(f, t reflect.Kind, data interface{}) (interface{}, error) {
 		log.Debugf("f kind: %v", f)
 		log.Debugf("t type: %v", reflect.TypeOf(t))
-		log.Debugf("data: %v", data)
 		log.Debugf("type of data: %v", reflect.TypeOf(data))
+		log.Debugf("data: %v", data)
 
 		// Make sure that we're reflecting from Map kind to a
 		// struct kind (`MapClaims` to `ForeignUserClaims`)
@@ -101,46 +94,108 @@ func DecodeJwtMapClaimsToForeignUserClaims() mapstructure.DecodeHookFuncKind {
 			return data, nil
 		}
 
-		var foreignUserClaims tokens.ForeignUserClaims
+		dataMap, ok := data.(jwt.MapClaims)
+		if !ok {
+			return nil, fmt.Errorf("failed to assert input data to jwt.MapClaims")
+		}
 
-		correspondingFieldPairs, err := checkMapKeysAndStructJsonTagsAreBijective([]string{"discord_server_id"}, reflect.TypeOf(foreignUserClaims))
+		foreignUserClaims := &tokens.ForeignUserClaims{}
+		claimStructValue := reflect.ValueOf(foreignUserClaims).Elem()
+
+		jsonPropertyNameToStructFieldName, err := getJsonPropertyNameStructFieldNameMapping(reflect.TypeOf(*foreignUserClaims))
 
 		if err != nil {
 			return nil, err
 		}
 
-		for jsonTagName, fieldName := range correspondingFieldPairs {
-			log.Debugf("Mapping: '%v' -> '%v'", jsonTagName, fieldName)
+		for jsonPropertyName, fieldName := range jsonPropertyNameToStructFieldName {
+			log.Debugf("Mapping: '%v' -> '%v'", jsonPropertyName, fieldName)
+			targetFieldValue := claimStructValue.FieldByName(fieldName)
+
+			if !targetFieldValue.IsValid() {
+				return nil, fmt.Errorf("failed to find field with name '%v' in ForeignUserClaims struct type", fieldName)
+			}
+
+			if !targetFieldValue.CanSet() {
+				return nil, fmt.Errorf("cannot set field with name '%v' in ForeignUserClaims struct type", fieldName)
+			}
+
+			inputValueForField, exists := dataMap[jsonPropertyName]
+			if !exists {
+				log.Warnf("`ForeignUserClaims` struct type has a struct field tag that maps field '%v' to json property '%v', so the input data map should have the key `%v`, but it did not", fieldName, jsonPropertyName, jsonPropertyName)
+				continue
+			}
+
+			// Type of the value we are trying to set
+			targetType := targetFieldValue.Type()
+
+			// Perform type conversions to map input values to the types
+			// excepted by `ForeignUserClaims`
+			switch targetType {
+			case reflect.TypeOf((*jwt.NumericDate)(nil)):
+				floatVal, ok := inputValueForField.(float64)
+				if !ok {
+					return nil, fmt.Errorf("expected float64 for json property '%v', but got '%T'", jsonPropertyName, inputValueForField)
+				}
+
+				convertedValue := jwt.NewNumericDate(time.Unix(int64(floatVal), 0))
+				targetFieldValue.Set(reflect.ValueOf(convertedValue))
+				log.Printf("Converted and set %v -> %v", jsonPropertyName, convertedValue)
+				continue
+			case reflect.TypeOf((*string)(nil)):
+				strVal, ok := inputValueForField.(string)
+				if !ok {
+					return nil, fmt.Errorf("expected string for json property '%v', but got '%T'", jsonPropertyName, inputValueForField)
+				}
+
+				convertedValue := utils.StrPtr(strVal)
+				targetFieldValue.Set(reflect.ValueOf(convertedValue))
+				log.Printf("Converted and set %v -> %v", jsonPropertyName, convertedValue)
+				continue
+
+			case reflect.TypeOf(tokens.RequestOrigin("")):
+				strVal, ok := inputValueForField.(string)
+				if !ok {
+					return nil, fmt.Errorf("expected string for json property '%v', but got '%T'", jsonPropertyName, inputValueForField)
+				}
+
+				convertedValue := tokens.RequestOrigin(strVal)
+				targetFieldValue.Set(reflect.ValueOf(convertedValue))
+				log.Printf("Converted and set %v -> %v", jsonPropertyName, convertedValue)
+				continue
+			case reflect.TypeOf(jwt.ClaimStrings{}):
+				sliceVal, ok := inputValueForField.([]interface{})
+				if !ok {
+					return nil, fmt.Errorf("expected jwt.ClaimStrings for json property '%v', but got '%T'", jsonPropertyName, inputValueForField)
+				}
+
+				// Convert []interface{} to []string
+				strSlice := make([]string, len(sliceVal))
+				for i, v := range sliceVal {
+					strVal, ok := v.(string)
+					if !ok {
+						return nil, fmt.Errorf("expected element of jwt.ClaimStrings to be a string, but got '%T'", v)
+					}
+					strSlice[i] = strVal
+				}
+
+				// Assign the converted value
+				convertedValue := jwt.ClaimStrings(strSlice)
+				targetFieldValue.Set(reflect.ValueOf(convertedValue))
+				log.Printf("Converted and set %v -> %v", jsonPropertyName, convertedValue)
+				continue
+			}
+
+			// Get the reflect.Value of the value to be set
+			log.Printf("Target field val: %v", targetFieldValue)
+			if targetFieldValue.Type() != reflect.TypeOf(inputValueForField) {
+				return nil, fmt.Errorf("the key in the input map '%v' had value of type '%v', but the corresponding field `ForeignClaims.%v` expects a value of type %v", jsonPropertyName, reflect.TypeOf(inputValueForField), fieldName, targetFieldValue.Type())
+			}
+
+			// Need to set foreignUserClaims.{struct field name} equal to inputValueForField
+			targetFieldValue.Set(reflect.ValueOf(inputValueForField))
+			log.Printf("Set %v", fieldName)
 		}
-
-		// dataMap, ok := data.(jwt.MapClaims)
-		// if !ok {
-		// 	return nil, errors.New("failed to assert input data to `jwt.MapClaims` type")
-		// }
-		// for key, val := range dataMap {
-		// 	log.Debugf("%v : %v", key, val)
-		// 	switch key {
-		// 	case "discord_server_id":
-		// 		v, ok := val.(string)
-
-		// 		if !ok {
-		// 			return nil, typeConvErr(key, val, reflect.String)
-		// 		}
-
-		// 		foreignUserClaims.DiscordServerID = &v
-
-		// 	case "request_origin":
-		// 		v, ok := val.(string)
-
-		// 		if !ok {
-		// 			return nil, typeConvErr(key, val, reflect.String)
-		// 		}
-
-		// 		foreignUserClaims.RequestOrigin = tokens.RequestOrigin(v)
-		// 	default:
-		// 		return nil, fmt.Errorf("failed to match a case for the key '%v' of the pair '%v:%v' in the input data. Make sure the input map's field names match the struct field tags for the `ForeignUserClaims` type", key, key, val)
-		// 	}
-		// }
 
 		return (interface{})(foreignUserClaims), nil
 
