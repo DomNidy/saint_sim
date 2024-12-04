@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/DomNidy/saint_sim/pkg/auth/decoderhooks"
+	"github.com/DomNidy/saint_sim/pkg/auth/tokens"
 	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/mitchellh/mapstructure"
@@ -74,16 +76,36 @@ func SignJWT(payload map[string]interface{}, privateKey *rsa.PrivateKey) (string
 	return signedToken, nil
 }
 
-// ParseAndIdentifyToken parses and verifies a JWT, then converts the token claims data back into
-// the custom claim types (e.g., `NativeUserClaims` or `ForeignUserClaims`).
+// Creates and signs a JWT using `privateKey`, the string of the token is returned.
+// This key is valid for requests initiated by foreign users (Discord users).
+// If an error occurs, the returned string is empty ("") and the error will be non nil.
+func NewForeignUserJWT(privateKey *rsa.PrivateKey, discordUserID string, discordServerID *string, permissions *[]string) (string, error) {
+	claims := tokens.CreateDiscordUserClaims(discordUserID, discordServerID, permissions)
+	mappedClaims, err := claims.ToMap()
+
+	if err != nil {
+		return "", fmt.Errorf("error mapping claims: %v", err)
+	}
+
+	signedJwt, err := SignJWT(mappedClaims, privateKey)
+	if err != nil {
+		return "", fmt.Errorf("error signing jwt: %v", err)
+	}
+
+	return signedJwt, nil
+}
+
+// `ParseAndIdentifyToken` parses and verifies a JWT token string,  indentifies what type
+// of token it is (e.g., `NativeUserClaims` or `ForeignUserClaims`), and then maps it to
+// the corresponding token type struct.
 //
-// This function also verifies that the passed token is can be used to authenticate
-// requests from the indicated request origin. (e.g., ForeignUserClaims tokens should only be valid for
-// requests that originate from the DiscordBotRequestOrigin request origin)
+// This function also verifies that the passed token can be used to authenticate
+// requests from the indicated request origin. (e.g., `ForeignUserClaims` tokens should
+// only be valid for requests that originate from the `DiscordBotRequestOrigin` request origin)
 //
-// The returned value is of type `interface{}`, as the caller should perform type assertion to
-// get the concrete type & value.
-func ParseAndIdentifyToken(tokenString string, requestOrigin RequestOrigin, publicKey *rsa.PublicKey) (interface{}, error) {
+// The returned value is typed as `interface{}`, as the caller should perform type
+// assertion to get the concrete type & value.
+func ParseAndIdentifyToken(tokenString string, requestOrigin tokens.RequestOrigin, publicKey *rsa.PublicKey) (interface{}, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Ensure the signing method is RS256
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
@@ -96,6 +118,7 @@ func ParseAndIdentifyToken(tokenString string, requestOrigin RequestOrigin, publ
 		return nil, fmt.Errorf("failed to verify token: %w", err)
 	}
 
+	// We need to first perform interface assertion
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		return nil, fmt.Errorf("failed to assert token.Claims to jwt.MapClaims type")
@@ -108,8 +131,8 @@ func ParseAndIdentifyToken(tokenString string, requestOrigin RequestOrigin, publ
 		return nil, errors.New(err.Error())
 	}
 
-	tokenOrigin := RequestOrigin(_tokenOrigin)
-	if requestOrigin != RequestOrigin(tokenOrigin) {
+	tokenOrigin := tokens.RequestOrigin(_tokenOrigin)
+	if requestOrigin != tokens.RequestOrigin(tokenOrigin) {
 		log.Errorf("A token was received from request origin '%v', but the token's `request_origin` field indicates the token is only valid for request origin '%v'", requestOrigin, tokenOrigin)
 		return nil, fmt.Errorf("token's origin '%v' does not match the provided request origin '%v'", tokenOrigin, requestOrigin)
 	}
@@ -117,22 +140,34 @@ func ParseAndIdentifyToken(tokenString string, requestOrigin RequestOrigin, publ
 	log.Debugf("Found token origin: %v", tokenOrigin)
 	log.Debugf("Token's claims: %v", claims)
 
-	// TODO: The mapstructure.Decode function seems to not be raising any errors, but the provided struct pointer
-	// TODO: does not receive any values after the decode operation.
-	// TODO: Figure out a way to compare the token origin without converting the RequestOrigin's to strings
+	// TODO: mapstructure decoding isn't able to properly match the keys from the map[string]interface{} raw data type
+	// TODO: to fields in the result struct. We need to probably use a custom decoder hook
 	// Convert the jwt.MapClaims to the custom claim type structs based on tokenOrigin
-	if tokenOrigin == DiscordBotRequestOrigin {
-		var foreignUserClaims ForeignUserClaims
+	if tokenOrigin == tokens.DiscordBotRequestOrigin {
+		var foreignUserClaims tokens.ForeignUserClaims
 
-		if err := mapstructure.Decode(claims, &foreignUserClaims); err != nil {
-			return nil, fmt.Errorf("token had request_origin of '%v', but could not decode the claim data to the corresponding claim type struct: %v", tokenOrigin, err.Error())
+		var metadata mapstructure.Metadata
+
+		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			Metadata:   &metadata,
+			Result:     &foreignUserClaims,
+			DecodeHook: decoderhooks.DecodeJwtMapClaimsToForeignUserClaims(),
+		})
+
+		if err != nil {
+			log.Fatalf("error initializing mapstructure decoder: %v", err)
 		}
 
+		if err := decoder.Decode(claims); err != nil {
+			log.Errorf(err.Error())
+		}
+
+		log.Debugf("metadata: %v, res: %v", metadata, foreignUserClaims)
 		log.Debugf("Decoded token into ForeignUserClaims struct, data: %v", foreignUserClaims)
 
 		return foreignUserClaims, nil
-	} else if tokenOrigin == WebRequestOrigin {
-		var nativeUserClaims NativeUserClaims
+	} else if tokenOrigin == tokens.WebRequestOrigin {
+		var nativeUserClaims tokens.NativeUserClaims
 
 		if err := mapstructure.Decode(claims, &nativeUserClaims); err != nil {
 			return nil, fmt.Errorf("token had request_origin of '%v', but could not decode the claim data to the corresponding claim type struct: %v", tokenOrigin, err.Error())
@@ -142,7 +177,7 @@ func ParseAndIdentifyToken(tokenString string, requestOrigin RequestOrigin, publ
 
 	}
 
-	return nil, fmt.Errorf("unrecognized `request_origin` field '%v', should be one of '%v', %v'", tokenOrigin, DiscordBotRequestOrigin, WebRequestOrigin)
+	return nil, fmt.Errorf("unrecognized `request_origin` field '%v', should be one of '%v', %v'", tokenOrigin, tokens.DiscordBotRequestOrigin, tokens.WebRequestOrigin)
 
 }
 

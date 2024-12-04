@@ -10,6 +10,7 @@ import (
 	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 
 	auth "github.com/DomNidy/saint_sim/pkg/auth"
+	tokens "github.com/DomNidy/saint_sim/pkg/auth/tokens"
 	gin "github.com/gin-gonic/gin"
 )
 
@@ -60,7 +61,7 @@ func Authenticate(publicKey *rsa.PublicKey) func(c *gin.Context) {
 
 // Look at the request and determine its request origin based on the
 // Authorization header.
-func getRequestOrigin(c *gin.Context) (auth.RequestOrigin, error) {
+func getRequestOrigin(c *gin.Context) (tokens.RequestOrigin, error) {
 	authHeader := c.GetHeader("Authorization")
 
 	prefix := strings.Split(authHeader, " ")
@@ -72,9 +73,9 @@ func getRequestOrigin(c *gin.Context) (auth.RequestOrigin, error) {
 	// For now, we'll just assume the prefix "Bot" indicates a discord bot request
 	// This means that any service which uses the "Bot" prefix
 	if prefix[0] == "Bot" {
-		return auth.DiscordBotRequestOrigin, nil
+		return tokens.DiscordBotRequestOrigin, nil
 	} else if prefix[0] == "Bearer" {
-		return auth.WebRequestOrigin, nil
+		return tokens.WebRequestOrigin, nil
 	}
 
 	return "", fmt.Errorf("unrecognized prefix (authentication scheme). expected 'Bearer' or 'Bot")

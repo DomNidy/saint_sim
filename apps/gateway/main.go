@@ -6,8 +6,9 @@ import (
 
 	"github.com/DomNidy/saint_sim/apps/gateway/middleware"
 	utils "github.com/DomNidy/saint_sim/apps/gateway/utils"
-
 	auth "github.com/DomNidy/saint_sim/pkg/auth"
+	tokens "github.com/DomNidy/saint_sim/pkg/auth/tokens"
+	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
 	logging "github.com/DomNidy/saint_sim/pkg/utils/logging"
 	gin "github.com/gin-gonic/gin"
 )
@@ -20,20 +21,20 @@ var (
 )
 
 func main() {
-	// userJwt, err := auth.NewForeignUserJWT(PrivateKey, "12345", saintutils.StrPtr("9999"), nil)
-	// if err != nil {
-	// 	log.Printf("Error creating jwt: %v", err)
-	// 	return
-	// }
-	// log.Printf("User jwt: %v", userJwt)
+	userJwt, err := auth.NewForeignUserJWT(PrivateKey, "12345", saintutils.StrPtr("9999"), nil)
+	if err != nil {
+		log.Printf("Error creating jwt: %v", err)
+		return
+	}
+	log.Printf("User jwt: %v", userJwt)
 
-	// validJWT, err := auth.ParseAndIdentifyToken(userJwt, PublicKey)
-	// if err != nil {
-	// 	log.Printf("Error validating jwt: %v", err)
-	// 	return
+	validJWT, err := auth.ParseAndIdentifyToken(userJwt, tokens.DiscordBotRequestOrigin, PublicKey)
+	if err != nil {
+		log.Printf("Error validating jwt: %v", err)
+		return
 
-	// }
-	// log.Printf("Validated jwt: %v", validJWT)
+	}
+	log.Printf("Validated jwt: %v", validJWT)
 
 	r := gin.Default()
 	authorized := r.Group("/", middleware.Authenticate(PublicKey))
@@ -58,9 +59,9 @@ func main() {
 		}
 		log.Printf("%v", userClaims)
 		switch t := userClaims.(type) {
-		case auth.ForeignUserClaims:
+		case tokens.ForeignUserClaims:
 			log.Printf("Foreign user id: %v", t.Subject)
-		case auth.NativeUserClaims:
+		case tokens.NativeUserClaims:
 			log.Printf("Native user id: %v", t.Subject)
 		default:
 			log.Errorf("Failed to assert claims of ")

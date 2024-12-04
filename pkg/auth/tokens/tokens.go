@@ -1,7 +1,6 @@
-package auth
+package tokens
 
 import (
-	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -20,6 +19,16 @@ const (
 	WebRequestOrigin        RequestOrigin = "web"
 )
 
+// Type for custom claim types.
+//
+// This type indicates that the concrete value is expected
+// to be one of the claim struct types (e.g., `NativeUserClaims`)
+// Better than just using `interface{}` type.
+type UserClaims interface {
+	// Return the claims as a map
+	ToMap() (map[string]interface{}, error)
+}
+
 // JWT that native users use to authenticate.
 // This is presented in a HTTP header as: "Authorization: Bearer <jwt>"
 // Registered claim names: https://datatracker.ietf.org/doc/html/rfc7519#section-4.1
@@ -32,10 +41,10 @@ const (
 // proxied through the Saint Discord bot). This is in contrast
 // to a foreign user.
 type NativeUserClaims struct {
-	jwt.RegisteredClaims
+	jwt.RegisteredClaims `mapstructure:",squash"`
 	// Used to identify the origin (Discord or web app) a token
 	// is valid for.
-	RequestOrigin RequestOrigin `json:"request_origin"`
+	RequestOrigin RequestOrigin `json:"request_origin" mapstructure:",squash"`
 }
 
 // JWT that foreign users will be authenticated with.
@@ -58,8 +67,8 @@ type NativeUserClaims struct {
 //     on specific discord user id)
 
 type ForeignUserClaims struct {
-	jwt.RegisteredClaims
-	DiscordClaims
+	jwt.RegisteredClaims `mapstructure:",squash"`
+	DiscordClaims        `mapstructure:",squash"`
 
 	// Used to identify the origin (Discord or web app) a token
 	// is valid for.
@@ -76,11 +85,6 @@ type DiscordClaims struct {
 	Permissions *[]string `json:"permissions,omitempty"` // Optional permissions granted to this token
 }
 
-type JWTPayload interface {
-	// Return the JWT payload as map
-	ToMap() (map[string]interface{}, error)
-}
-
 // This method converts a `ForeignUserClaims` type to map[string]interface{}
 //
 // This is needed as the golang-jwt library expects the payload to be of type map[string]interface{}
@@ -88,6 +92,7 @@ type JWTPayload interface {
 // into map[string]interface{} type. This method uses the struct tags of `ForeignUserClaims`
 // to perform marshalling and unmarshalling.
 func (t *ForeignUserClaims) ToMap() (map[string]interface{}, error) {
+
 	res, err := json.Marshal(t)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal JWT payload into json: %w", err)
@@ -116,39 +121,8 @@ func (t *NativeUserClaims) ToMap() (map[string]interface{}, error) {
 	return resMap, nil
 }
 
-// Creates and signs a JWT using `privateKey`, the string of the token is returned.
-// This key is valid for requests initiated by foreign users (Discord users).
-// If an error occurs, the returned string is empty ("") and the error will be non nil.
-func NewForeignUserJWT(privateKey *rsa.PrivateKey, discordUserID string, discordServerID *string, permissions *[]string) (string, error) {
-	claims := createDiscordUserClaims(discordUserID, discordServerID, permissions)
-	mappedClaims, err := claims.ToMap()
-
-	if err != nil {
-		return "", fmt.Errorf("error mapping claims: %v", err)
-	}
-
-	signedJwt, err := SignJWT(mappedClaims, privateKey)
-	if err != nil {
-		return "", fmt.Errorf("error signing jwt: %v", err)
-	}
-
-	return signedJwt, nil
-}
-
-// Check if a JWT is valid for a request origin
-func IsJWTValidForOrigin(tokenClaims jwt.MapClaims, origin RequestOrigin) (bool, error) {
-	if tokenRequestOrigin, ok := tokenClaims["request_origin"].(string); ok {
-		if tokenRequestOrigin == string(origin) {
-			return true, nil
-		} else {
-			return false, nil
-		}
-	}
-	return false, fmt.Errorf("failed to extract request origin field from token")
-}
-
 // Creates a `ForeignUserClaims` object with the specified params.
-func createDiscordUserClaims(discordUserID string, discordServerID *string, permissions *[]string) ForeignUserClaims {
+func CreateDiscordUserClaims(discordUserID string, discordServerID *string, permissions *[]string) ForeignUserClaims {
 	return ForeignUserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   discordUserID, //* Issued to a discord user
