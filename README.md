@@ -12,6 +12,7 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
   - `/apps/discord_bot`: The Discord bot application _(forwards requests to `api`)_
   - `/apps/api`: The API server application
   - `/apps/simulation_worker`: Application which handles simulation requests from users by invoking `simc`, then persists the results to the database
+- `/scripts`: Repository helper scripts for local development, code generation, and maintenance tasks
 - `/pkg`: Directory containing packages shared and used throughout `/apps`
 
   - `/pkg/auth`: Provides mechanisms for authenticating user requests
@@ -28,13 +29,13 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
 ### To start/stop all services locally
 
 ```sh
-./local.sh start # to stop, pass 'stop' as an argument
+./scripts/local.sh start # to stop, pass 'stop' as an argument
 ```
 
 ### Stop a service, rebuild it's image, then start it
 
 ```sh
-./local.sh api # could also be discord_bot, simulation_worker, etc.
+./scripts/local.sh api # could also be discord_bot, simulation_worker, etc.
 ```
 
 ## Environment Variables & Configuration
@@ -45,7 +46,7 @@ The services defined in `docker-compose.yml` depend on environment variables at 
 
 ### Authenticating the `discord_bot` with the `api`
 
-`discord_bot` authenticates with the saint API using an API key. If you wish to run the `discord_bot`, you must generate an API key, hash it with sha256, and then insert it into the database. You can use the `generate_api_key.sh` script to do this automatically when running locally, but **you still need to update the `.env` file with the `SAINT_API_KEY`** so `discord_bot` has access to it at runtime. _(Note: The database needs to be running in order for the API key to actually be inserted)_
+`discord_bot` authenticates with the saint API using an API key. If you wish to run the `discord_bot`, you must generate an API key, hash it with sha256, and then insert it into the database. You can use the `./scripts/generate_api_key.sh` script to do this automatically when running locally, but **you still need to update the `.env` file with the `SAINT_API_KEY`** so `discord_bot` has access to it at runtime. _(Note: The database needs to be running in order for the API key to actually be inserted)_
 
 ## Management UI's
 

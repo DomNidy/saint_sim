@@ -1,13 +1,16 @@
 #!/bin/bash
 
-#* Important: This script relies on the 'github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest' binary being installed
+# Important: This script relies on the 'github.com/deepmap/oapi-codegen/cmd/oapi-codegen@latest' binary being installed
 # This script generates types that are defined in /apps/{app_name}/openapi.yaml files
 
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd -- "$script_dir/.." && pwd)"
+
 # path to the openapi.yaml file in the /apps/api application
-API_OPENAPI_SPEC="./apps/api/openapi.yaml"
+API_OPENAPI_SPEC="$repo_root/apps/api/openapi.yaml"
 
 # Where to place generate type files
-OUTPUT_DIR="./pkg/interfaces"
+OUTPUT_DIR="$repo_root/pkg/interfaces"
 
 # Path to the codegen binary
 # First we check if we can execute it without specifying .exe (for linux)
@@ -32,7 +35,7 @@ if [ -z "$CODEGEN_BINARY_PATH" ]; then
 fi
 
 # use command substitution to capture exit code
-codegen_output=$($CODEGEN_BINARY_PATH --generate types,skip-prune -o $OUTPUT_DIR/api_interfaces.gen.go -package interfaces $API_OPENAPI_SPEC 2>&1)
+codegen_output=$($CODEGEN_BINARY_PATH --generate types,skip-prune -o "$OUTPUT_DIR/api_interfaces.gen.go" -package interfaces "$API_OPENAPI_SPEC" 2>&1)
 
 # check exit code of oapi-codegen command
 if [[ $? -eq 0 ]]; then

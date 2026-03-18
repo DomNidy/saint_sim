@@ -35,7 +35,7 @@ func (s *SecretImpl) Value() string {
 }
 
 func (s *SecretImpl) MaskedValue() string {
-	return maskToken(s.value, 3)
+	return MaskToken(s.value, 3)
 }
 
 func NewSecret(key, value string) Secret {
@@ -55,7 +55,7 @@ func LoadSecret(key string) Secret {
 }
 
 // Used to print out the secrets to console
-func maskToken(token string, visibleChars int) string {
+func MaskToken(token string, visibleChars int) string {
 	if len(token) < 3 {
 		return "XXXXXXXX"
 	}

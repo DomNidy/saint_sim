@@ -43,6 +43,8 @@ func InitRabbitMQConnection() (*amqp.Connection, *amqp.Channel) {
 	RABBITMQ_HOST := secrets.LoadSecret("RABBITMQ_HOST")
 	connectionURI := fmt.Sprintf("amqp://%s:%s@%s:%s", RABBITMQ_USER.Value(), RABBITMQ_PASS.Value(), RABBITMQ_HOST.Value(), RABBITMQ_PORT.Value())
 
+	log.Printf("Connecting to RabbitMQ: user=%s, password=%s, host=%s, port=%s", RABBITMQ_USER.MaskedValue(), RABBITMQ_PASS.MaskedValue(), RABBITMQ_HOST.MaskedValue(), RABBITMQ_PORT.MaskedValue())
+
 	conn, err := amqp.Dial(connectionURI)
 	FailOnError(err, "Failed to establish RabbitMQ connection")
 
