@@ -24,7 +24,18 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
 
 ## Running
 
-> The services defined in `docker-compose.yml` depend on environment variables at runtime. You can create a `.env` file in the root directory, and define your secrets in there. See [Environment Variables & Configuration](#environment-variables--configuration) for more details.
+> The services defined in `docker-compose.yml` depend on environment variables at runtime. Copy `.env.example` to `.env` in the repository root before starting the stack. See [Environment Variables & Configuration](#environment-variables--configuration) for the expected values.
+
+### Local setup
+
+```sh
+cp .env.example .env
+```
+
+The default values in `.env.example` are intended for local Docker development. Update these before starting services:
+
+- `DISCORD_TOKEN` and `APPLICATION_ID` if you want `discord_bot` to connect to Discord.
+- `SAINT_API_KEY` after generating and inserting a local API key with `./scripts/generate_api_key.sh`.
 
 ### To start/stop all services locally
 
@@ -40,13 +51,70 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
 
 ## Environment Variables & Configuration
 
-The services defined in `docker-compose.yml` depend on environment variables at runtime. You can create a `.env` file in the root directory, and define your secrets in there. To view an example `.env` file configuration, you can read the `.env.example` file. Generally speaking, if there is a networking or authentication-related error, the issue will lie in the configuration of these environment variables and/or the `docker-compose.yml` configuration itself.
+The services defined in `docker-compose.yml` depend on environment variables at runtime. Create a `.env` file in the repository root by copying `.env.example`:
+
+```sh
+cp .env.example .env
+```
+
+`.env.example` includes all variables currently referenced by `docker-compose.yml` and the local helper scripts. Generally speaking, if there is a networking or authentication-related error, the issue will lie in the configuration of these environment variables and/or the `docker-compose.yml` configuration itself.
 
 > Docker and Docker compose are used to containerize and run the app locally, and the `docker-compose.yml` file depends on environment variables at runtime.
 
+### Local environment variables
+
+| Variable | Used for | Local default / note |
+| -------- | -------- | -------------------- |
+| `DB_USER` | Postgres username | `saint` |
+| `DB_PASSWORD` | Postgres password | `saint_dev_password` |
+| `DB_HOST` | Postgres hostname used by containers | `postgres` |
+| `DB_NAME` | Database name used by apps and scripts | `saint` |
+| `PGADMIN_EMAIL` | pgAdmin login email | `admin@example.com` |
+| `PGADMIN_PASSWORD` | pgAdmin login password | `admin` |
+| `RABBITMQ_PORT` | Host port mapped to RabbitMQ `5672` | `5672` |
+| `RABBITMQ_USER` | RabbitMQ username | `saint` |
+| `RABBITMQ_PASS` | RabbitMQ password | `saint_dev_password` |
+| `SAINT_API_URL` | Internal API URL used by `discord_bot` | `http://api:8080` |
+| `SAINT_API_KEY` | API key used by `discord_bot` to authenticate with `api` | Replace after running `./scripts/generate_api_key.sh` |
+| `DISCORD_TOKEN` | Discord bot token | Required to run `discord_bot` against Discord |
+| `APPLICATION_ID` | Discord application ID | Required to run `discord_bot` against Discord |
+
 ### Authenticating the `discord_bot` with the `api`
 
-`discord_bot` authenticates with the saint API using an API key. If you wish to run the `discord_bot`, you must generate an API key, hash it with sha256, and then insert it into the database. You can use the `./scripts/generate_api_key.sh` script to do this automatically when running locally, but **you still need to update the `.env` file with the `SAINT_API_KEY`** so `discord_bot` has access to it at runtime. _(Note: The database needs to be running in order for the API key to actually be inserted)_
+`discord_bot` authenticates with the saint API using an API key. If you wish to run the `discord_bot`, you must generate an API key, hash it with sha256, and then insert it into the database. You can use the `./scripts/generate_api_key.sh` script to do this automatically when running locally, but **you still need to update the `.env` file with the printed `SAINT_API_KEY`** so `discord_bot` has access to it at runtime. The database needs to be running in order for the API key to be inserted.
+
+Typical local flow:
+
+```sh
+cp .env.example .env
+./scripts/local.sh start
+./scripts/generate_api_key.sh
+```
+
+Then copy the `API key:` value printed by the script into `SAINT_API_KEY` in `.env`, and recreate `discord_bot`:
+
+```sh
+./scripts/local.sh discord_bot
+```
+
+### Changing Postgres or RabbitMQ credentials
+
+This repository persists Postgres and RabbitMQ state in Docker volumes. Because of that, changing `DB_USER`, `DB_PASSWORD`, `RABBITMQ_USER`, or `RABBITMQ_PASS` in `.env` after those services have already initialized can cause future starts to fail.
+
+Local development fix:
+
+If you intentionally changed Postgres or RabbitMQ credentials for local development, remove the existing service data and let the containers initialize again with the new `.env` values:
+
+```sh
+docker compose down -v
+./scripts/local.sh start
+```
+
+Important:
+
+- `docker compose down -v` deletes the local named volumes, including Postgres and RabbitMQ data.
+- This is destructive for local data. Only use it if you are comfortable resetting the local database and broker state.
+- After resetting, re-run any local bootstrap steps that depend on persisted data, such as `./scripts/generate_api_key.sh`, and update `SAINT_API_KEY` in `.env` if needed.
 
 ## Management UI's
 
