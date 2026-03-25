@@ -152,6 +152,14 @@ Currently, the front end (Discord) forwards simulation requests from users to a 
 
 ## FAQ / Info
 
+### Issues with outdated `simc` version being used
+
+The default env var for `SIMC_IMAGE` uses the `latest` tag. Docker can cache this, and your local `latest` version may be outdated. To solve this and update to the latest image, you can run:
+
+```bash
+docker image pull simulationcraft/simc:latest
+```
+
 ### Issues with go workspaces and dockerfiles
 
 There is some added complexity with our dockerfiles since we are also using go workspaces. In each dockerfile, we need to copy the `go.work` and `go.work.sum` files from the root of the repository, into the container. Then, we need to edit the `go.work` file using `go work edit --dropuse <module_path>` to exclude modules that we don't import in that specific container. If we do not do this, we will run into build errors. As go will try to resolve the paths to those modules, then throw an error (because the modules aren't in containers).

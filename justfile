@@ -38,6 +38,10 @@ help:
       just tidy                     Run go mod tidy across all modules
       just doctor                   Check required host tools and setup
 
+    Utility/Debugging:
+      just simc                     Run & get a shell in temporary container
+                                    with the simc binary preinstalled.
+
     Services
       api, discord-bot, worker, postgres, pgadmin, rabbitmq (logs only)
 
@@ -81,7 +85,7 @@ stop:
 restart service:
     compose_service=""
     needs_build="false"
-    case "{{service}}" in
+    case "{{ service }}" in
       api)
         compose_service="api"
         needs_build="true"
@@ -101,7 +105,7 @@ restart service:
         compose_service="pgadmin"
         ;;
       *)
-        echo "Invalid service: {{service}}"
+        echo "Invalid service: {{ service }}"
         echo "Allowed values: api, discord-bot, worker, postgres, pgadmin"
         exit 1
         ;;
@@ -117,7 +121,7 @@ restart service:
 [script]
 logs service="api":
     compose_service=""
-    case "{{service}}" in
+    case "{{ service }}" in
       api)
         compose_service="api"
         ;;
@@ -137,7 +141,7 @@ logs service="api":
         compose_service="rabbitmq"
         ;;
       *)
-        echo "Invalid service: {{service}}"
+        echo "Invalid service: {{ service }}"
         echo "Allowed values: api, discord-bot, worker, postgres, pgadmin, rabbitmq"
         exit 1
         ;;
@@ -188,12 +192,12 @@ db-down steps="1":
     : "${DB_PASSWORD:?Missing DB_PASSWORD in .env}"
     : "${DB_NAME:?Missing DB_NAME in .env}"
     db_port="${DB_PORT:-5432}"
-    if ! [[ "{{steps}}" =~ ^[0-9]+$ ]] || [ "{{steps}}" -lt 1 ]; then
+    if ! [[ "{{ steps }}" =~ ^[0-9]+$ ]] || [ "{{ steps }}" -lt 1 ]; then
       echo "steps must be a positive integer."
       exit 1
     fi
     count=0
-    while [ "$count" -lt "{{steps}}" ]; do
+    while [ "$count" -lt "{{ steps }}" ]; do
       goose -dir ./db/migrations postgres "user=$DB_USER password=$DB_PASSWORD host=localhost port=$db_port dbname=$DB_NAME sslmode=disable" down
       count=$((count + 1))
     done
@@ -201,7 +205,7 @@ db-down steps="1":
 # Create a new timestamped SQL migration.
 [script]
 db-new name:
-    goose -dir ./db/migrations create "{{name}}" sql
+    goose -dir ./db/migrations create "{{ name }}" sql
 
 # Write a schema-only backup file at the repo root.
 [script]
@@ -290,3 +294,21 @@ doctor:
       exit 1
     fi
     echo "All required host tools are available."
+
+# Get shell inside of a container with simc preinstalled.
+# the version of simc is determined by the version of the
+# simc base image that is used. The base image version is
+# SIMC_IMAGE environment variable.
+[script]
+simc:
+    if [ ! -f .env ]; then
+        echo "Missing .env. Run \`just setup\` first."
+        missing="true"
+    fi
+    simc_image_ver="${SIMC_IMAGE:-}"
+    if [ -z "$simc_image_ver" ]; then
+      echo ".env file does not have SIMC_IMAGE variable. Defaulting to latest image."
+      simc_image_ver="simulationcraftorg/simc:latest"
+    fi
+    echo "Using simc image: ${simc_image_ver}"
+    docker run --rm -it --entrypoint sh $simc_image_ver
