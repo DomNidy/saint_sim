@@ -71,7 +71,7 @@ services:
       - saint_network
     depends_on:
       postgres:
-        condition: service_started
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
 
@@ -99,6 +99,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - saint_network
 
@@ -117,6 +119,12 @@ services:
       - 5432:5432
     networks:
       - saint_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 10s
     restart: always # this policy always restarts the container until its removal.
 
   pgadmin:
