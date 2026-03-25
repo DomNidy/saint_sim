@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"log"
 	"net/http"
 
 	"github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -21,8 +23,15 @@ func AuthRequire(db *pgxpool.Pool) gin.HandlerFunc {
 		hashedApiKey := api_utils.HashApiKey(apiKey)
 		var serviceName string // the service this api key is allowed to auth with (should be 'api')
 		err := db.QueryRow(c, "SELECT service_name FROM api_keys WHERE api_key = $1", hashedApiKey).Scan(&serviceName)
+
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			if errors.Is(err, pgx.ErrNoRows) {
+				log.Printf("Auth middleware -- invalid API key provided. Cannot authenticate request.")
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Invalid API key"})
+				return
+			}
+			log.Printf("Error occured in auth middleware while trying to validate API key: %s", err)
+			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Internal server error occurred"})
 			return
 		}
 

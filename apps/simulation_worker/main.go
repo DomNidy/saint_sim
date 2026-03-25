@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -13,13 +14,14 @@ import (
 	interfaces "github.com/DomNidy/saint_sim/pkg/interfaces"
 	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
+	"github.com/jackc/pgx/v5"
 )
 
-func performSim(region, realm, name string) (*[]byte, error) {
-	simcBinaryPath := secrets.LoadSecret("SIMC_BINARY_PATH")
+var SIMC_BINARY_PATH = secrets.LoadSecret("SIMC_BINARY_PATH").Value()
 
+func performSim(region, realm, name string) (*[]byte, error) {
 	// Command to invoke simc and perform the sim
-	simCommand := exec.Command(simcBinaryPath.Value(), fmt.Sprintf("armory=%v,%v,%v", region, realm, name))
+	simCommand := exec.Command(SIMC_BINARY_PATH, fmt.Sprintf("armory=%v,%v,%v", region, realm, name))
 
 	// Capture output of sim command and write it to this buffer
 	var outputBuffer bytes.Buffer
@@ -38,7 +40,30 @@ func performSim(region, realm, name string) (*[]byte, error) {
 	return &simResult, nil
 }
 
+func getSimcVersion() string {
+	log.Print(SIMC_BINARY_PATH)
+	simcCommand := exec.Command(SIMC_BINARY_PATH)
+
+	var outputBuffer bytes.Buffer
+	simcCommand.Stdout = &outputBuffer
+
+	err := simcCommand.Run()
+
+	exitCode := simcCommand.ProcessState.ExitCode()
+	const noArgumentsExitCode = 50 // simc returns exitcode 50 when no arguments are provided.
+	// since we just want to read its stdout to parse version number, we can ignore the err
+
+	if err != nil && exitCode != noArgumentsExitCode {
+		log.Fatalf("Error running simc binary: %v", err)
+	}
+
+	res := outputBuffer.String()
+	return res
+}
+
 func main() {
+	log.Printf("SIMC Version: %s", getSimcVersion())
+
 	ctx := context.Background()
 	// Setup postgres connection
 	db := utils.InitPostgresConnectionPool(ctx)
@@ -86,7 +111,11 @@ func main() {
 			var simOptionsJson []byte
 			err = db.QueryRow(context.Background(), "select options from simulation_request where id = $1", simRequestMsg.SimulationId).Scan(&simOptionsJson)
 			if err != nil {
-				log.Printf("err occured during query: %v", err)
+				if errors.Is(err, pgx.ErrNoRows) {
+					log.Printf("Failed to locate simulation request to resolve options. Cannot process request: %v", err)
+					continue
+				}
+				log.Printf("Error occured while trying to resolve simulation request options: %v", err)
 				continue
 			}
 

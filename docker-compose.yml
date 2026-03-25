@@ -83,6 +83,8 @@ services:
       additional_contexts:
         root: ./
         pkg: ./pkg
+      args:
+        SIMC_IMAGE: ${SIMC_IMAGE}
       tags:
         - "saint_simulation_worker:latest"
     environment:
@@ -103,13 +105,7 @@ services:
   postgres:
     # explicitly name this so we can connect to it via this hostname (since we are using shared docker network)
     container_name: saint_postgres
-    # copy our db initialization scripts into the container
-    # note: these only run if you start the container with a data directory that is empty;
-    # any pre-existing database will be left untouched on container startup (https://hub.docker.com/_/postgres)
-    build:
-      dockerfile_inline: |
-        FROM postgres:16.4
-        COPY ./db /docker-entrypoint-initdb.d/
+    image: postgres:16.4
     # shared memory limit
     shm_size: 256mb
     volumes:

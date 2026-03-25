@@ -1,6 +1,6 @@
-# todo: extend this image somehow:  https://hub.docker.com/r/simulationcraftorg/simc
-# todo: need to install golang in this container
-FROM simulationcraftorg/simc:latest AS builder
+# version of simc base container to use
+ARG SIMC_IMAGE=simulationcraftorg/simc:latest 
+FROM ${SIMC_IMAGE} AS builder
 
 WORKDIR /build
 RUN apk --version
