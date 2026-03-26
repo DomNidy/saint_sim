@@ -157,7 +157,7 @@ Currently, the front end (Discord) forwards simulation requests from users to a 
 The default env var for `SIMC_IMAGE` uses the `latest` tag. Docker can cache this, and your local `latest` version may be outdated. To solve this and update to the latest image, you can run:
 
 ```bash
-docker image pull simulationcraft/simc:latest
+docker image pull simulationcraftorg/simc:latest
 ```
 
 ### Issues with go workspaces and dockerfiles

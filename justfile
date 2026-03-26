@@ -2,7 +2,8 @@ set dotenv-load := true
 set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 set script-interpreter := ["bash", "-eu", "-o", "pipefail"]
 
-# Show grouped commands and the recommended first-run flow.
+sqlc_image := "sqlc/sqlc:1.29.0"
+
 [script]
 help:
     cat <<"EOF"
@@ -31,6 +32,8 @@ help:
       just db-new <name>            Create a timestamped SQL migration
       just db-schema-backup         Write a schema-only backup file
       just db-reset                 Delete local Postgres and RabbitMQ volumes
+      just db-gen-types             (Re)generate language typed queries from raw
+                                    SQL queries.
 
     Maintenance
       just api-key                  Generate and insert a local API key
@@ -240,6 +243,19 @@ db-reset:
       just start
     EOF
 
+[script]
+db-gen-types:
+    # v1.30.0 of sqlc crashes in pgx/os-user lookup when sqlc analyzes database.uri.
+    docker pull {{ sqlc_image }}
+    docker run --rm \
+      -e DB_HOST \
+      -e DB_NAME \
+      -e DB_USER \
+      -e DB_PASSWORD \
+      --network saint_network \
+      -v "$PWD:/src" \
+      {{ sqlc_image }} generate -f /src/db/sqlc.yaml
+
 # Generate and insert a local API key for discord_bot.
 [script]
 api-key:
@@ -298,6 +314,7 @@ doctor:
 # Get shell inside of a container with simc preinstalled.
 # the version of simc is determined by the version of the
 # simc base image that is used. The base image version is
+
 # SIMC_IMAGE environment variable.
 [script]
 simc:

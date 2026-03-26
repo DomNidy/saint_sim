@@ -6,7 +6,9 @@ import (
 	"log"
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/utils"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
 	"github.com/bwmarrin/discordgo"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -22,8 +24,9 @@ var OutboundSimRequests = make(map[string]*SimRequestOrigin)
 // We will listen for new sim result trigger to be executed
 // This is so we can respond to discord users with the sim results
 func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.Session) error {
+	queries := dbqueries.New(conn)
 
-	_, err := conn.Exec(ctx, "listen new_simulation_data")
+	err := queries.ListenNewSimulationData(ctx)
 	if err != nil {
 		log.Fatalf("Failed to listen on new_simulation_data channel:")
 	}
@@ -37,21 +40,20 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		}
 		log.Printf("new simulation_data received, id: %v", notification.Payload)
 
-		// Create struct to store simulation_data in
-		simRes := struct {
-			simDataId int
-			simReqId  string
-			data      string
-		}{}
-		// Query for simulation_data and scan it into the struct
-		err = conn.QueryRow(ctx, "select id, request_id, sim_result from simulation_data where request_id = $1", notification.Payload).Scan(&simRes.simDataId, &simRes.simReqId, &simRes.data)
+		var requestID pgtype.UUID
+		if err := requestID.Scan(notification.Payload); err != nil {
+			log.Printf("Error converting request_id payload to uuid: %v", err)
+			continue
+		}
+
+		simRes, err := queries.GetSimulationDataByRequestID(ctx, requestID)
 		if err != nil {
 			log.Printf("Error while scanning to simRes: %v", err)
 			continue
 		}
 
 		// Find the user who requested this sim
-		requestOrigin, exists := OutboundSimRequests[simRes.simReqId]
+		requestOrigin, exists := OutboundSimRequests[notification.Payload]
 		if !exists {
 			log.Printf("Received notification of sim data, but no mapping to the request origin exists.")
 			continue
@@ -61,7 +63,7 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		// TODO: We Need to perform transformations on the simulation_data as it's excessively long
 		// TODO: we should not need to truncate it to 2000 chars, but this is the discord bot limit
 		// TODO: Also, prob should remove the mapping from the map after it gets consumed here
-		messageContent := utils.ParseSimcReport(simRes.data, fmt.Sprintf("<@%v>, your sim request %v has been processed:\n", requestOrigin.DiscordUserId, simRes.simReqId))
+		messageContent := utils.ParseSimcReport(simRes.SimResult, fmt.Sprintf("<@%v>, your sim request %v has been processed:\n", requestOrigin.DiscordUserId, notification.Payload))
 		_, err = s.ChannelMessageSend(requestOrigin.DiscordChannelId, messageContent)
 		if err != nil {
 			log.Printf("Failed to send message in discord channel with sim data: %v", err)

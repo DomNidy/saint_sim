@@ -10,11 +10,12 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/DomNidy/saint_sim/apps/simulation_worker/data"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
 	interfaces "github.com/DomNidy/saint_sim/pkg/interfaces"
 	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
-	"github.com/jackc/pgx/v5"
+	pgx "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var SIMC_BINARY_PATH = secrets.LoadSecret("SIMC_BINARY_PATH").Value()
@@ -68,6 +69,7 @@ func main() {
 	// Setup postgres connection
 	db := utils.InitPostgresConnectionPool(ctx)
 	defer db.Close()
+	queries := dbqueries.New(db)
 
 	// Setup rabbit mq connection
 	conn, ch := utils.InitRabbitMQConnection()
@@ -108,8 +110,14 @@ func main() {
 			}
 
 			// Query the sim options json object from simulation_request table
-			var simOptionsJson []byte
-			err = db.QueryRow(context.Background(), "select options from simulation_request where id = $1", simRequestMsg.SimulationId).Scan(&simOptionsJson)
+			var requestID pgtype.UUID
+			err = requestID.Scan(*simRequestMsg.SimulationId)
+			if err != nil {
+				log.Printf("Error converting simulation request id to uuid: %v", err)
+				continue
+			}
+
+			simOptionsJson, err := queries.GetSimulationRequestOptions(context.Background(), requestID)
 			if err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
 					log.Printf("Failed to locate simulation request to resolve options. Cannot process request: %v", err)
@@ -140,8 +148,8 @@ func main() {
 				log.Printf("error while performing sim: %v", err)
 				continue
 			}
-			err = data.InsertSimulationData(db, &interfaces.SimDataInsert{
-				RequestID: *simRequestMsg.SimulationId,
+			err = queries.InsertSimulationData(context.Background(), dbqueries.InsertSimulationDataParams{
+				RequestID: requestID,
 				SimResult: string(*simulationResult),
 			})
 			if err != nil {

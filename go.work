@@ -8,4 +8,7 @@ use (
 	./pkg/interfaces
 	./pkg/secrets
 	./pkg/utils
+	./pkg/db
 )
+
+replace github.com/DomNidy/saint_sim/pkg/db v0.0.0 => ./pkg/db

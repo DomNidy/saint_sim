@@ -3,6 +3,7 @@ module github.com/DomNidy/saint_sim/apps/api
 go 1.21.6
 
 require (
+	github.com/DomNidy/saint_sim/pkg/db v0.0.0
 	github.com/DomNidy/saint_sim/pkg/interfaces v0.0.0-20240909170054-f086fd5cd144
 	github.com/DomNidy/saint_sim/pkg/utils v0.0.0-20240921041450-2e346d580dc8
 	github.com/gin-gonic/gin v1.10.0

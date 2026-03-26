@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/DomNidy/saint_sim/apps/api/api_utils"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,6 +14,8 @@ import (
 
 // Middleware: Authenticates requests
 func AuthRequire(db *pgxpool.Pool) gin.HandlerFunc {
+	queries := dbqueries.New(db)
+
 	return func(c *gin.Context) {
 		apiKey := c.GetHeader("Api-Key")
 		if apiKey == "" {
@@ -21,8 +24,7 @@ func AuthRequire(db *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 		hashedApiKey := api_utils.HashApiKey(apiKey)
-		var serviceName string // the service this api key is allowed to auth with (should be 'api')
-		err := db.QueryRow(c, "SELECT service_name FROM api_keys WHERE api_key = $1", hashedApiKey).Scan(&serviceName)
+		serviceName, err := queries.GetApiKeyServiceName(c, hashedApiKey)
 
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {

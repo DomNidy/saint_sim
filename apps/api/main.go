@@ -12,16 +12,18 @@ import (
 
 	api_utils "github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/apps/api/handlers"
-	"github.com/DomNidy/saint_sim/apps/api/repositories"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
 	"github.com/DomNidy/saint_sim/pkg/interfaces"
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
 	gin "github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func main() {
 	db := utils.InitPostgresConnectionPool(context.Background())
 	defer db.Close()
+	queries := dbqueries.New(db)
 
 	conn, ch := utils.InitRabbitMQConnection()
 	defer conn.Close()
@@ -100,10 +102,20 @@ func main() {
 		log.Printf("Got simulation request options: %s", string(receivedJson))
 		log.Printf("Marshalled SimulationMessageBody into JSON object: %s", string(simulationMessageBody))
 
+		var simulationRequestUUID pgtype.UUID
+		if err := simulationRequestUUID.Scan(simulationRequestId); err != nil {
+			log.Printf("Error converting simulation request id to uuid: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
+		}
+
 		// Create the simulation_request entry in the DB
 		// TODO: We can add request origin information here so we can later determine if we should trigger the discord notification postgres channel
 		// TODO: We will need to update the 'notify_simulation_data' trigger in the db to check for this info.
-		_, err = db.Exec(context.Background(), "INSERT INTO simulation_request (id, options) VALUES ($1, $2)", simulationRequestId, simOptions)
+		err = queries.CreateSimulationRequest(context.Background(), dbqueries.CreateSimulationRequestParams{
+			ID:      simulationRequestUUID,
+			Options: receivedJson,
+		})
 
 		if err != nil {
 			log.Printf("%v", err)
@@ -137,8 +149,7 @@ func main() {
 			return
 		}
 
-		repo := repositories.NewSimDataRepository(db)
-		data, err := repo.GetSimData(simulationId)
+		simData, err := queries.GetSimulationData(c, int32(simulationId))
 		if err != nil {
 			log.Printf("error getting sim data: %v", err.Error())
 			if err == pgx.ErrNoRows {
@@ -149,7 +160,11 @@ func main() {
 			return
 		}
 
-		c.JSON(http.StatusOK, data)
+		c.JSON(http.StatusOK, interfaces.SimulationData{
+			Id:        &simulationId,
+			RequestID: utils.StrPtr(string(simData.RequestID.Bytes[:])),
+			SimResult: utils.StrPtr(simData.SimResult),
+		})
 
 	})
 	r.Run("0.0.0.0:8080")
