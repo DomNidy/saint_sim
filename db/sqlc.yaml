@@ -14,13 +14,13 @@ sql:
     gen:
       go:
         package: db
-        out: ../pkg/db
+        out: ../pkg/go-shared/db
         sql_package: pgx/v5
         output_models_file_name: models.gen.go
         output_db_file_name: db.gen.go
         output_files_suffix: .gen
     codegen:
-      - out: ../pkg/ts/db
+      - out: ../pkg/ts-shared/db
         plugin: ts
         options:
           runtime: node

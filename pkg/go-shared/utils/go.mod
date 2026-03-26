@@ -1,9 +1,9 @@
-module github.com/DomNidy/saint_sim/pkg/utils
+module github.com/DomNidy/saint_sim/pkg/go-shared/utils
 
 go 1.21.6
 
 require (
-	github.com/DomNidy/saint_sim/pkg/interfaces v0.0.0-20260325161646-6195a466eb1d
+	github.com/DomNidy/saint_sim/pkg/go-shared/api_types v0.0.0
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/rabbitmq/amqp091-go v1.10.0
 )

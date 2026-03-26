@@ -7,7 +7,7 @@ import (
 
 	"crypto/sha256"
 
-	"github.com/DomNidy/saint_sim/pkg/interfaces"
+	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	uuid "github.com/google/uuid"
 )
 
@@ -22,7 +22,7 @@ func HashApiKey(apiKey string) string {
 }
 
 // Check to see if a WoWCharacter actually exists on wow armory
-func CheckWowCharacterExists(character *interfaces.WowCharacter) (bool, error) {
+func CheckWowCharacterExists(character *api_types.WowCharacter) (bool, error) {
 	url := fmt.Sprintf("https://worldofwarcraft.blizzard.com/en-us/character/%s/%s/%s", character.Region, character.Realm, character.CharacterName)
 	log.Printf("Checking if char exists at url: %v", url)
 	res, err := http.Get(url)

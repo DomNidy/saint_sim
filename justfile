@@ -32,12 +32,10 @@ help:
       just db-new <name>            Create a timestamped SQL migration
       just db-schema-backup         Write a schema-only backup file
       just db-reset                 Delete local Postgres and RabbitMQ volumes
-      just db-gen-types             (Re)generate language typed queries from raw
-                                    SQL queries.
 
     Maintenance
       just api-key                  Generate and insert a local API key
-      just codegen                  Regenerate OpenAPI-derived interfaces
+      just codegen [target]         Generate shared code for db and/or api
       just tidy                     Run go mod tidy across all modules
       just doctor                   Check required host tools and setup
 
@@ -49,7 +47,8 @@ help:
       api, discord-bot, worker, postgres, pgadmin, rabbitmq (logs only)
 
     Notes
-      Host-installed tools required: just, goose, docker, go.
+      codegen targets: db, api
+      Host-installed tools required: just, goose, docker, go, npx.
       WSL is recommended on Windows.
       Linux/macOS users can use their normal shell.
     EOF
@@ -243,19 +242,6 @@ db-reset:
       just start
     EOF
 
-[script]
-db-gen-types:
-    # v1.30.0 of sqlc crashes in pgx/os-user lookup when sqlc analyzes database.uri.
-    docker pull {{ sqlc_image }}
-    docker run --rm \
-      -e DB_HOST \
-      -e DB_NAME \
-      -e DB_USER \
-      -e DB_PASSWORD \
-      --network saint_network \
-      -v "$PWD:/src" \
-      {{ sqlc_image }} generate -f /src/db/sqlc.yaml
-
 # Generate and insert a local API key for discord_bot.
 [script]
 api-key:
@@ -271,10 +257,46 @@ api-key:
     echo "Success: inserted API key into the database."
     echo "API key: $generated_api_key"
 
-# Regenerate the OpenAPI-derived Go interfaces.
+# Generate shared code for the database and/or OpenAPI schema.
 [script]
-codegen:
-    go run github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.16.3 --generate types,skip-prune -o ./pkg/interfaces/api_interfaces.gen.go -package interfaces ./apps/api/openapi.yaml
+codegen target="":
+    generate_db() {
+      # v1.30.0 of sqlc crashes in pgx/os-user lookup when sqlc analyzes database.uri.
+      mkdir -p ./pkg/go-shared/db ./pkg/ts-shared/db
+      docker pull {{ sqlc_image }}
+      docker run --rm \
+        -e DB_HOST \
+        -e DB_NAME \
+        -e DB_USER \
+        -e DB_PASSWORD \
+        --network saint_network \
+        -v "$PWD:/src" \
+        {{ sqlc_image }} generate -f /src/db/sqlc.yaml
+    }
+
+    generate_api() {
+      mkdir -p ./pkg/go-shared/api_types ./pkg/ts-shared/api
+      go run github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.16.3 --generate types,skip-prune -o ./pkg/go-shared/api_types/api_types.gen.go -package api_types ./apps/api/openapi.yaml
+      npx --yes openapi-typescript@7.8.0 ./apps/api/openapi.yaml -o ./pkg/ts-shared/api/openapi.gen.ts
+    }
+
+    case "{{ target }}" in
+      "")
+        generate_db
+        generate_api
+        ;;
+      db)
+        generate_db
+        ;;
+      api)
+        generate_api
+        ;;
+      *)
+        echo "Invalid codegen target: {{ target }}"
+        echo "Allowed values: db, api"
+        exit 1
+        ;;
+    esac
 
 # Run go mod tidy across every Go module in the repository.
 [script]
@@ -292,7 +314,7 @@ tidy:
 [script]
 doctor:
     missing="false"
-    for cmd in just goose docker go bash; do
+    for cmd in just goose docker go bash npx; do
       if ! command -v "$cmd" >/dev/null 2>&1; then
         echo "Missing required command: $cmd"
         missing="true"

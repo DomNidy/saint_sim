@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/DomNidy/saint_sim/apps/api/api_utils"
-	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

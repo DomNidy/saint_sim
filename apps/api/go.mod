@@ -3,9 +3,9 @@ module github.com/DomNidy/saint_sim/apps/api
 go 1.21.6
 
 require (
-	github.com/DomNidy/saint_sim/pkg/db v0.0.0
-	github.com/DomNidy/saint_sim/pkg/interfaces v0.0.0-20240909170054-f086fd5cd144
-	github.com/DomNidy/saint_sim/pkg/utils v0.0.0-20240921041450-2e346d580dc8
+	github.com/DomNidy/saint_sim/pkg/go-shared/api_types v0.0.0
+	github.com/DomNidy/saint_sim/pkg/go-shared/db v0.0.0
+	github.com/DomNidy/saint_sim/pkg/go-shared/utils v0.0.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.1
@@ -42,7 +42,7 @@ require (
 )
 
 require (
-	github.com/DomNidy/saint_sim/pkg/secrets v0.0.0-20240909170054-f086fd5cd144 // indirect
+	github.com/DomNidy/saint_sim/pkg/go-shared/secrets v0.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect

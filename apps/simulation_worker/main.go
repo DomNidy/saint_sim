@@ -10,10 +10,10 @@ import (
 	"os"
 	"os/exec"
 
-	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
-	interfaces "github.com/DomNidy/saint_sim/pkg/interfaces"
-	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
-	utils "github.com/DomNidy/saint_sim/pkg/utils"
+	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
+	secrets "github.com/DomNidy/saint_sim/pkg/go-shared/secrets"
+	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -100,7 +100,7 @@ func main() {
 			log.Printf("Received a message: %s\n", d.Body)
 			log.Printf("receivedCount = %d\n", receivedCount)
 
-			var simRequestMsg interfaces.SimulationMessageBody
+			var simRequestMsg api_types.SimulationMessageBody
 
 			// todo: handle this error, and finish this message
 			err := json.Unmarshal(d.Body, &simRequestMsg)
@@ -128,7 +128,7 @@ func main() {
 			}
 
 			// Validating the returned json from db
-			var simOptions interfaces.SimulationOptions
+			var simOptions api_types.SimulationOptions
 			err = json.Unmarshal(simOptionsJson, &simOptions)
 			if err != nil {
 				log.Printf("error unmarshalling json: %v", err)

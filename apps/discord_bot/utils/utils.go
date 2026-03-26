@@ -10,15 +10,15 @@ import (
 	"strings"
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
-	"github.com/DomNidy/saint_sim/pkg/interfaces"
-	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
+	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
+	saintutils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 	"github.com/bwmarrin/discordgo"
 )
 
 // Pass the slice of interaction options received from discord command here
-func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.ApplicationCommandInteractionDataOption) (*interfaces.SimulationOptions, error) {
-	simOptions := interfaces.SimulationOptions{
-		WowCharacter: interfaces.WowCharacter{},
+func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.ApplicationCommandInteractionDataOption) (*api_types.SimulationOptions, error) {
+	simOptions := api_types.SimulationOptions{
+		WowCharacter: api_types.WowCharacter{},
 	}
 
 	for _, option := range appCmdInteractionData {
@@ -31,13 +31,13 @@ func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.Applicatio
 			}
 		case "realm":
 			if realm, ok := option.Value.(string); ok {
-				simOptions.WowCharacter.Realm = interfaces.WowCharacterRealm(realm)
+				simOptions.WowCharacter.Realm = api_types.WowCharacterRealm(realm)
 			} else {
 				return nil, fmt.Errorf("realm must be a string")
 			}
 		case "region":
 			if region, ok := option.Value.(string); ok {
-				simOptions.WowCharacter.Region = interfaces.WowCharacterRegion(region)
+				simOptions.WowCharacter.Region = api_types.WowCharacterRegion(region)
 			} else {
 				return nil, fmt.Errorf("region must be a string")
 			}
@@ -69,7 +69,7 @@ func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.Applicatio
 	return &simOptions, nil
 }
 
-func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate, options *interfaces.SimulationOptions) (*interfaces.SimulationResponse, error) {
+func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate, options *api_types.SimulationOptions) (*api_types.SimulationResponse, error) {
 	url := constants.SaintApiUrl.Value() + "/simulate"
 	jsonData, err := json.Marshal(options)
 	if err != nil {
@@ -107,7 +107,7 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 		var errResp interface{}
 		decodeErr := json.NewDecoder(resp.Body).Decode(&errResp)
 		// Ensure the returned type correctly matches ErrorResponse type
-		apiErr, ok := errResp.(interfaces.ErrorResponse)
+		apiErr, ok := errResp.(api_types.ErrorResponse)
 		if !ok || decodeErr != nil {
 			return nil, fmt.Errorf("could not find WoW character")
 		} else if apiErr.Message == nil {
@@ -118,7 +118,7 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 		return nil, fmt.Errorf(*apiErr.Message)
 	}
 
-	var simRespose interfaces.SimulationResponse
+	var simRespose api_types.SimulationResponse
 	// Strict decoder
 	// this will return an error if an unknown field is returned from the response json
 	decoder := json.NewDecoder(resp.Body)

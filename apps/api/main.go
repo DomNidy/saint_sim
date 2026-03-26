@@ -12,9 +12,9 @@ import (
 
 	api_utils "github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/apps/api/handlers"
-	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
-	"github.com/DomNidy/saint_sim/pkg/interfaces"
-	utils "github.com/DomNidy/saint_sim/pkg/utils"
+	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
+	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 	gin "github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -44,7 +44,7 @@ func main() {
 	authorized := r.Group("/", handlers.AuthRequire(db))
 
 	authorized.POST("/simulate", func(c *gin.Context) {
-		var simOptions interfaces.SimulationOptions
+		var simOptions api_types.SimulationOptions
 		if err := c.ShouldBindJSON(&simOptions); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid simulation options"})
 			return
@@ -90,7 +90,7 @@ func main() {
 
 		// Create SimulationMessageBody
 		simulationRequestId := api_utils.GenerateUUID()
-		simulationMessageBody, err := json.Marshal(interfaces.SimulationMessageBody{
+		simulationMessageBody, err := json.Marshal(api_types.SimulationMessageBody{
 			SimulationId: &simulationRequestId,
 		})
 		if err != nil {
@@ -135,7 +135,7 @@ func main() {
 		)
 		utils.FailOnError(err, "Failed to publish msg to queue")
 		log.Printf(" [x] Sent %s\n", simulationMessageBody)
-		c.JSON(200, interfaces.SimulationResponse{
+		c.JSON(200, api_types.SimulationResponse{
 			SimulationRequestId: utils.StrPtr(string(simulationRequestId[:])),
 		})
 	})
@@ -160,9 +160,9 @@ func main() {
 			return
 		}
 
-		c.JSON(http.StatusOK, interfaces.SimulationData{
+		c.JSON(http.StatusOK, api_types.SimulationData{
 			Id:        &simulationId,
-			RequestID: utils.StrPtr(string(simData.RequestID.Bytes[:])),
+			RequestId: utils.StrPtr(string(simData.RequestID.Bytes[:])),
 			SimResult: utils.StrPtr(simData.SimResult),
 		})
 

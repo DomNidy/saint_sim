@@ -1,4 +1,4 @@
-module github.com/DomNidy/saint_sim/apps/simulation_worker
+module github.com/DomNidy/saint_sim/pkg/go-shared/db
 
 go 1.21.6
 

@@ -13,12 +13,17 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
   - `/apps/api`: The API server application
   - `/apps/simulation_worker`: Application which handles simulation requests from users by invoking `simc`, then persists the results to the database
 - `/justfile`: Root task runner for local development and maintenance commands
-- `/pkg`: Directory containing packages shared and used throughout `/apps`
+- `/pkg`: Directory containing shared packages and generated contracts used throughout `/apps`
 
-  - `/pkg/auth`: Provides mechanisms for authenticating user requests
-  - `/pkg/secrets`: Utility for reading secrets into memory
-  - `/pkg/interfaces`: Contains automatically generated, shared types
-  - `/pkg/utils`: Miscellaneous shared utilities
+  - `/pkg/go-shared`: Shared Go workspace modules
+  - `/pkg/go-shared/api_types`: Automatically generated Go types from the OpenAPI schema
+  - `/pkg/go-shared/auth`: Provides mechanisms for authenticating user requests
+  - `/pkg/go-shared/db`: Generated Go database access code from `sqlc`
+  - `/pkg/go-shared/secrets`: Utility for reading secrets into memory
+  - `/pkg/go-shared/utils`: Miscellaneous shared utilities
+  - `/pkg/ts-shared`: Shared generated TypeScript contracts
+  - `/pkg/ts-shared/api`: OpenAPI-derived TypeScript types
+  - `/pkg/ts-shared/db`: `sqlc`-generated TypeScript query bindings
 
 - `/db/migrations`: Goose SQL migrations. This is the single source of truth for database schema changes.
 

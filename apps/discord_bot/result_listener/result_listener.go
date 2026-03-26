@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/utils"
-	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
