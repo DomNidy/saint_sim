@@ -78,6 +78,7 @@ services:
   # This container actually performs the simulations
   simulation_worker:
     container_name: saint_simulation_worker
+    platform: linux/amd64
     build:
       context: ./apps/simulation_worker
       additional_contexts:

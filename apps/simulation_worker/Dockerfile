@@ -1,6 +1,11 @@
 # version of simc base container to use
-ARG SIMC_IMAGE=simulationcraftorg/simc:latest 
-FROM ${SIMC_IMAGE} AS builder
+ARG SIMC_IMAGE=simulationcraftorg/simc:latest
+ARG SIMC_PLATFORM=linux/amd64
+
+# Upstream SimC currently publishes an amd64-only image. Pin the worker build to
+# that platform so the Go binary, Alpine runtime, and copied simc binary all use
+# the same architecture
+FROM --platform=${SIMC_PLATFORM} ${SIMC_IMAGE} AS builder
 
 WORKDIR /build
 RUN apk --version
@@ -30,13 +35,13 @@ COPY . .
 RUN go build -o simulation_worker main.go
 
 # alpine index: https://dl-4.alpinelinux.org/alpine/
-FROM alpine:3.20 AS runner
+FROM --platform=${SIMC_PLATFORM} alpine:3.20 AS runner
 
 ENV SIMC_BINARY_PATH=./simc
 
 WORKDIR /app
 
-# # Install CA certificates and dependencies needed to run simc
+# Install CA certificates and dependencies needed to run simc
 RUN apk update && apk add ca-certificates libcurl libgcc libstdc++
 
 # Copy simc binary from previous stage into image
