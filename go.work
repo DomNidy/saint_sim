@@ -11,8 +11,6 @@ use (
 
 replace github.com/DomNidy/saint_sim/pkg/go-shared/api_types v0.0.0 => ./pkg/go-shared/api_types
 
-replace github.com/DomNidy/saint_sim/pkg/go-shared/auth v0.0.0 => ./pkg/go-shared/auth
-
 replace github.com/DomNidy/saint_sim/pkg/go-shared/db v0.0.0 => ./pkg/go-shared/db
 
 replace github.com/DomNidy/saint_sim/pkg/go-shared/secrets v0.0.0 => ./pkg/go-shared/secrets

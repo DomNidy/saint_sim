@@ -19,7 +19,7 @@ RUN go mod download
 # copy the remaining contents into container
 COPY . .
 
-RUN go build -o api main.go
+RUN go build -o api .
 
 # alpine index: https://dl-4.alpinelinux.org/alpine/
 FROM alpine:3.20 AS runner
