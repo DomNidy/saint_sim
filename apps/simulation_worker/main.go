@@ -25,7 +25,7 @@ type SimulationStore interface {
 }
 
 type SimRunner interface {
-	Perform(region, realm, name string) ([]byte, error)
+	Perform(options string) ([]byte, error)
 	Version() string
 }
 
@@ -38,9 +38,9 @@ type simcRunner struct {
 	binaryPath string
 }
 
-func (r simcRunner) Perform(region, realm, name string) ([]byte, error) {
+func (r simcRunner) Perform(options string) ([]byte, error) {
 	// Command to invoke simc and perform the sim
-	simCommand := exec.Command(r.binaryPath, fmt.Sprintf("armory=%v,%v,%v", region, realm, name))
+	simCommand := exec.Command(r.binaryPath, options)
 
 	// Capture output of sim command and write it to this buffer
 	var outputBuffer bytes.Buffer
@@ -111,11 +111,11 @@ func (w Worker) HandleMessage(ctx context.Context, body []byte) error {
 		return fmt.Errorf("invalid sim options received: %s", string(simOptionsJSON))
 	}
 
-	simulationResult, err := w.runner.Perform(
-		string(simOptions.WowCharacter.Region),
-		string(simOptions.WowCharacter.Realm),
-		simOptions.WowCharacter.CharacterName,
-	)
+	region := string(simOptions.WowCharacter.Region)
+	realm := string(simOptions.WowCharacter.Realm)
+	characterName := simOptions.WowCharacter.CharacterName
+	simulationResult, err := w.runner.Perform(fmt.Sprintf("armory=%v,%v,%v", region, realm, characterName))
+
 	if err != nil {
 		return fmt.Errorf("perform sim: %w", err)
 	}

@@ -32,6 +32,10 @@ func FailOnError(err error, msg string) {
 	}
 }
 
+func SanitizeAndParseSimcString(simcConfigString string) string {
+	return ""
+}
+
 // Creates a rabbit mq channel with a single connection
 // A channel multiplexes connections over a single TCP connection
 // This allows us to logically distinguish between different 'connections',
