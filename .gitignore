@@ -23,3 +23,5 @@
 *.secret.txt
 secrets/*.txt
 .plans/
+.gocache
+.gotmp

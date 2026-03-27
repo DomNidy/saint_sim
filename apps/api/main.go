@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
-
-	amqp "github.com/rabbitmq/amqp091-go"
 
 	api_utils "github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/apps/api/handlers"
@@ -17,7 +15,6 @@ import (
 	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 	gin "github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func main() {
@@ -31,6 +28,17 @@ func main() {
 
 	// Declare queue to publish msgs to
 	q := utils.DeclareSimulationQueue(ch)
+
+	simulationService := SimulationService{
+		store: queries,
+		dispatcher: rabbitMQDispatcher{
+			channel:   ch,
+			queueName: q.Name,
+			timeout:   5 * time.Second,
+		},
+		characters: liveCharacterLookup{},
+		idgen:      api_utils.GenerateUUID,
+	}
 
 	// Setup api server
 	r := gin.Default()
@@ -50,94 +58,27 @@ func main() {
 			return
 		}
 
-		// Validate sim options to prevent rce
-		if !utils.IsValidSimOptions(&simOptions) {
-			log.Printf("Sim options were invalid!")
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
-			return
-		}
-
-		// Marshal back
-		receivedJson, err := json.Marshal(simOptions)
+		response, err := simulationService.Submit(c, simOptions)
 		if err != nil {
-			log.Printf("Error converting to json: %v, %v", receivedJson, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			switch {
+			case errors.Is(err, ErrInvalidSimOptions):
+				log.Printf("Sim options were invalid")
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
+			case errors.Is(err, ErrInvalidWowRealm):
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wow realm"})
+			case errors.Is(err, ErrInvalidWowRegion):
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wow region"})
+			case errors.Is(err, ErrCharacterNotFound):
+				log.Printf("WoW character does not exist")
+				c.JSON(http.StatusNotFound, gin.H{"message": "WoW character does not exist"})
+			default:
+				log.Printf("simulate request failed: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			}
 			return
 		}
 
-		// Make sure the provided realm & regions exist
-		if !utils.IsValidWowRealm(string(simOptions.WowCharacter.Realm)) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wow realm"})
-			return
-		}
-
-		if !utils.IsValidWowRegion(string(simOptions.WowCharacter.Region)) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wow region"})
-			return
-		}
-
-		// Make sure the wow character actually exists before sending sim msg
-		exists, err := api_utils.CheckWowCharacterExists(&simOptions.WowCharacter)
-		if err != nil {
-			log.Printf("Error checking for character existence: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-			return
-		} else if !exists {
-			log.Printf("WoW character does not exist")
-			c.JSON(http.StatusNotFound, gin.H{"message": "WoW character does not exist"})
-			return
-		}
-
-		// Create SimulationMessageBody
-		simulationRequestId := api_utils.GenerateUUID()
-		simulationMessageBody, err := json.Marshal(api_types.SimulationMessageBody{
-			SimulationId: &simulationRequestId,
-		})
-		if err != nil {
-			log.Printf("Error converting to json: %v, %v", receivedJson, err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-			return
-		}
-
-		log.Printf("Got simulation request options: %s", string(receivedJson))
-		log.Printf("Marshalled SimulationMessageBody into JSON object: %s", string(simulationMessageBody))
-
-		var simulationRequestUUID pgtype.UUID
-		if err := simulationRequestUUID.Scan(simulationRequestId); err != nil {
-			log.Printf("Error converting simulation request id to uuid: %v", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-			return
-		}
-
-		// Create the simulation_request entry in the DB
-		// TODO: We can add request origin information here so we can later determine if we should trigger the discord notification postgres channel
-		// TODO: We will need to update the 'notify_simulation_data' trigger in the db to check for this info.
-		err = queries.CreateSimulationRequest(context.Background(), dbqueries.CreateSimulationRequestParams{
-			ID:      simulationRequestUUID,
-			Options: receivedJson,
-		})
-
-		if err != nil {
-			log.Printf("%v", err)
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		err = ch.PublishWithContext(ctx,
-			"",     // exchange
-			q.Name, // routing key
-			false,
-			false,
-			amqp.Publishing{
-				ContentType: "application/json",
-				Body:        simulationMessageBody,
-			},
-		)
-		utils.FailOnError(err, "Failed to publish msg to queue")
-		log.Printf(" [x] Sent %s\n", simulationMessageBody)
-		c.JSON(200, api_types.SimulationResponse{
-			SimulationRequestId: utils.StrPtr(string(simulationRequestId[:])),
-		})
+		c.JSON(http.StatusOK, response)
 	})
 	r.GET("/report/:id", func(c *gin.Context) {
 		// get sim id from params & convert to int

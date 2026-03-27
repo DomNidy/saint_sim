@@ -351,4 +351,4 @@ simc:
     fi
     echo "Using simc image: ${simc_image_ver}"
     # Add /app/SimulationCraft to path so we can invoke simc with `simc` (just for convenience)
-    docker run --rm -it --entrypoint sh $simc_image_ver -lc 'export PATH="/app/SimulationCraft:$PATH"; exec sh'
+    docker run --rm -it --network none --entrypoint sh $simc_image_ver -lc 'export PATH="/app/SimulationCraft:$PATH"; exec sh'
