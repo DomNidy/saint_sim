@@ -6,34 +6,33 @@ FROM --platform=${SIMC_PLATFORM} ${SIMC_IMAGE} AS simc
 
 FROM golang:${GO_VERSION}-alpine AS deps
 
-WORKDIR /src
-
-COPY go.work go.work.sum ./
-COPY apps/api/go.mod apps/api/go.sum ./apps/api/
-COPY apps/simulation_worker/go.mod apps/simulation_worker/go.sum ./apps/simulation_worker/
-COPY pkg/go-shared ./pkg/go-shared
-
-WORKDIR /src/apps/api
-RUN go mod download
-
-WORKDIR /src/apps/simulation_worker
-RUN go mod download
-
-FROM golang:${GO_VERSION}-alpine AS test-runner
-
+RUN apk add --no-cache bash ca-certificates libcurl libgcc libstdc++
+# Set environment variables so agent and go code have access to simc
 ENV SIMC_HOME=/opt/SimulationCraft
 ENV SIMC_BINARY_PATH=/opt/SimulationCraft/simc
 ENV PATH=/opt/SimulationCraft:${PATH}
 
-WORKDIR /src
+WORKDIR /app
 
-RUN apk add --no-cache bash ca-certificates libcurl libgcc libstdc++
+COPY . /app
 
-COPY --from=simc /app/SimulationCraft ${SIMC_HOME}
-COPY --from=deps /go/pkg /go/pkg
-COPY . .
-COPY docker/run-tests.sh /usr/local/bin/run-tests.sh
+WORKDIR /app/apps/api
+RUN go mod download
 
-RUN chmod +x /usr/local/bin/run-tests.sh
+WORKDIR /app/apps/simulation_worker
+RUN go mod download
 
-CMD ["/usr/local/bin/run-tests.sh"]
+WORKDIR /app
+
+# Compile workspace modules explicitly; the repo root is a go.work root, not a module.
+RUN go build ./apps/api/... ./apps/simulation_worker/... ./pkg/go-shared/api_types/... ./pkg/go-shared/db/... ./pkg/go-shared/secrets/... ./pkg/go-shared/utils/...
+# Compile test binaries without running them, ensuring the Go test toolchain is cached.
+RUN go test -run XDUMMY ./apps/api/... ./apps/simulation_worker/... ./pkg/go-shared/api_types/... ./pkg/go-shared/db/... ./pkg/go-shared/secrets/... ./pkg/go-shared/utils/... || true
+
+RUN mkdir -p ${SIMC_HOME}
+COPY --from=simc /app/SimulationCraft/simc ${SIMC_HOME}/simc
+
+# COPY docker/run-tests.sh /usr/local/bin/run-tests.sh
+# RUN chmod +x /usr/local/bin/run-tests.sh
+
+# CMD ["/usr/local/bin/run-tests.sh"]
