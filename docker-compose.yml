@@ -3,39 +3,6 @@
 version: "3.9"
 name: saint
 services:
-  discord_bot:
-    container_name: saint_discord_bot
-    build:
-      context: ./apps/discord_bot
-      # We are using multiple build contexts so we can easily copy the modules in /pkg/ into the containers
-      # https://www.docker.com/blog/dockerfiles-now-support-multiple-build-contexts/
-      additional_contexts:
-        root: ./
-        pkg: ./pkg
-      tags:
-        - "saint_discord_bot:latest"
-    networks:
-      - saint_network
-    depends_on:
-      api:
-        condition: service_healthy
-      postgres:
-        condition: service_started
-
-    environment:
-      - DISCORD_TOKEN=${DISCORD_TOKEN}
-      - APPLICATION_ID=${APPLICATION_ID}
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=${RABBITMQ_PORT}
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASS=${RABBITMQ_PASS}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_HOST=${DB_HOST}
-      - DB_NAME=${DB_NAME}
-      - SAINT_API_URL=${SAINT_API_URL}
-      - SAINT_API_KEY=${SAINT_API_KEY}
-
   api:
     container_name: saint_api
     build:

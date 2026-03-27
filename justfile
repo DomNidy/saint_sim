@@ -13,7 +13,6 @@ help:
       just setup
       just db-start
       just db-migrate
-      just api-key
       just start
 
     Setup and lifecycle
@@ -34,7 +33,6 @@ help:
       just db-reset                 Delete local Postgres and RabbitMQ volumes
 
     Maintenance
-      just api-key                  Generate and insert a local API key
       just codegen [target]         Generate shared code for db and/or api
       just tidy                     Run go mod tidy across all modules
       just doctor                   Check required host tools and setup
@@ -44,7 +42,7 @@ help:
                                     with the simc binary preinstalled.
 
     Services
-      api, discord-bot, worker, postgres, pgadmin, rabbitmq (logs only)
+      api, worker, postgres, pgadmin, rabbitmq (logs only)
 
     Notes
       codegen targets: db, api
@@ -62,12 +60,6 @@ setup:
       cp .env.example .env
       echo "Created .env from .env.example."
     fi
-    cat <<'EOF'
-    Review these values in .env before continuing:
-    - DISCORD_TOKEN
-    - APPLICATION_ID
-    - SAINT_API_KEY (generated later with `just api-key`)
-    EOF
 
 # Build and start the full local stack.
 [script]
@@ -92,10 +84,6 @@ restart service:
         compose_service="api"
         needs_build="true"
         ;;
-      discord-bot)
-        compose_service="discord_bot"
-        needs_build="true"
-        ;;
       worker)
         compose_service="simulation_worker"
         needs_build="true"
@@ -108,7 +96,7 @@ restart service:
         ;;
       *)
         echo "Invalid service: {{ service }}"
-        echo "Allowed values: api, discord-bot, worker, postgres, pgadmin"
+        echo "Allowed values: api, worker, postgres, pgadmin"
         exit 1
         ;;
     esac
@@ -127,9 +115,6 @@ logs service="api":
       api)
         compose_service="api"
         ;;
-      discord-bot)
-        compose_service="discord_bot"
-        ;;
       worker)
         compose_service="simulation_worker"
         ;;
@@ -144,7 +129,7 @@ logs service="api":
         ;;
       *)
         echo "Invalid service: {{ service }}"
-        echo "Allowed values: api, discord-bot, worker, postgres, pgadmin, rabbitmq"
+        echo "Allowed values: api, worker, postgres, pgadmin, rabbitmq"
         exit 1
         ;;
     esac
@@ -238,11 +223,10 @@ db-reset:
     Recovery steps:
       just db-start
       just db-migrate
-      just api-key
       just start
     EOF
 
-# Generate and insert a local API key for discord_bot.
+# Generate and insert a local API key
 [script]
 api-key:
     if [ ! -f .env ]; then

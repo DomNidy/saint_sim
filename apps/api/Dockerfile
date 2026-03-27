@@ -4,7 +4,6 @@ WORKDIR /build
 
 COPY --from=root go.work go.work.sum ./
 
-RUN go work edit -dropuse ./apps/discord_bot
 RUN go work edit -dropuse ./apps/simulation_worker
 
 WORKDIR /build/pkg
@@ -17,7 +16,7 @@ WORKDIR /build/apps/api
 COPY go.mod go.sum ./
 RUN go mod download
 
-# copy the remaining contents of discord_bot into container
+# copy the remaining contents into container
 COPY . .
 
 RUN go build -o api main.go

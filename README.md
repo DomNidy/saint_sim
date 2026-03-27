@@ -1,6 +1,6 @@
 # saint_sim
 
-The `saint_sim` project aims to provide World of Warcraft players with helpful insights to improve their character's effectiveness and make informed gearing decisions. We provide an interface for the core simulation engine, [simc](https://github.com/simulationcraft/simc), offering an API server and Discord bot.
+The `saint_sim` project aims to provide World of Warcraft players with helpful insights to improve their character's effectiveness and make informed gearing decisions. We provide an interface for the core simulation engine, [simc](https://github.com/simulationcraft/simc), offering an API server.
 
 ## Project Structure
 
@@ -9,7 +9,6 @@ _The project structure is subject to change as things are ironed out throughout 
 We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to share packages from different go modules in this repository.
 
 - `/apps`: Directory containing the various applications
-  - `/apps/discord_bot`: The Discord bot application _(forwards requests to `api`)_
   - `/apps/api`: The API server application
   - `/apps/simulation_worker`: Application which handles simulation requests from users by invoking `simc`, then persists the results to the database
 - `/justfile`: Root task runner for local development and maintenance commands
@@ -45,10 +44,8 @@ Prerequisites:
 just setup
 ```
 
-The default values in `.env.example` are intended for local Docker development. Update these before starting services:
+The default values in `.env.example` are intended for local Docker development. Update these before starting services.
 
-- `DISCORD_TOKEN` and `APPLICATION_ID` if you want `discord_bot` to connect to Discord.
-- `SAINT_API_KEY` after generating and inserting a local API key with `just api-key`.
 
 ### Apply database migrations locally
 
@@ -67,14 +64,7 @@ Goose migrations in `/db/migrations` are the authoritative schema history for th
 just setup
 just db-start
 just db-migrate
-just api-key
 just start
-```
-
-Then copy the printed `API key:` value into `SAINT_API_KEY` in `.env`, and recreate the Discord bot:
-
-```sh
-just restart discord-bot
 ```
 
 ## Environment Variables & Configuration
@@ -102,15 +92,8 @@ just setup
 | `RABBITMQ_PORT`    | Host port mapped to RabbitMQ `5672`                      | `5672`                                                                                     |
 | `RABBITMQ_USER`    | RabbitMQ username                                        | `saint`                                                                                    |
 | `RABBITMQ_PASS`    | RabbitMQ password                                        | `saint_dev_password`                                                                       |
-| `SAINT_API_URL`    | Internal API URL used by `discord_bot`                   | `http://api:8080`                                                                          |
-| `SAINT_API_KEY`    | API key used by `discord_bot` to authenticate with `api` | Replace after running `just api-key`                                                       |
-| `DISCORD_TOKEN`    | Discord bot token                                        | Required to run `discord_bot` against Discord                                              |
-| `APPLICATION_ID`   | Discord application ID                                   | Required to run `discord_bot` against Discord                                              |
 | `SIMC_IMAGE`       | Base image `simulation_worker` builds off of             | Default will use the latest version. This is a build-time argument, not an actual env var. |
 
-### Authenticating the `discord_bot` with the `api`
-
-`discord_bot` authenticates with the saint API using an API key. If you wish to run the `discord_bot`, you must generate an API key, hash it with sha256, and then insert it into the database. You can use `just api-key` to do this automatically when running locally, but **you still need to update the `.env` file with the printed `SAINT_API_KEY`** so `discord_bot` has access to it at runtime. The database needs to be running in order for the API key to be inserted.
 
 ### Changing Postgres or RabbitMQ credentials
 
@@ -128,7 +111,7 @@ Important:
 
 - `just db-reset` stops the local stack and removes the `postgres_data` and `rabbitmq_data` volumes.
 - This is destructive for local data. Only use it if you are comfortable resetting the local database and broker state.
-- After resetting, re-run Goose migrations with `just db-migrate`, then any local bootstrap steps that depend on persisted data, such as `just api-key`, and update `SAINT_API_KEY` in `.env` if needed.
+- After resetting, re-run Goose migrations with `just db-migrate`, then any local bootstrap steps that depend on persisted data.
 
 ## Management UI's
 
@@ -147,13 +130,13 @@ The project is structured in such a way that each app in `/apps` can be deployed
 
 If I just wanted to scale `simulation_worker` independently, the `api` layer would be unnecessary, as I could send sim requests directly to a message queue and process them asynchronously. However, introducing an API layer and using it as a proxy for sim requests offers many benefits, such as:
 
-- Decoupling the front-end (Discord) from business logic _(which makes it easier to add support for additional front-end clients like web apps)_.
+- Decoupling the front-end from business logic _(which makes it easier to add support for additional front-end clients like web apps)_.
 
 - Promoting better separation of concerns _(which makes development easier as the codebase grows)_
 
 - Making it easier to add additional features *(as a product of more constrained SoC)*
 
-Currently, the front end (Discord) forwards simulation requests from users to a RabbitMQ broker, which then routes the request to a worker (a container running the `/simulation_worker` service). After the simulation is processed, the results are persisted to the database.
+Currently, the front end forwards simulation requests from users to a RabbitMQ broker, which then routes the request to a worker (a container running the `/simulation_worker` service). After the simulation is processed, the results are persisted to the database.
 
 ## FAQ / Info
 

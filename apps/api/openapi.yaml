@@ -4,7 +4,7 @@ info:
   title: Saint API
   version: 1.0.0
   description: |-
-    This API responsible for the saint business logic. The discord bot, and, potentially more services in the future, will call this API.
+    This API responsible for the saint business logic.
 
 paths:
   /simulate:
@@ -19,16 +19,7 @@ paths:
             schema:
               $ref: "#/components/schemas/simulation_options"
       security:
-        - SaintBotAuth: []
-        - UserAuth: []
-      # https://swagger.io/docs/specification/v3_0/describing-parameters/
-      parameters:
-        - name: Discord-User-Id
-          in: header
-          required: false
-          schema:
-            type: string
-          description: This header MUST be present for requests originating from the Saint Discord bot. Not required when requested directly from a user.
+        - ApiKeyAuth: []
       responses:
         "200":
           description: Simulation request was received
@@ -83,22 +74,13 @@ components:
           schema:
             $ref: "#/components/schemas/error_response"
   securitySchemes:
-    SaintBotAuth:
+    ApiKeyAuth:
       description: |
-        Schema that the Saint Discord bot uses to authenticate with our API
-        Use the `Authorization: Bot <bot_jwt_token>` header to authenticate
-        Note: Certain endpoints may require a Discord-User-Id header to be provided
-        when using this authentication scheme.
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-    UserAuth:
-      description: |
-        Schema that any frontend client uses to authenticate with our API
-        Use the `Authorization: Bearer <user_jwt_token>` header to authenticate
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+        API key authentication for protected endpoints.
+        Use the `Api-Key: <api_key>` header to authenticate.
+      type: apiKey
+      in: header
+      name: Api-Key
   schemas:
     wow_character:
       type: object
