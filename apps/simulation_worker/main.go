@@ -1,18 +1,16 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
-	"os"
-	"os/exec"
 
 	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
 	secrets "github.com/DomNidy/saint_sim/pkg/go-shared/secrets"
+	"github.com/DomNidy/saint_sim/pkg/go-shared/simc"
 	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -32,51 +30,6 @@ type SimRunner interface {
 type Worker struct {
 	store  SimulationStore
 	runner SimRunner
-}
-
-type simcRunner struct {
-	binaryPath string
-}
-
-func (r simcRunner) Perform(options string) ([]byte, error) {
-	// Command to invoke simc and perform the sim
-	simCommand := exec.Command(r.binaryPath, options)
-
-	// Capture output of sim command and write it to this buffer
-	var outputBuffer bytes.Buffer
-	simCommand.Stdout = &outputBuffer
-	simCommand.Stderr = os.Stderr
-
-	// Run the sim command
-	if err := simCommand.Run(); err != nil {
-		log.Printf("Failed to execute sim binary: %v", err)
-		return nil, err
-	}
-
-	// Get the output as a byte slice
-	simResult := outputBuffer.Bytes()
-
-	return simResult, nil
-}
-
-func (r simcRunner) Version() string {
-	log.Print(r.binaryPath)
-	simcCommand := exec.Command(r.binaryPath)
-
-	var outputBuffer bytes.Buffer
-	simcCommand.Stdout = &outputBuffer
-
-	err := simcCommand.Run()
-
-	exitCode := simcCommand.ProcessState.ExitCode()
-	const noArgumentsExitCode = 50 // simc returns exitcode 50 when no arguments are provided.
-	// since we just want to read its stdout to parse version number, we can ignore the err
-
-	if err != nil && exitCode != noArgumentsExitCode {
-		log.Fatalf("Error running simc binary: %v", err)
-	}
-
-	return outputBuffer.String()
 }
 
 func (w Worker) HandleMessage(ctx context.Context, body []byte) error {
@@ -160,7 +113,7 @@ func consumeMessages(ctx context.Context, worker Worker, msgs <-chan amqp.Delive
 
 func main() {
 	binaryPath := secrets.LoadSecret("SIMC_BINARY_PATH").Value()
-	runner := simcRunner{binaryPath: binaryPath}
+	runner := simc.NewRunner(binaryPath)
 	log.Printf("SIMC Version: %s", runner.Version())
 
 	ctx := context.Background()
