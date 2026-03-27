@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"context"
@@ -36,6 +36,15 @@ type SimulationService struct {
 	dispatcher SimulationDispatcher
 	characters CharacterLookup
 	idgen      func() string
+}
+
+func NewSimulationService(store SimulationRequestStore, dispatcher SimulationDispatcher, characters CharacterLookup, idgen func() string) SimulationService {
+	return SimulationService{
+		store:      store,
+		dispatcher: dispatcher,
+		characters: characters,
+		idgen:      idgen,
+	}
 }
 
 func (s SimulationService) Submit(ctx context.Context, simOptions api_types.SimulationOptions) (*api_types.SimulationResponse, error) {

@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"context"
@@ -42,14 +42,14 @@ func (f fakeCharacterLookup) Exists(character *api_types.WowCharacter) (bool, er
 func TestSimulationServiceSubmitDispatchesSimulation(t *testing.T) {
 	store := &fakeSimulationStore{}
 	dispatcher := &fakeSimulationDispatcher{}
-	service := SimulationService{
-		store:      store,
-		dispatcher: dispatcher,
-		characters: fakeCharacterLookup{exists: true},
-		idgen: func() string {
+	service := NewSimulationService(
+		store,
+		dispatcher,
+		fakeCharacterLookup{exists: true},
+		func() string {
 			return "11111111-1111-1111-1111-111111111111"
 		},
-	}
+	)
 
 	response, err := service.Submit(context.Background(), api_types.SimulationOptions{
 		WowCharacter: api_types.WowCharacter{
@@ -93,14 +93,14 @@ func TestSimulationServiceSubmitDispatchesSimulation(t *testing.T) {
 }
 
 func TestSimulationServiceSubmitReturnsNotFoundWhenCharacterMissing(t *testing.T) {
-	service := SimulationService{
-		store:      &fakeSimulationStore{},
-		dispatcher: &fakeSimulationDispatcher{},
-		characters: fakeCharacterLookup{exists: false},
-		idgen: func() string {
+	service := NewSimulationService(
+		&fakeSimulationStore{},
+		&fakeSimulationDispatcher{},
+		fakeCharacterLookup{exists: false},
+		func() string {
 			return "11111111-1111-1111-1111-111111111111"
 		},
-	}
+	)
 
 	_, err := service.Submit(context.Background(), api_types.SimulationOptions{
 		WowCharacter: api_types.WowCharacter{

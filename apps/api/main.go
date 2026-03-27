@@ -1,4 +1,4 @@
-package main
+package api
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func main() {
+func Run() error {
 	db := utils.InitPostgresConnectionPool(context.Background())
 	defer db.Close()
 	queries := dbqueries.New(db)
@@ -29,16 +29,16 @@ func main() {
 	// Declare queue to publish msgs to
 	q := utils.DeclareSimulationQueue(ch)
 
-	simulationService := SimulationService{
-		store: queries,
-		dispatcher: rabbitMQDispatcher{
+	simulationService := NewSimulationService(
+		queries,
+		rabbitMQDispatcher{
 			channel:   ch,
 			queueName: q.Name,
 			timeout:   5 * time.Second,
 		},
-		characters: liveCharacterLookup{},
-		idgen:      api_utils.GenerateUUID,
-	}
+		liveCharacterLookup{},
+		api_utils.GenerateUUID,
+	)
 
 	// Setup api server
 	r := gin.Default()
@@ -108,5 +108,5 @@ func main() {
 		})
 
 	})
-	r.Run("0.0.0.0:8080")
+	return r.Run("0.0.0.0:8080")
 }

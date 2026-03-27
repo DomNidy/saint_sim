@@ -50,18 +50,10 @@ WORKDIR /app
 
 COPY . /app
 
-WORKDIR /app/apps/api
 RUN go mod download
 
-WORKDIR /app/apps/simulation_worker
-RUN go mod download
-
-WORKDIR /app
-
-# Compile workspace modules explicitly; the repo root is a go.work root, not a module.
-RUN go build ./apps/api/... ./apps/simulation_worker/... ./pkg/go-shared/api_types/... ./pkg/go-shared/db/... ./pkg/go-shared/secrets/... ./pkg/go-shared/utils/...
-# Compile test binaries without running them, ensuring the Go test toolchain is cached.
-RUN go test -run XDUMMY ./apps/api/... ./apps/simulation_worker/... ./pkg/go-shared/api_types/... ./pkg/go-shared/db/... ./pkg/go-shared/secrets/... ./pkg/go-shared/utils/... || true
+RUN go build ./...
+RUN go test -run XDUMMY ./... || true
 
 RUN mkdir -p ${SIMC_HOME}
 COPY --from=simc-build /src/SimulationCraft/engine/simc ${SIMC_HOME}/simc
