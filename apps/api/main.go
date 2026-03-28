@@ -64,13 +64,6 @@ func Run() error {
 			case errors.Is(err, ErrInvalidSimOptions):
 				log.Printf("Sim options were invalid")
 				c.JSON(http.StatusBadRequest, gin.H{"error": "Bad request"})
-			case errors.Is(err, ErrInvalidWowRealm):
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wow realm"})
-			case errors.Is(err, ErrInvalidWowRegion):
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid wow region"})
-			case errors.Is(err, ErrCharacterNotFound):
-				log.Printf("WoW character does not exist")
-				c.JSON(http.StatusNotFound, gin.H{"message": "WoW character does not exist"})
 			default:
 				log.Printf("simulate request failed: %v", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})

@@ -8,15 +8,11 @@ import (
 
 	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
-	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
 var (
 	ErrInvalidSimOptions = errors.New("invalid simulation options")
-	ErrInvalidWowRealm   = errors.New("invalid wow realm")
-	ErrInvalidWowRegion  = errors.New("invalid wow region")
-	ErrCharacterNotFound = errors.New("wow character does not exist")
 )
 
 type SimulationRequestStore interface {
@@ -48,25 +44,6 @@ func NewSimulationService(store SimulationRequestStore, dispatcher SimulationDis
 }
 
 func (s SimulationService) Submit(ctx context.Context, simOptions api_types.SimulationOptions) (*api_types.SimulationResponse, error) {
-	if !utils.IsValidSimOptions(&simOptions) {
-		return nil, ErrInvalidSimOptions
-	}
-
-	if !utils.IsValidWowRealm(string(simOptions.WowCharacter.Realm)) {
-		return nil, ErrInvalidWowRealm
-	}
-
-	if !utils.IsValidWowRegion(string(simOptions.WowCharacter.Region)) {
-		return nil, ErrInvalidWowRegion
-	}
-
-	exists, err := s.characters.Exists(&simOptions.WowCharacter)
-	if err != nil {
-		return nil, fmt.Errorf("check wow character exists: %w", err)
-	}
-	if !exists {
-		return nil, ErrCharacterNotFound
-	}
 
 	receivedJSON, err := json.Marshal(simOptions)
 	if err != nil {

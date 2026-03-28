@@ -46,10 +46,9 @@ type SimulationMessageBody struct {
 	SimulationId *string `json:"simulation_id,omitempty"`
 }
 
-// SimulationOptions Specifices sim options, and the character of interest to sim, send this to the api
+// SimulationOptions Specifices sim options
 type SimulationOptions struct {
-	// WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
-	WowCharacter WowCharacter `json:"wow_character"`
+	SimcConfigString string `json:"simc_config"`
 }
 
 // SimulationResponse Object containing information about a simulation operation, returned from api

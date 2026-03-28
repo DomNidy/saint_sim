@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"regexp"
 
-	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	secrets "github.com/DomNidy/saint_sim/pkg/go-shared/secrets"
 	"github.com/jackc/pgx/v5/pgxpool"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -87,48 +85,4 @@ func InitPostgresConnectionPool(ctx context.Context) *pgxpool.Pool {
 	pool, err := pgxpool.New(ctx, connectionURI)
 	FailOnError(err, "Failed to create postgres connection")
 	return pool
-}
-
-func IsValidSimOptions(options *api_types.SimulationOptions) bool {
-	if !isValidInput(options.WowCharacter.CharacterName) ||
-		!isValidInput(string(options.WowCharacter.Realm)) ||
-		!isValidInput(string(options.WowCharacter.Region)) {
-		return false
-	}
-
-	return true
-}
-
-// * Important
-// Utility to validate command line arguments received before they are used to execute the simc command on the sim worker
-// Also use this in other places where the user input is passed, like at the api, discord bot, etc.
-// allows alphanumeric chars, and underscores (underscores are safe to allow, right?)
-func isValidInput(input string) bool {
-	valid := regexp.MustCompilePOSIX(`^[[:alnum:]_-]+$`)
-	return valid.MatchString(input)
-}
-
-func IsValidWowRegion(region string) bool {
-	_, exists := validWowRegions[api_types.WowCharacterRegion(region)]
-	return exists
-}
-
-func IsValidWowRealm(realm string) bool {
-	_, exists := validWowRealms[api_types.WowCharacterRealm(realm)]
-	return exists
-}
-
-var validWowRealms = map[api_types.WowCharacterRealm]struct{}{
-	api_types.Draenor:    {},
-	api_types.Hydraxis:   {},
-	api_types.Silvermoon: {},
-	api_types.Thrall:     {},
-}
-
-var validWowRegions = map[api_types.WowCharacterRegion]struct{}{
-	api_types.Us: {},
-	api_types.Eu: {},
-	api_types.Tw: {},
-	api_types.Cn: {},
-	api_types.Kr: {},
 }

@@ -60,14 +60,7 @@ func (w Worker) HandleMessage(ctx context.Context, body []byte) error {
 	log.Print("Received simulation request with options:")
 	log.Printf("  %v", string(simOptionsJSON))
 
-	if !utils.IsValidSimOptions(&simOptions) {
-		return fmt.Errorf("invalid sim options received: %s", string(simOptionsJSON))
-	}
-
-	region := string(simOptions.WowCharacter.Region)
-	realm := string(simOptions.WowCharacter.Realm)
-	characterName := simOptions.WowCharacter.CharacterName
-	simulationResult, err := w.runner.Perform(fmt.Sprintf("armory=%v,%v,%v", region, realm, characterName))
+	simulationResult, err := w.runner.Perform(simOptions.SimcConfigString)
 
 	if err != nil {
 		return fmt.Errorf("perform sim: %w", err)
