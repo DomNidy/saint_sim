@@ -55,7 +55,7 @@ The default values in `.env.example` are intended for local Docker development. 
 Start Postgres, then run Goose:
 
 ```sh
-just db-start
+docker compose up postgres
 just db-migrate
 ```
 
@@ -65,7 +65,7 @@ Goose migrations in `/db/migrations` are the authoritative schema history for th
 
 ```sh
 just setup
-just db-start
+docker compose up postgres
 just db-migrate
 just api-key
 just start
@@ -74,7 +74,7 @@ just start
 Then copy the printed `API key:` value into `SAINT_API_KEY` in `.env`, and recreate the Discord bot:
 
 ```sh
-just restart discord-bot
+docker compose up --force-recreate discord_bot
 ```
 
 ## Environment Variables & Configuration

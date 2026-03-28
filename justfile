@@ -1,5 +1,9 @@
 set dotenv-load := true
 
+# set tempdir here instead of system tempdir
+# prevents permissions issues
+set tempdir := "./" 
+
 sqlc_image := "sqlc/sqlc:1.29.0"
 
 help:
@@ -10,7 +14,6 @@ help:
 
     Getting Started
       just setup
-      just db-start
       just db-migrate
       just api-key
       just start
@@ -20,11 +23,8 @@ help:
       just setup                    Create .env from .env.example if needed
       just start                    Build and start the full local stack
       just stop                     Stop the full local stack
-      just restart <service>        Rebuild and recreate one service
-      just logs [service]           Tail logs for a service (default: api)
 
     Database
-      just db-start                 Start or recreate only Postgres
       just db-migrate               Apply all pending Goose migrations
       just db-status                Show Goose migration status
       just db-down [steps]          Roll back migrations (default: 1)
@@ -83,84 +83,6 @@ stop:
     set -euo pipefail
     echo "Stopping the local stack..."
     docker compose down
-
-# Rebuild and recreate a single service.
-restart service:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    compose_service=""
-    needs_build="false"
-    case "{{ service }}" in
-      api)
-        compose_service="api"
-        needs_build="true"
-        ;;
-      discord-bot)
-        compose_service="discord_bot"
-        needs_build="true"
-        ;;
-      worker)
-        compose_service="simulation_worker"
-        needs_build="true"
-        ;;
-      postgres)
-        compose_service="postgres"
-        ;;
-      pgadmin)
-        compose_service="pgadmin"
-        ;;
-      *)
-        echo "Invalid service: {{ service }}"
-        echo "Allowed values: api, discord-bot, worker, postgres, pgadmin"
-        exit 1
-        ;;
-    esac
-    docker compose stop "$compose_service" >/dev/null 2>&1 || true
-    if [ "$needs_build" = "true" ]; then
-      docker compose up --detach --build --force-recreate "$compose_service"
-    else
-      docker compose up --detach --force-recreate "$compose_service"
-    fi
-
-# Tail logs for a service.
-logs service="api":
-    #!/usr/bin/env bash
-    set -euo pipefail
-    compose_service=""
-    case "{{ service }}" in
-      api)
-        compose_service="api"
-        ;;
-      discord-bot)
-        compose_service="discord_bot"
-        ;;
-      worker)
-        compose_service="simulation_worker"
-        ;;
-      postgres)
-        compose_service="postgres"
-        ;;
-      pgadmin)
-        compose_service="pgadmin"
-        ;;
-      rabbitmq)
-        compose_service="rabbitmq"
-        ;;
-      *)
-        echo "Invalid service: {{ service }}"
-        echo "Allowed values: api, discord-bot, worker, postgres, pgadmin, rabbitmq"
-        exit 1
-        ;;
-    esac
-    docker compose logs --follow --tail=100 "$compose_service"
-
-# Start or recreate only the Postgres service.
-db-start:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    echo "Starting Postgres..."
-    docker compose stop postgres >/dev/null 2>&1 || true
-    docker compose up --detach --force-recreate postgres
 
 # Apply all pending Goose migrations.
 db-migrate:
@@ -247,7 +169,6 @@ db-reset:
     cat <<'EOF'
     Local Postgres and RabbitMQ volumes were removed.
     Recovery steps:
-      just db-start
       just db-migrate
       just api-key
       just start
