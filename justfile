@@ -1,11 +1,10 @@
 set dotenv-load := true
-set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
-set script-interpreter := ["bash", "-eu", "-o", "pipefail"]
 
 sqlc_image := "sqlc/sqlc:1.29.0"
 
-[script]
 help:
+    #!/usr/bin/env bash
+    set -euo pipefail
     cat <<"EOF"
     saint_sim command reference
 
@@ -54,8 +53,9 @@ help:
     EOF
 
 # Create .env from .env.example if it does not exist.
-[script]
 setup:
+    #!/usr/bin/env bash
+    set -euo pipefail
     if [ -f .env ]; then
       echo ".env already exists. Leaving it unchanged."
     else
@@ -70,21 +70,24 @@ setup:
     EOF
 
 # Build and start the full local stack.
-[script]
 start:
+    #!/usr/bin/env bash
+    set -euo pipefail
     echo "Building and starting the local stack..."
     docker compose build
     docker compose up --detach
 
 # Stop the full local stack.
-[script]
 stop:
+    #!/usr/bin/env bash
+    set -euo pipefail
     echo "Stopping the local stack..."
     docker compose down
 
 # Rebuild and recreate a single service.
-[script]
 restart service:
+    #!/usr/bin/env bash
+    set -euo pipefail
     compose_service=""
     needs_build="false"
     case "{{ service }}" in
@@ -120,8 +123,9 @@ restart service:
     fi
 
 # Tail logs for a service.
-[script]
 logs service="api":
+    #!/usr/bin/env bash
+    set -euo pipefail
     compose_service=""
     case "{{ service }}" in
       api)
@@ -151,15 +155,17 @@ logs service="api":
     docker compose logs --follow --tail=100 "$compose_service"
 
 # Start or recreate only the Postgres service.
-[script]
 db-start:
+    #!/usr/bin/env bash
+    set -euo pipefail
     echo "Starting Postgres..."
     docker compose stop postgres >/dev/null 2>&1 || true
     docker compose up --detach --force-recreate postgres
 
 # Apply all pending Goose migrations.
-[script]
 db-migrate:
+    #!/usr/bin/env bash
+    set -euo pipefail
     if [ ! -f .env ]; then
       echo "Missing .env. Run \`just setup\` first."
       exit 1
@@ -171,8 +177,9 @@ db-migrate:
     goose -dir ./db/migrations postgres "user=$DB_USER password=$DB_PASSWORD host=localhost port=$db_port dbname=$DB_NAME sslmode=disable" up
 
 # Show Goose migration status.
-[script]
 db-status:
+    #!/usr/bin/env bash
+    set -euo pipefail
     if [ ! -f .env ]; then
       echo "Missing .env. Run \`just setup\` first."
       exit 1
@@ -184,8 +191,9 @@ db-status:
     goose -dir ./db/migrations postgres "user=$DB_USER password=$DB_PASSWORD host=localhost port=$db_port dbname=$DB_NAME sslmode=disable" status
 
 # Roll back Goose migrations by a number of steps.
-[script]
 db-down steps="1":
+    #!/usr/bin/env bash
+    set -euo pipefail
     if [ ! -f .env ]; then
       echo "Missing .env. Run \`just setup\` first."
       exit 1
@@ -205,13 +213,15 @@ db-down steps="1":
     done
 
 # Create a new timestamped SQL migration.
-[script]
 db-new name:
+    #!/usr/bin/env bash
+    set -euo pipefail
     goose -dir ./db/migrations create "{{ name }}" sql
 
 # Write a schema-only backup file at the repo root.
-[script]
 db-schema-backup:
+    #!/usr/bin/env bash
+    set -euo pipefail
     if [ ! -f .env ]; then
       echo "Missing .env. Run \`just setup\` first."
       exit 1
@@ -223,8 +233,9 @@ db-schema-backup:
     docker compose exec -T postgres pg_dump --schema-only --no-owner --no-acl --clean --if-exists -U "$DB_USER" -d "$DB_NAME" > "$backup_file"
 
 # Delete local Postgres and RabbitMQ volumes after confirmation.
-[script]
 db-reset:
+    #!/usr/bin/env bash
+    set -euo pipefail
     echo "Warning: this will delete local Postgres and RabbitMQ data."
     read -r -p "Type 'yes' to continue: " confirm
     if [ "$confirm" != "yes" ]; then
@@ -243,8 +254,9 @@ db-reset:
     EOF
 
 # Generate and insert a local API key for discord_bot.
-[script]
 api-key:
+    #!/usr/bin/env bash
+    set -euo pipefail
     if [ ! -f .env ]; then
       echo "Missing .env. Run \`just setup\` first."
       exit 1
@@ -258,8 +270,9 @@ api-key:
     echo "API key: $generated_api_key"
 
 # Generate shared code for the database and/or OpenAPI schema.
-[script]
 codegen target="":
+    #!/usr/bin/env bash
+    set -euo pipefail
     generate_db() {
       # v1.30.0 of sqlc crashes in pgx/os-user lookup when sqlc analyzes database.uri.
       mkdir -p ./pkg/go-shared/db ./pkg/ts-shared/db
@@ -299,8 +312,9 @@ codegen target="":
     esac
 
 # Run go mod tidy across every Go module in the repository.
-[script]
 tidy:
+    #!/usr/bin/env bash
+    set -euo pipefail
     find . -type f -name "go.mod" -print0 | while IFS= read -r -d '' mod_file; do
       module_dir="$(dirname "$mod_file")"
       echo "Tidying $module_dir"
@@ -311,8 +325,9 @@ tidy:
     done
 
 # Validate required host dependencies and local setup.
-[script]
 doctor:
+    #!/usr/bin/env bash
+    set -euo pipefail
     missing="false"
     for cmd in just goose docker go bash npx; do
       if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -338,8 +353,9 @@ doctor:
 # simc base image that is used. The base image version is
 
 # SIMC_IMAGE environment variable.
-[script]
 simc:
+    #!/usr/bin/env bash
+    set -euo pipefail
     if [ ! -f .env ]; then
         echo "Missing .env. Run \`just setup\` first."
         missing="true"

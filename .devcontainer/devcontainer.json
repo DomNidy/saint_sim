@@ -1,0 +1,28 @@
+{
+    "name": "saint_dev",
+    "customizations": {
+        // VS Code specific settings
+        "vscode": {
+            "settings": {},
+            "extensions": [
+                "PKief.material-icon-theme",
+                "usernamehw.errorlens"
+            ],
+            "mcp": {}
+        }
+    },
+    "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+        "ghcr.io/devcontainers/features/go": {},
+        "ghcr.io/devcontainers/features/git": {},
+        "ghcr.io/devcontainers/features/github-cli": {},
+        "ghcr.io/devcontainers-extra/features/npm-package:1": {
+            "package": "@openai/codex"
+        }
+    },
+    "onCreateCommand": "sudo apt-get update && sudo apt-get install just",
+    "mounts": [
+        "source=${localEnv:HOME}${localEnv:USERPROFILE}/.codex,target=/home/vscode/.codex,type=bind" // Copy local codex config into container 
+    ]
+}
