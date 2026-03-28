@@ -30,8 +30,8 @@ func FailOnError(err error, msg string) {
 	}
 }
 
-func SanitizeAndParseSimcString(simcConfigString string) string {
-	return ""
+func SanitizeAndParseSimcString(simcConfigString string) (string, error) {
+	return "", nil
 }
 
 // Creates a rabbit mq channel with a single connection

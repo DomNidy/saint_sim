@@ -2,6 +2,7 @@ package simc
 
 import (
 	"bytes"
+	"errors"
 	"log"
 	"os"
 	"os/exec"
@@ -16,6 +17,10 @@ func NewRunner(binaryPath string) Runner {
 }
 
 func (r Runner) Perform(options string) ([]byte, error) {
+	if len(options) == 0 {
+		return nil, errors.New("options cannot be empty")
+	}
+
 	// Command to invoke simc and perform the sim
 	simCommand := exec.Command(r.binaryPath, options)
 
