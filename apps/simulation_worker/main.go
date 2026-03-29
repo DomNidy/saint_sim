@@ -18,6 +18,21 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+var queue *utils.SimulationQueueClient = nil
+
+func init() {
+	user := secrets.LoadSecret("RABBITMQ_USER").Value()
+	pass := secrets.LoadSecret("RABBITMQ_PASS").Value()
+	host := secrets.LoadSecret("RABBITMQ_HOST").Value()
+	port := secrets.LoadSecret("RABBITMQ_PORT").Value()
+	q, err := utils.NewSimulationQueueClient("saint_api", user, pass, host, port)
+	if err != nil {
+		log.Panicf("ERROR: Failed to initialize connection to simulation queue: %v", err)
+		return
+	}
+	queue = q
+}
+
 var SIMC_BINARY_PATH = secrets.LoadSecret("SIMC_BINARY_PATH").Value()
 
 func performSim(region, realm, name string) (*[]byte, error) {
@@ -63,25 +78,17 @@ func getSimcVersion() string {
 }
 
 func main() {
-	log.Printf("SIMC Version: %s", getSimcVersion())
-
+	log.Printf("simulation_worker, running SimC version: %s", getSimcVersion())
 	ctx := context.Background()
-	// Setup postgres connection
+
 	db := utils.InitPostgresConnectionPool(ctx)
-	defer db.Close()
 	queries := dbqueries.New(db)
 
-	// Setup rabbit mq connection
-	conn, ch := utils.InitRabbitMQConnection()
-	defer conn.Close()
-	defer ch.Close()
-
-	// declare queue
-	q := utils.DeclareSimulationQueue(ch)
+	defer db.Close()
+	defer queue.Close()
 
 	// Immediately start receiving queued messages
-	msgs, err := ch.Consume(
-		q.Name,
+	msgChan, err := queue.Consume(
 		"",    // consumer
 		true,  // auto ack
 		false, // exclusive
@@ -91,11 +98,10 @@ func main() {
 	)
 	utils.FailOnError(err, "Failed to register as consumer")
 
-	var forever chan struct{}
 	var receivedCount uint64
 
 	go func() {
-		for d := range msgs {
+		for d := range msgChan {
 			receivedCount += 1
 			log.Printf("Received a message: %s\n", d.Body)
 			log.Printf("receivedCount = %d\n", receivedCount)
@@ -158,5 +164,5 @@ func main() {
 			}
 		}
 	}()
-	<-forever
+	select {}
 }

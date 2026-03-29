@@ -106,13 +106,20 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 	if resp.StatusCode != http.StatusOK {
 		var errResp interface{}
 		decodeErr := json.NewDecoder(resp.Body).Decode(&errResp)
-		// Ensure the returned type correctly matches ErrorResponse type
+		if decodeErr != nil {
+			log.Printf("Error returned from API. Could not decode the error. Status code from API was: %v. Decode error: %v", resp.StatusCode, decodeErr)
+			return nil, fmt.Errorf("Internal server error occurred, please try again later.")
+		}
+
+		// Assert that the returned JSON is of the expected shape and has a message
 		apiErr, ok := errResp.(api_types.ErrorResponse)
-		if !ok || decodeErr != nil {
-			return nil, fmt.Errorf("could not find WoW character")
-		} else if apiErr.Message == nil {
-			// Ensure apiErr.Message is not nil before dereferencing it
-			return nil, fmt.Errorf("could not find WoW character")
+		if !ok {
+			log.Printf("Error returned from API, but error shape did not mathc api_types.ErrorResponse. Status code from API was: %v, errResp: %v", resp.StatusCode, errResp)
+			return nil, fmt.Errorf("Internal server error occurred, please try again later.")
+		}
+		if apiErr.Message == nil {
+			log.Printf("Error returned from API. Error message was empty. Status code from API was: %v", resp.StatusCode)
+			return nil, fmt.Errorf("Internal server error occurred, please try again later.")
 		}
 
 		return nil, fmt.Errorf(*apiErr.Message)

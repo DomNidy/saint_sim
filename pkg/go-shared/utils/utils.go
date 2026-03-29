@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"regexp"
@@ -32,31 +33,47 @@ func FailOnError(err error, msg string) {
 	}
 }
 
-// Creates a rabbit mq channel with a single connection
-// A channel multiplexes connections over a single TCP connection
-// This allows us to logically distinguish between different 'connections',
-// while ony needing a single TCP connection
-func InitRabbitMQConnection() (*amqp.Connection, *amqp.Channel) {
-	RABBITMQ_USER := secrets.LoadSecret("RABBITMQ_USER")
-	RABBITMQ_PASS := secrets.LoadSecret("RABBITMQ_PASS")
-	RABBITMQ_PORT := secrets.LoadSecret("RABBITMQ_PORT")
-	RABBITMQ_HOST := secrets.LoadSecret("RABBITMQ_HOST")
-	connectionURI := fmt.Sprintf("amqp://%s:%s@%s:%s", RABBITMQ_USER.Value(), RABBITMQ_PASS.Value(), RABBITMQ_HOST.Value(), RABBITMQ_PORT.Value())
+// Represents a client connection to the simulation queue
+// Client can be a consumer or a publisher of messages:
+//
+//	Backend workers -> consuming client
+//	API -> publishing client
+type SimulationQueueClient struct {
+	conn    *amqp.Connection
+	channel *amqp.Channel
+	queue   amqp.Queue
 
-	log.Printf("Connecting to RabbitMQ: user=%s, password=%s, host=%s, port=%s", RABBITMQ_USER.MaskedValue(), RABBITMQ_PASS.MaskedValue(), RABBITMQ_HOST.MaskedValue(), RABBITMQ_PORT.MaskedValue())
-
-	conn, err := amqp.Dial(connectionURI)
-	FailOnError(err, "Failed to establish RabbitMQ connection")
-
-	// Create channel
-	ch, err := conn.Channel()
-	FailOnError(err, "Failed to open RabbitMQ channel")
-
-	return conn, ch
+	appId string
 }
 
-// Declare simulation queue in channel (creates it if it doesn't exist)
-func DeclareSimulationQueue(ch *amqp.Channel) *amqp.Queue {
+// Create and initialize a new client connection to the
+// simulation queue. The appId will be written to the
+// body of messages published by this client.
+func NewSimulationQueueClient(appId, user, pass, host, port string) (*SimulationQueueClient, error) {
+	if appId == "" {
+		log.Println("WARNING: creating SimulationQueueClient with an empty appId. Probably should avoid this for clarity.")
+	}
+	simQueueClient := SimulationQueueClient{appId: appId}
+	err := simQueueClient.initialize(user, pass, host, port)
+	if err != nil {
+		return nil, err
+	}
+	return &simQueueClient, nil
+}
+
+// Connect to server, open a channel, and declare queue
+func (s *SimulationQueueClient) initialize(user, pass, host, port string) error {
+	connectionURI := fmt.Sprintf("amqp://%s:%s@%s:%s", user, pass, host, port)
+	conn, err := amqp.Dial(connectionURI)
+	if err != nil {
+		return err
+	}
+
+	ch, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+
 	q, err := ch.QueueDeclare(
 		"simulation_queue", // name
 		false,              // durable
@@ -65,8 +82,68 @@ func DeclareSimulationQueue(ch *amqp.Channel) *amqp.Queue {
 		false,              // no-wait
 		nil,                // arguments
 	)
-	FailOnError(err, "Failed to declare simulation_queue for channel")
-	return &q
+	if err != nil {
+		return err
+	}
+	s.channel = ch
+	s.conn = conn
+	s.queue = q
+	return nil
+}
+
+// Publish a sim message into the simulation queue
+func (s *SimulationQueueClient) Publish(simMsg api_types.SimulationMessageBody) error {
+	const mandatory = true  // queue must be bound that matches routing key
+	const immediate = false // do not need to **immediately** deliver this to a consumer on the queue
+
+	jsonSimMsg, err := json.Marshal(simMsg)
+	if err != nil {
+		return err
+	}
+
+	err = s.channel.Publish(
+		"", // default exchange name
+		s.queue.Name,
+		mandatory,
+		immediate,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body:        jsonSimMsg,
+		},
+	)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SimulationQueueClient) Consume(
+	consumer string,
+	autoAck bool,
+	exclusive bool,
+	noLocal bool,
+	noWait bool,
+	args amqp.Table,
+) (<-chan amqp.Delivery, error) {
+	return s.channel.Consume(
+		s.queue.Name,
+		consumer,
+		autoAck,
+		exclusive,
+		noLocal,
+		noWait,
+		args,
+	)
+}
+
+func (s *SimulationQueueClient) Close() {
+	log.Printf("Closing SimulationQueueClient...")
+	if s.channel != nil {
+		s.channel.Close()
+	}
+	if s.conn != nil {
+		s.conn.Close()
+	}
 }
 
 // Create a postgres connection pool

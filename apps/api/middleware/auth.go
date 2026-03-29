@@ -1,4 +1,4 @@
-package handlers
+package middleware
 
 import (
 	"errors"
@@ -9,13 +9,10 @@ import (
 	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Middleware: Authenticates requests
-func AuthRequire(db *pgxpool.Pool) gin.HandlerFunc {
-	queries := dbqueries.New(db)
-
+func AuthRequire(db *dbqueries.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		apiKey := c.GetHeader("Api-Key")
 		if apiKey == "" {
@@ -24,7 +21,7 @@ func AuthRequire(db *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 		hashedApiKey := api_utils.HashApiKey(apiKey)
-		serviceName, err := queries.GetApiKeyServiceName(c, hashedApiKey)
+		serviceName, err := db.GetApiKeyServiceName(c, hashedApiKey)
 
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
