@@ -4,7 +4,48 @@
  */
 
 export interface paths {
-    "/simulate": {
+    "/simulation/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description View the result of a simulation. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description The ID of the simulation to query */
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description The simulation result, or, if the simulation is currently in progress, the current state of the simulation job. */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["simulation"];
+                    };
+                };
+                404: components["responses"]["not_found_error"];
+                500: components["responses"]["internal_error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/simulation": {
         parameters: {
             query?: never;
             header?: never;
@@ -15,96 +56,6 @@ export interface paths {
         put?: never;
         /** @description Request a simulation, powered by SimC. */
         post: operations["simulate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/report/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description View the results of a simulation operation */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description The simulation id we want to get data for. (This is different from the simulation request id) */
-                    id: number;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Results of the simulation operation with the provided id */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["simulation_data"];
-                    };
-                };
-                404: components["responses"]["not_found_error"];
-                500: components["responses"]["internal_error"];
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/report/request/{requestId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** @description View the results of a simulation operation by request id */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    /** @description The simulation request id returned from POST /simulate */
-                    requestId: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description Results of the simulation operation with the provided request id */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["simulation_data"];
-                    };
-                };
-                /** @description Simulation request exists but the worker has not published the result yet. */
-                202: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content?: never;
-                };
-                400: components["responses"]["bad_request_error"];
-                404: components["responses"]["not_found_error"];
-                500: components["responses"]["internal_error"];
-            };
-        };
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -139,33 +90,20 @@ export interface components {
         simulation_options: {
             wow_character: components["schemas"]["wow_character"];
         };
-        /** @description Object containing information about a simulation operation, returned from api */
-        simulation_response: {
-            /** @description Used to identify a simulation request in postgres */
-            simulation_request_id?: string;
-        };
-        /** @description The output of a simulation. */
-        simulation_data: {
+        /** @description All details & data about a simulation. */
+        simulation: {
             /**
-             * @description ID of this simulation
-             * @example 42
-             */
-            id?: number;
-            /**
-             * @description The ID of the simulation request that initated this simulation
+             * @description ID for the simulation operation
              * @example 41e9a22f-d2c1-48b2-b234-15db461049d4
              */
-            request_id?: string;
+            id?: string;
+            /** @enum {string} */
+            status?: "in_progress" | "in_queue" | "error" | "complete";
             /**
-             * @description The actual data produced from the simulation operation
+             * @description The output / result of the simulation operation
              * @example ...
              */
-            sim_result?: string;
-        };
-        /** @description This JSON object is included in a rabbitmq message, then that message gets published to the simulation_queue. Consumers of the simulation queue (simulation_worker) will use this JSON object to carry out the simulation. */
-        simulation_message_body: {
-            /** @description Used to identify a simulation request in postgres */
-            simulation_id?: string;
+            content?: string;
         };
         /** @description Error response returned by API when something goes wrong */
         error_response: {
@@ -212,10 +150,7 @@ export interface operations {
     simulate: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description This header MUST be present for requests originating from the Saint Discord bot. Not required when requested directly from a user. */
-                "Discord-User-Id"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -226,13 +161,16 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Simulation request was received */
-            200: {
+            /** @description Simulation request was accepted */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["simulation_response"];
+                    "application/json": {
+                        /** @description ID of the simulation that was created */
+                        simulation_id?: string;
+                    };
                 };
             };
             /** @description When one or more of the simulation options were invalid. For example, passing an invalid region or realm for the wow character may cause this. */

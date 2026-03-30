@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"time"
 
 	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
@@ -106,7 +107,7 @@ func main() {
 			log.Printf("Received a message: %s\n", d.Body)
 			log.Printf("receivedCount = %d\n", receivedCount)
 
-			var simRequestMsg api_types.SimulationMessageBody
+			var simRequestMsg utils.SimulationMessage
 
 			// todo: handle this error, and finish this message
 			err := json.Unmarshal(d.Body, &simRequestMsg)
@@ -117,13 +118,13 @@ func main() {
 
 			// Query the sim options json object from simulation_request table
 			var requestID pgtype.UUID
-			err = requestID.Scan(*simRequestMsg.SimulationId)
+			err = requestID.Scan(simRequestMsg.SimulationID)
 			if err != nil {
 				log.Printf("Error converting simulation request id to uuid: %v", err)
 				continue
 			}
 
-			simOptionsJson, err := queries.GetSimulationRequestOptions(context.Background(), requestID)
+			simOptionsJson, err := queries.GetSimulationOptions(context.Background(), requestID)
 			if err != nil {
 				if errors.Is(err, pgx.ErrNoRows) {
 					log.Printf("Failed to locate simulation request to resolve options. Cannot process request: %v", err)
@@ -133,7 +134,7 @@ func main() {
 				continue
 			}
 
-			// Validating the returned json from db
+			// Validating the returned json from db conforms to the API shape
 			var simOptions api_types.SimulationOptions
 			err = json.Unmarshal(simOptionsJson, &simOptions)
 			if err != nil {
@@ -154,9 +155,21 @@ func main() {
 				log.Printf("error while performing sim: %v", err)
 				continue
 			}
-			err = queries.InsertSimulationData(context.Background(), dbqueries.InsertSimulationDataParams{
-				RequestID: requestID,
-				SimResult: string(*simulationResult),
+
+			var simResPg pgtype.Text
+			if err = simResPg.Scan(string(*simulationResult)); err != nil {
+				log.Printf("%v", err)
+				continue
+			}
+			var completedAt pgtype.Timestamptz
+			if err = completedAt.Scan(time.Now()); err != nil {
+				log.Printf("error converting completed_at timestamp: %v", err)
+				continue
+			}
+			_, err = queries.UpdateSimulation(context.Background(), dbqueries.UpdateSimulationParams{
+				SimResult:   simResPg,
+				CompletedAt: completedAt,
+				ID:          requestID,
 			})
 			if err != nil {
 				log.Printf("error trying to insert sim data to db: %v", err)

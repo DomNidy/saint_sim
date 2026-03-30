@@ -4,8 +4,15 @@
 package api_types
 
 const (
-	SaintBotAuthScopes = "SaintBotAuth.Scopes"
-	UserAuthScopes     = "UserAuth.Scopes"
+	JWTAuthScopes = "JWTAuth.Scopes"
+)
+
+// Defines values for SimulationStatus.
+const (
+	Complete   SimulationStatus = "complete"
+	Error      SimulationStatus = "error"
+	InProgress SimulationStatus = "in_progress"
+	InQueue    SimulationStatus = "in_queue"
 )
 
 // Defines values for WowCharacterRealm.
@@ -31,34 +38,23 @@ type ErrorResponse struct {
 	Message *string `json:"message,omitempty"`
 }
 
-// SimulationData The output of a simulation.
-type SimulationData struct {
-	// Id ID of this simulation
-	Id *int `json:"id,omitempty"`
+// Simulation All details & data about a simulation.
+type Simulation struct {
+	// Content The output / result of the simulation operation
+	Content *string `json:"content,omitempty"`
 
-	// RequestId The ID of the simulation request that initated this simulation
-	RequestId *string `json:"request_id,omitempty"`
-
-	// SimResult The actual data produced from the simulation operation
-	SimResult *string `json:"sim_result,omitempty"`
+	// Id ID for the simulation operation
+	Id     *string           `json:"id,omitempty"`
+	Status *SimulationStatus `json:"status,omitempty"`
 }
 
-// SimulationMessageBody This JSON object is included in a rabbitmq message, then that message gets published to the simulation_queue. Consumers of the simulation queue (simulation_worker) will use this JSON object to carry out the simulation.
-type SimulationMessageBody struct {
-	// SimulationId Used to identify a simulation request in postgres
-	SimulationId *string `json:"simulation_id,omitempty"`
-}
+// SimulationStatus defines model for Simulation.Status.
+type SimulationStatus string
 
 // SimulationOptions Specifices sim options, and the character of interest to sim, send this to the api
 type SimulationOptions struct {
 	// WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
 	WowCharacter WowCharacter `json:"wow_character"`
-}
-
-// SimulationResponse Object containing information about a simulation operation, returned from api
-type SimulationResponse struct {
-	// SimulationRequestId Used to identify a simulation request in postgres
-	SimulationRequestId *string `json:"simulation_request_id,omitempty"`
 }
 
 // WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
@@ -87,12 +83,6 @@ type InternalError = ErrorResponse
 
 // NotFoundError Error response returned by API when something goes wrong
 type NotFoundError = ErrorResponse
-
-// SimulateParams defines parameters for Simulate.
-type SimulateParams struct {
-	// DiscordUserId This header MUST be present for requests originating from the Saint Discord bot. Not required when requested directly from a user.
-	DiscordUserId *string `json:"Discord-User-Id,omitempty"`
-}
 
 // SimulateJSONRequestBody defines body for Simulate for application/json ContentType.
 type SimulateJSONRequestBody = SimulationOptions

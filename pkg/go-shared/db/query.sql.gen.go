@@ -11,19 +11,25 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createSimulationRequest = `-- name: CreateSimulationRequest :exec
-INSERT INTO public.simulation_request (id, options)
-VALUES ($1, $2)
+const createSimulation = `-- name: CreateSimulation :one
+INSERT INTO public.simulation (sim_config)
+VALUES ($1)
+RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at
 `
 
-type CreateSimulationRequestParams struct {
-	ID      pgtype.UUID
-	Options []byte
-}
-
-func (q *Queries) CreateSimulationRequest(ctx context.Context, arg CreateSimulationRequestParams) error {
-	_, err := q.db.Exec(ctx, createSimulationRequest, arg.ID, arg.Options)
-	return err
+func (q *Queries) CreateSimulation(ctx context.Context, simConfig []byte) (Simulation, error) {
+	row := q.db.QueryRow(ctx, createSimulation, simConfig)
+	var i Simulation
+	err := row.Scan(
+		&i.ID,
+		&i.SimConfig,
+		&i.SimResult,
+		&i.ErrorText,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.CompletedAt,
+	)
+	return i, err
 }
 
 const getApiKeyServiceName = `-- name: GetApiKeyServiceName :one
@@ -58,60 +64,39 @@ func (q *Queries) GetApiKeys(ctx context.Context, id int32) (ApiKey, error) {
 	return i, err
 }
 
-const getSimulationData = `-- name: GetSimulationData :one
-SELECT id, request_id, sim_result
-FROM public.simulation_data
+const getSimulation = `-- name: GetSimulation :one
+SELECT id, sim_config, sim_result, error_text, created_at, started_at, completed_at
+FROM public.simulation
 WHERE id = $1
 `
 
-func (q *Queries) GetSimulationData(ctx context.Context, id int32) (SimulationDatum, error) {
-	row := q.db.QueryRow(ctx, getSimulationData, id)
-	var i SimulationDatum
-	err := row.Scan(&i.ID, &i.RequestID, &i.SimResult)
+func (q *Queries) GetSimulation(ctx context.Context, id pgtype.UUID) (Simulation, error) {
+	row := q.db.QueryRow(ctx, getSimulation, id)
+	var i Simulation
+	err := row.Scan(
+		&i.ID,
+		&i.SimConfig,
+		&i.SimResult,
+		&i.ErrorText,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.CompletedAt,
+	)
 	return i, err
 }
 
-const getSimulationDataByRequestID = `-- name: GetSimulationDataByRequestID :one
-SELECT id, request_id, sim_result
-FROM public.simulation_data
-WHERE request_id = $1
-LIMIT 1
-`
-
-func (q *Queries) GetSimulationDataByRequestID(ctx context.Context, requestID pgtype.UUID) (SimulationDatum, error) {
-	row := q.db.QueryRow(ctx, getSimulationDataByRequestID, requestID)
-	var i SimulationDatum
-	err := row.Scan(&i.ID, &i.RequestID, &i.SimResult)
-	return i, err
-}
-
-const getSimulationRequestOptions = `-- name: GetSimulationRequestOptions :one
-SELECT options
-FROM public.simulation_request
+const getSimulationOptions = `-- name: GetSimulationOptions :one
+SELECT sim_config 
+FROM public.simulation
 WHERE id = $1
 LIMIT 1
 `
 
-func (q *Queries) GetSimulationRequestOptions(ctx context.Context, id pgtype.UUID) ([]byte, error) {
-	row := q.db.QueryRow(ctx, getSimulationRequestOptions, id)
-	var options []byte
-	err := row.Scan(&options)
-	return options, err
-}
-
-const insertSimulationData = `-- name: InsertSimulationData :exec
-INSERT INTO public.simulation_data (request_id, sim_result)
-VALUES ($1, $2)
-`
-
-type InsertSimulationDataParams struct {
-	RequestID pgtype.UUID
-	SimResult string
-}
-
-func (q *Queries) InsertSimulationData(ctx context.Context, arg InsertSimulationDataParams) error {
-	_, err := q.db.Exec(ctx, insertSimulationData, arg.RequestID, arg.SimResult)
-	return err
+func (q *Queries) GetSimulationOptions(ctx context.Context, id pgtype.UUID) ([]byte, error) {
+	row := q.db.QueryRow(ctx, getSimulationOptions, id)
+	var sim_config []byte
+	err := row.Scan(&sim_config)
+	return sim_config, err
 }
 
 const listenNewSimulationData = `-- name: ListenNewSimulationData :exec
@@ -121,4 +106,44 @@ LISTEN new_simulation_data
 func (q *Queries) ListenNewSimulationData(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, listenNewSimulationData)
 	return err
+}
+
+const updateSimulation = `-- name: UpdateSimulation :one
+UPDATE public.simulation
+SET
+    sim_result = COALESCE($1, sim_result),
+    error_text = COALESCE($2, error_text),
+    started_at = COALESCE($3, started_at),
+    completed_at = COALESCE($4, completed_at)
+WHERE id = $5
+RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at
+`
+
+type UpdateSimulationParams struct {
+	SimResult   pgtype.Text
+	ErrorText   pgtype.Text
+	StartedAt   pgtype.Timestamptz
+	CompletedAt pgtype.Timestamptz
+	ID          pgtype.UUID
+}
+
+func (q *Queries) UpdateSimulation(ctx context.Context, arg UpdateSimulationParams) (Simulation, error) {
+	row := q.db.QueryRow(ctx, updateSimulation,
+		arg.SimResult,
+		arg.ErrorText,
+		arg.StartedAt,
+		arg.CompletedAt,
+		arg.ID,
+	)
+	var i Simulation
+	err := row.Scan(
+		&i.ID,
+		&i.SimConfig,
+		&i.SimResult,
+		&i.ErrorText,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.CompletedAt,
+	)
+	return i, err
 }

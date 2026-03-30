@@ -8,30 +8,33 @@ FROM public.api_keys
 WHERE api_key = $1
 LIMIT 1;
 
--- name: CreateSimulationRequest :exec
-INSERT INTO public.simulation_request (id, options)
-VALUES ($1, $2);
+-- name: CreateSimulation :one
+INSERT INTO public.simulation (sim_config)
+VALUES ($1)
+RETURNING *;
 
--- name: GetSimulationRequestOptions :one
-SELECT options
-FROM public.simulation_request
+-- name: UpdateSimulation :one
+UPDATE public.simulation
+SET
+    sim_result = COALESCE(sqlc.narg('sim_result'), sim_result),
+    error_text = COALESCE(sqlc.narg('error_text'), error_text),
+    started_at = COALESCE(sqlc.narg('started_at'), started_at),
+    completed_at = COALESCE(sqlc.narg('completed_at'), completed_at)
+WHERE id = sqlc.arg('id')
+RETURNING *;
+
+-- name: GetSimulationOptions :one
+SELECT sim_config 
+FROM public.simulation
 WHERE id = $1
 LIMIT 1;
 
--- name: GetSimulationData :one
-SELECT id, request_id, sim_result
-FROM public.simulation_data
+-- name: GetSimulation :one
+SELECT *
+FROM public.simulation
 WHERE id = $1;
 
--- name: GetSimulationDataByRequestID :one
-SELECT id, request_id, sim_result
-FROM public.simulation_data
-WHERE request_id = $1
-LIMIT 1;
 
--- name: InsertSimulationData :exec
-INSERT INTO public.simulation_data (request_id, sim_result)
-VALUES ($1, $2);
 
 -- name: ListenNewSimulationData :exec
 LISTEN new_simulation_data;

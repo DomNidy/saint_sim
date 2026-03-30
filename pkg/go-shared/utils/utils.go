@@ -91,8 +91,13 @@ func (s *SimulationQueueClient) initialize(user, pass, host, port string) error 
 	return nil
 }
 
+// Message sent to the simulation queue
+type SimulationMessage struct {
+	SimulationID string `json:"simulation_id"`
+}
+
 // Publish a sim message into the simulation queue
-func (s *SimulationQueueClient) Publish(simMsg api_types.SimulationMessageBody) error {
+func (s *SimulationQueueClient) Publish(simMsg SimulationMessage) error {
 	const mandatory = true  // queue must be bound that matches routing key
 	const immediate = false // do not need to **immediately** deliver this to a consumer on the queue
 

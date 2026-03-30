@@ -16,14 +16,12 @@ type ApiKey struct {
 	UpdatedAt   pgtype.Timestamp
 }
 
-type SimulationDatum struct {
-	ID        int32
-	RequestID pgtype.UUID
-	SimResult string
-}
-
-type SimulationRequest struct {
-	ID         pgtype.UUID
-	ReceivedAt pgtype.Timestamp
-	Options    []byte
+type Simulation struct {
+	ID          pgtype.UUID
+	SimConfig   []byte
+	SimResult   pgtype.Text
+	ErrorText   pgtype.Text
+	CreatedAt   pgtype.Timestamptz
+	StartedAt   pgtype.Timestamptz
+	CompletedAt pgtype.Timestamptz
 }

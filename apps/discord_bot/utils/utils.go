@@ -69,7 +69,7 @@ func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.Applicatio
 	return &simOptions, nil
 }
 
-func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate, options *api_types.SimulationOptions) (*api_types.SimulationResponse, error) {
+func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate, options *api_types.SimulationOptions) (*api_types.Simulation, error) {
 	url := constants.SaintApiUrl.Value() + "/simulate"
 	jsonData, err := json.Marshal(options)
 	if err != nil {
@@ -125,7 +125,7 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 		return nil, fmt.Errorf(*apiErr.Message)
 	}
 
-	var simRespose api_types.SimulationResponse
+	var simRespose api_types.Simulation
 	// Strict decoder
 	// this will return an error if an unknown field is returned from the response json
 	decoder := json.NewDecoder(resp.Body)

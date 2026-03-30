@@ -46,7 +46,7 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 			continue
 		}
 
-		simRes, err := queries.GetSimulationDataByRequestID(ctx, requestID)
+		simRes, err := queries.GetSimulation(ctx, requestID)
 		if err != nil {
 			log.Printf("Error while scanning to simRes: %v", err)
 			continue
@@ -63,7 +63,7 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		// TODO: We Need to perform transformations on the simulation_data as it's excessively long
 		// TODO: we should not need to truncate it to 2000 chars, but this is the discord bot limit
 		// TODO: Also, prob should remove the mapping from the map after it gets consumed here
-		messageContent := utils.ParseSimcReport(simRes.SimResult, fmt.Sprintf("<@%v>, your sim request %v has been processed:\n", requestOrigin.DiscordUserId, notification.Payload))
+		messageContent := utils.ParseSimcReport(simRes.SimResult.String, fmt.Sprintf("<@%v>, your sim request %v has been processed:\n", requestOrigin.DiscordUserId, notification.Payload))
 		_, err = s.ChannelMessageSend(requestOrigin.DiscordChannelId, messageContent)
 		if err != nil {
 			log.Printf("Failed to send message in discord channel with sim data: %v", err)

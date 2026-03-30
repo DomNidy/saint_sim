@@ -1,6 +1,4 @@
 # https://docs.docker.com/reference/compose-file/
-
-version: "3.9"
 name: saint
 services:
   discord_bot:
