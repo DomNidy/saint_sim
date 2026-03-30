@@ -62,6 +62,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/report/request/{requestId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description View the results of a simulation operation by request id */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description The simulation request id returned from POST /simulate */
+                    requestId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Results of the simulation operation with the provided request id */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["simulation_data"];
+                    };
+                };
+                /** @description Simulation request exists but the worker has not published the result yet. */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                400: components["responses"]["bad_request_error"];
+                404: components["responses"]["not_found_error"];
+                500: components["responses"]["internal_error"];
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -125,6 +174,15 @@ export interface components {
         };
     };
     responses: {
+        /** @description Returned when the request is malformed or contains invalid input. */
+        bad_request_error: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["error_response"];
+            };
+        };
         /** @description Returned when the api could not locate a requested resource. */
         not_found_error: {
             headers: {

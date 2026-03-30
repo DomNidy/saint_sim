@@ -45,7 +45,7 @@ const createPostSchema = z.object({
 })
 
 export const createPost = createServerFn({ method: 'POST' })
-  .validator(createPostSchema)
+  .inputValidator(createPostSchema)
   .handler(async ({ data }) => {
     // This code only runs on the server
     const post = await db.posts.create({
@@ -94,7 +94,7 @@ export const getPosts = createServerFn()  // GET is default
   })
 
 export const getPost = createServerFn()
-  .validator(z.object({ id: z.string() }))
+  .inputValidator(z.object({ id: z.string() }))
   .handler(async ({ data }) => {
     const post = await db.posts.findUnique({
       where: { id: data.id },
@@ -118,7 +118,7 @@ export const Route = createFileRoute('/posts/$postId')({
 ```tsx
 // Compose server functions
 export const getPostWithComments = createServerFn()
-  .validator(z.object({ postId: z.string() }))
+  .inputValidator(z.object({ postId: z.string() }))
   .handler(async ({ data }) => {
     const [post, comments] = await Promise.all([
       getPost({ data: { id: data.postId } }),

@@ -79,6 +79,9 @@ type WowCharacterRealm string
 // WowCharacterRegion Identifies the region in which the characters realm is located
 type WowCharacterRegion string
 
+// BadRequestError Error response returned by API when something goes wrong
+type BadRequestError = ErrorResponse
+
 // InternalError Error response returned by API when something goes wrong
 type InternalError = ErrorResponse
 

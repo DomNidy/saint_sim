@@ -3,7 +3,8 @@ import { z } from 'zod'
 
 export const env = createEnv({
   server: {
-    SERVER_URL: z.string().url().optional(),
+    SAINT_API_KEY: z.string(),
+    SAINT_API_URL: z.url()
   },
 
   /**
@@ -20,7 +21,10 @@ export const env = createEnv({
    * What object holds the environment variables at runtime. This is usually
    * `process.env` or `import.meta.env`.
    */
-  runtimeEnv: import.meta.env,
+  // This module is currently only consumed from server-only code, so we
+  // validate against the Node runtime environment instead of Vite's
+  // client-exposed import.meta.env object.
+  runtimeEnv: process.env,
 
   /**
    * By default, this library will feed the environment variables directly to

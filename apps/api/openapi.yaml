@@ -67,9 +67,41 @@ paths:
           $ref: "#/components/responses/not_found_error"
         "500":
           $ref: "#/components/responses/internal_error"
+  /report/request/{requestId}:
+    get:
+      description: View the results of a simulation operation by request id
+      parameters:
+        - in: path
+          required: true
+          name: requestId
+          description: The simulation request id returned from POST /simulate
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Results of the simulation operation with the provided request id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/simulation_data"
+        "202":
+          description: Simulation request exists but the worker has not published the result yet.
+        "400":
+          $ref: "#/components/responses/bad_request_error"
+        "404":
+          $ref: "#/components/responses/not_found_error"
+        "500":
+          $ref: "#/components/responses/internal_error"
 
 components:
   responses:
+    bad_request_error:
+      description: Returned when the request is malformed or contains invalid input.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/error_response"
     not_found_error:
       description: Returned when the api could not locate a requested resource.
       content:

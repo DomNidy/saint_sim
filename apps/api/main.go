@@ -50,6 +50,9 @@ func main() {
 	authorized := r.Group("/", func(ctx *gin.Context) { middleware.AuthRequire(db) })
 
 	authorized.POST("/simulate", func(ctx *gin.Context) { handlers.Simulate(ctx, db, queue) })
+	authorized.GET("/report/request/:requestId", func(ctx *gin.Context) {
+		handlers.GetReportByRequestID(ctx, db)
+	})
 
 	r.GET("/report/:id", func(c *gin.Context) {
 		// get sim id from params & convert to int
