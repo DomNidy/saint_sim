@@ -29,10 +29,10 @@ type NativeUserJWTPayload struct {
 // different data.
 //
 // With this, we can make JWTs that do things like:
-// - discord-server-scoped JWTs (access control based
-//      on the originating discord server)
-// - discord-user-scoped JWTs (access control based
-//      on specific discord user id)
+//   - discord-server-scoped JWTs (access control based
+//     on the originating discord server)
+//   - discord-user-scoped JWTs (access control based
+//     on specific discord user id)
 type ForeignUserJWTPayload struct {
 	// TODO: Continue creating type
 }

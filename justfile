@@ -33,6 +33,7 @@ help:
       just db-reset                 Delete local Postgres and RabbitMQ volumes
 
     Maintenance
+      just fmt                      Run formatters on all Go and TS code
       just lint                     Lint all Go and TS code in the repo
       just api-key                  Generate and insert a local API key
       just codegen [target]         Generate shared code for db and/or api
@@ -302,4 +303,15 @@ lint:
         fi
       done < <(go work edit -json | jq -r '.Use[].DiskPath')
       cd ./apps/web && npm run lint
-      exit "$status" 
+      exit "$status"
+
+fmt:
+      #!/usr/bin/env bash
+      set -euo pipefail
+      while IFS= read -r mod; do
+        echo "Formatting $mod"
+        if rg --files -g '*.go' "$mod" | grep -q .; then
+          rg --files -g '*.go' "$mod" | xargs gofmt -w
+        fi
+      done < <(go work edit -json | jq -r '.Use[].DiskPath')
+      cd ./apps/web && npm run format -- --write .

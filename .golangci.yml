@@ -13,6 +13,7 @@ formatters:
     - gofmt
   settings:
     golines:
+      chain-split-dots: true
       max-len: 100
       shorten-comments: true
     goimports:
