@@ -1,0 +1,36 @@
+name: Lint
+
+on: [push, pull_request]
+
+jobs:
+  # Lint golang code
+  lint-go:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module:
+          - ./apps/api
+          - ./apps/discord_bot
+          - ./apps/simulation_worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21.6"
+
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: ${{ matrix.module }}
+
+  # Lint ts code
+  lint-ts:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npm run lint

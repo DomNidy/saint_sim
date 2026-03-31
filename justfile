@@ -33,6 +33,7 @@ help:
       just db-reset                 Delete local Postgres and RabbitMQ volumes
 
     Maintenance
+      just lint                     Lint all Go and TS code in the repo
       just api-key                  Generate and insert a local API key
       just codegen [target]         Generate shared code for db and/or api
       just tidy                     Run go mod tidy across all modules
@@ -289,3 +290,16 @@ simc:
     echo "Using simc image: ${simc_image_ver}"
     # Add /app/SimulationCraft to path so we can invoke simc with `simc` (just for convenience)
     docker run --rm -it --entrypoint sh $simc_image_ver -lc 'export PATH="/app/SimulationCraft:$PATH"; exec sh'
+
+lint:
+      #!/usr/bin/env bash
+      set -euo pipefail
+      status=0
+      while IFS= read -r mod; do
+        echo "Linting $mod"
+        if ! (cd "$mod" && golangci-lint run ./...); then
+          status=1
+        fi
+      done < <(go work edit -json | jq -r '.Use[].DiskPath')
+      cd ./apps/web && npm run lint
+      exit "$status" 
