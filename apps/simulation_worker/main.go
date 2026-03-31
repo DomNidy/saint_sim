@@ -17,6 +17,7 @@ import (
 
 	pgx "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rabbitmq/amqp091-go"
 
 	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
@@ -27,11 +28,22 @@ import (
 
 var ErrInvalidSimInput = errors.New("invalid sim input")
 
-var simcBinaryPath = secrets.LoadSecret("SIMC_BINARY_PATH").Value()
+type workerConfig struct {
+	simcBinaryPath string
+}
 
-var queue *utils.SimulationQueueClient
+type workerConnections struct {
+	dbPool *pgxpool.Pool
+	queue  *utils.SimulationQueueClient
+}
 
-func init() {
+func loadWorkerConfig() workerConfig {
+	return workerConfig{
+		simcBinaryPath: secrets.LoadSecret("SIMC_BINARY_PATH").Value(),
+	}
+}
+
+func setupSimulationQueueConnection() (*utils.SimulationQueueClient, error) {
 	user := secrets.LoadSecret("RABBITMQ_USER").Value()
 	pass := secrets.LoadSecret("RABBITMQ_PASS").Value()
 	host := secrets.LoadSecret("RABBITMQ_HOST").Value()
@@ -39,12 +51,24 @@ func init() {
 
 	simQueueClient, err := utils.NewSimulationQueueClient("saint_api", user, pass, host, port)
 	if err != nil {
-		log.Panicf("ERROR: Failed to initialize connection to simulation queue: %v", err)
-
-		return
+		return nil, fmt.Errorf("initialize simulation queue connection: %w", err)
 	}
 
-	queue = simQueueClient
+	return simQueueClient, nil
+}
+
+func setupWorkerConnections(ctx context.Context) (workerConnections, error) {
+	queue, err := setupSimulationQueueConnection()
+	if err != nil {
+		return workerConnections{}, err
+	}
+
+	dbPool := utils.InitPostgresConnectionPool(ctx)
+
+	return workerConnections{
+		dbPool: dbPool,
+		queue:  queue,
+	}, nil
 }
 
 func validateSimInput(region, realm, name string) error {
@@ -69,7 +93,7 @@ func validateSimInput(region, realm, name string) error {
 	return nil
 }
 
-func performSim(ctx context.Context, region, realm, name string) (*[]byte, error) {
+func performSim(ctx context.Context, simcBinaryPath, region, realm, name string) (*[]byte, error) {
 	err := validateSimInput(region, realm, name)
 	if err != nil {
 		return nil, err
@@ -101,7 +125,7 @@ func performSim(ctx context.Context, region, realm, name string) (*[]byte, error
 	return &simResult, nil
 }
 
-func getSimcVersion() string {
+func getSimcVersion(simcBinaryPath string) string {
 	simcCommand := exec.CommandContext(context.TODO(), simcBinaryPath)
 
 	var outputBuffer bytes.Buffer
@@ -142,14 +166,20 @@ func loadSimulationOptions(
 ) (api_types.SimulationOptions, error) {
 	simOptionsJSON, err := dbClient.GetSimulationOptions(ctx, requestID)
 	if err != nil {
-		return api_types.SimulationOptions{}, fmt.Errorf("%w: could not retrieve simulation options from db", err)
+		return api_types.SimulationOptions{}, fmt.Errorf(
+			"%w: could not retrieve simulation options from db",
+			err,
+		)
 	}
 
 	var simOptions api_types.SimulationOptions
 
 	err = json.Unmarshal(simOptionsJSON, &simOptions)
 	if err != nil {
-		return api_types.SimulationOptions{}, fmt.Errorf("%w: unmarshalling simulation options", err)
+		return api_types.SimulationOptions{}, fmt.Errorf(
+			"%w: unmarshalling simulation options",
+			err,
+		)
 	}
 
 	return simOptions, nil
@@ -225,7 +255,13 @@ func writeSimulationResult(
 	return nil
 }
 
-func processSimulationMessage(ctx context.Context, simOptions api_types.SimulationOptions, simRequestID pgtype.UUID, dbClient dbqueries.Queries) {
+func processSimulationMessage(
+	ctx context.Context,
+	simcBinaryPath string,
+	simOptions api_types.SimulationOptions,
+	simRequestID pgtype.UUID,
+	dbClient dbqueries.Queries,
+) {
 	if !utils.IsValidSimOptions(&simOptions) {
 		log.Printf("Invalid sim options received, potential RCE attempted")
 
@@ -242,6 +278,7 @@ func processSimulationMessage(ctx context.Context, simOptions api_types.Simulati
 
 	simulationResult, err := performSim(
 		ctx,
+		simcBinaryPath,
 		string(simOptions.WowCharacter.Region),
 		string(simOptions.WowCharacter.Realm),
 		simOptions.WowCharacter.CharacterName,
@@ -261,18 +298,23 @@ func processSimulationMessage(ctx context.Context, simOptions api_types.Simulati
 }
 
 func main() {
-	log.Printf("simulation_worker, running SimC version: %s", getSimcVersion())
-
 	ctx := context.Background()
+	config := loadWorkerConfig()
 
-	pool := utils.InitPostgresConnectionPool(ctx)
-	dbClient := dbqueries.New(pool)
+	connections, err := setupWorkerConnections(ctx)
+	if err != nil {
+		log.Fatalf("ERROR: Failed to initialize worker connections: %v", err)
+	}
 
-	defer pool.Close()
-	defer queue.Close()
+	log.Printf("simulation_worker, running SimC version: %s", getSimcVersion(config.simcBinaryPath))
+
+	dbClient := dbqueries.New(connections.dbPool)
+
+	defer connections.dbPool.Close()
+	defer connections.queue.Close()
 
 	// Immediately start receiving queued messages
-	msgChan, err := queue.Consume(
+	msgChan, err := connections.queue.Consume(
 		"",    // consumer
 		true,  // auto ack
 		false, // exclusive
@@ -293,7 +335,10 @@ func main() {
 
 			simMsg, err := parseSimulationMessage(msg)
 			if err != nil {
-				log.Printf("WARNING: Received a sim message that could not be parsed. Discarding it. Body was: %v", string(msg.Body))
+				log.Printf(
+					"WARNING: Received a sim message that could not be parsed. Discarding it. Body was: %v",
+					string(msg.Body),
+				)
 			}
 
 			var simRequestID pgtype.UUID
@@ -316,12 +361,21 @@ func main() {
 					return
 				}
 
-				log.Printf("Error occurred while trying to resolve simulation request options: %v", err)
+				log.Printf(
+					"Error occurred while trying to resolve simulation request options: %v",
+					err,
+				)
 
 				return
 			}
 
-			processSimulationMessage(ctx, simOptions, simRequestID, *dbClient)
+			processSimulationMessage(
+				ctx,
+				config.simcBinaryPath,
+				simOptions,
+				simRequestID,
+				*dbClient,
+			)
 		}
 	}()
 
