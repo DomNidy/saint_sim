@@ -13,18 +13,20 @@ import (
 	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 )
 
-var queue *utils.SimulationQueueClient = nil
+var queue *utils.SimulationQueueClient
 
 func init() {
 	user := secrets.LoadSecret("RABBITMQ_USER").Value()
 	pass := secrets.LoadSecret("RABBITMQ_PASS").Value()
 	host := secrets.LoadSecret("RABBITMQ_HOST").Value()
 	port := secrets.LoadSecret("RABBITMQ_PORT").Value()
+
 	q, err := utils.NewSimulationQueueClient("saint_api", user, pass, host, port)
 	if err != nil {
 		log.Panicf("ERROR: Failed to initialize connection to simulation queue: %v", err)
 		return
 	}
+
 	queue = q
 }
 

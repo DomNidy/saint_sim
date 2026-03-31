@@ -12,7 +12,7 @@ import (
 	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
 )
 
-// Middleware: Authenticates requests
+// AuthRequire authenticates incoming request
 func AuthRequire(db *dbqueries.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		apiKey := c.GetHeader("Api-Key")
