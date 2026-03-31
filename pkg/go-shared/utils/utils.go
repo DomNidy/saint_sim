@@ -33,7 +33,7 @@ func FailOnError(err error, msg string) {
 	}
 }
 
-// Represents a client connection to the simulation queue
+// SimulationQueueClient a client connection to the simulation queue
 // Client can be a consumer or a publisher of messages:
 //
 //	Backend workers -> consuming client
@@ -119,9 +119,11 @@ func (s *SimulationQueueClient) Publish(simMsg SimulationMessage) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
+// Consume immedaitely started delivered queued messages on the channel
 func (s *SimulationQueueClient) Consume(
 	consumer string,
 	autoAck bool,
@@ -130,7 +132,7 @@ func (s *SimulationQueueClient) Consume(
 	noWait bool,
 	args amqp.Table,
 ) (<-chan amqp.Delivery, error) {
-	return s.channel.Consume(
+	channel, err := s.channel.Consume(
 		s.queue.Name,
 		consumer,
 		autoAck,
@@ -139,6 +141,8 @@ func (s *SimulationQueueClient) Consume(
 		noWait,
 		args,
 	)
+
+	return channel, fmt.Errorf("%w: SimulationQueueClient error consuming from queue", err)
 }
 
 func (s *SimulationQueueClient) Close() {
