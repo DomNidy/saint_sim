@@ -69,7 +69,7 @@ func validateSimInput(region, realm, name string) error {
 	return nil
 }
 
-func performSim(region, realm, name string) (*[]byte, error) {
+func performSim(ctx context.Context, region, realm, name string) (*[]byte, error) {
 	err := validateSimInput(region, realm, name)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func performSim(region, realm, name string) (*[]byte, error) {
 	// Command to invoke simc and perform the sim
 	// #nosec G204 - inputs are validated first and passed w/ a shell
 	simCommand := exec.CommandContext(
-		context.TODO(),
+		ctx,
 		simcBinaryPath,
 		fmt.Sprintf("armory=%s,%s,%s", region, realm, name),
 	)
@@ -124,78 +124,50 @@ func getSimcVersion() string {
 	return res
 }
 
-func processSimulationMessage(ctx context.Context, msg amqp091.Delivery, dbClient dbqueries.Queries) {
+func parseSimulationMessage(msg amqp091.Delivery) (utils.SimulationMessage, error) {
 	var simRequestMsg utils.SimulationMessage
 
 	err := json.Unmarshal(msg.Body, &simRequestMsg)
 	if err != nil {
-		log.Printf(
-			"WARNING: Simulation worker received message that could not be unmarshalled to json: %v",
-			err,
-		)
-
-		return
+		return utils.SimulationMessage{}, fmt.Errorf("unmarshal simulation message: %w", err)
 	}
 
-	// Query the sim options json object from simulation_request table
-	var requestID pgtype.UUID
+	return simRequestMsg, nil
+}
 
-	err = requestID.Scan(simRequestMsg.SimulationID)
-	if err != nil {
-		log.Printf("Error converting simulation request id to uuid: %v", err)
-
-		return
-	}
-
+func loadSimulationOptions(
+	ctx context.Context,
+	dbClient dbqueries.Queries,
+	requestID pgtype.UUID,
+) (api_types.SimulationOptions, error) {
 	simOptionsJSON, err := dbClient.GetSimulationOptions(ctx, requestID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			log.Printf(
-				"Failed to locate simulation request to resolve options. Cannot process request: %v",
-				err,
-			)
-
-			return
-		}
-
-		log.Printf(
-			"Error occurred while trying to resolve simulation request options: %v",
-			err,
-		)
-
-		return
+		return api_types.SimulationOptions{}, fmt.Errorf("%w: could not retrieve simulation options from db", err)
 	}
 
-	// Validating the returned json from db conforms to the API shape
 	var simOptions api_types.SimulationOptions
 
 	err = json.Unmarshal(simOptionsJSON, &simOptions)
 	if err != nil {
-		log.Printf("error unmarshalling json: %v", err)
-
-		return
+		return api_types.SimulationOptions{}, fmt.Errorf("%w: unmarshalling simulation options", err)
 	}
 
-	log.Print("Received simulation request with options:")
-	log.Printf("  %v", string(simOptionsJSON))
+	return simOptions, nil
+}
 
-	if !utils.IsValidSimOptions(&simOptions) {
-		log.Printf(
-			"Invalid sim options received, potential RCE attempted: %v",
-			string(simOptionsJSON),
-		)
-
-		return
-	}
-
+func markSimulationStarted(
+	ctx context.Context,
+	dbClient dbqueries.Queries,
+	requestID pgtype.UUID,
+) error {
 	startedAt := pgtype.Timestamptz{
 		Time:             time.Now(),
 		Valid:            true,
 		InfinityModifier: pgtype.Finite,
 	}
 
-	_, err = dbClient.UpdateSimulation(
-		context.Background(),
+	_, err := dbClient.UpdateSimulation(
+		ctx,
 		dbqueries.UpdateSimulationParams{
 			SimResult: pgtype.Text{String: "", Valid: false},
 			StartedAt: startedAt,
@@ -208,44 +180,32 @@ func processSimulationMessage(ctx context.Context, msg amqp091.Delivery, dbClien
 			ErrorText: pgtype.Text{String: "", Valid: false},
 		},
 	)
-	if err != nil {
-		log.Printf(
-			"WARNING: Failed to update the started at time for a simulation request. We will still process it but since" +
-				"we failed to write the started at time, we may fail to write the results as well.",
-		)
-	}
 
-	simulationResult, err := performSim(
-		string(simOptions.WowCharacter.Region),
-		string(simOptions.WowCharacter.Realm),
-		simOptions.WowCharacter.CharacterName,
-	)
-	if err != nil {
-		log.Printf("error while performing sim: %v", err)
+	return fmt.Errorf("%w: failed to mark the simulation as started in DB", err)
+}
 
-		return
-	}
-
+func writeSimulationResult(
+	ctx context.Context,
+	dbClient dbqueries.Queries,
+	requestID pgtype.UUID,
+	simulationResult []byte,
+) error {
 	var simResPg pgtype.Text
 
-	err = simResPg.Scan(string(*simulationResult))
+	err := simResPg.Scan(string(simulationResult))
 	if err != nil {
-		log.Printf("%v", err)
-
-		return
+		return fmt.Errorf("convert simulation result: %w", err)
 	}
 
 	var completedAt pgtype.Timestamptz
 
 	err = completedAt.Scan(time.Now())
 	if err != nil {
-		log.Printf("error converting completed_at timestamp: %v", err)
-
-		return
+		return fmt.Errorf("convert completed_at timestamp: %w", err)
 	}
 
 	_, err = dbClient.UpdateSimulation(
-		context.Background(),
+		ctx,
 		dbqueries.UpdateSimulationParams{
 			SimResult:   simResPg,
 			CompletedAt: completedAt,
@@ -258,6 +218,41 @@ func processSimulationMessage(ctx context.Context, msg amqp091.Delivery, dbClien
 			ErrorText: pgtype.Text{String: "", Valid: false},
 		},
 	)
+	if err != nil {
+		return fmt.Errorf("insert sim data to db: %w", err)
+	}
+
+	return nil
+}
+
+func processSimulationMessage(ctx context.Context, simOptions api_types.SimulationOptions, simRequestID pgtype.UUID, dbClient dbqueries.Queries) {
+	if !utils.IsValidSimOptions(&simOptions) {
+		log.Printf("Invalid sim options received, potential RCE attempted")
+
+		return
+	}
+
+	err := markSimulationStarted(ctx, dbClient, simRequestID)
+	if err != nil {
+		log.Printf(
+			"WARNING: Failed to update the started at time for a simulation request. We will still process it but since" +
+				"we failed to write the started at time, we may fail to write the results as well.",
+		)
+	}
+
+	simulationResult, err := performSim(
+		ctx,
+		string(simOptions.WowCharacter.Region),
+		string(simOptions.WowCharacter.Realm),
+		simOptions.WowCharacter.CharacterName,
+	)
+	if err != nil {
+		log.Printf("error while performing sim: %v", err)
+
+		return
+	}
+
+	err = writeSimulationResult(ctx, dbClient, simRequestID, *simulationResult)
 	if err != nil {
 		log.Printf("error trying to insert sim data to db: %v", err)
 
@@ -295,7 +290,38 @@ func main() {
 
 			log.Printf("Received a message: %s\n", msg.Body)
 			log.Printf("receivedCount = %d\n", receivedCount)
-			processSimulationMessage(ctx, msg, *dbClient)
+
+			simMsg, err := parseSimulationMessage(msg)
+			if err != nil {
+				log.Printf("WARNING: Received a sim message that could not be parsed. Discarding it. Body was: %v", string(msg.Body))
+			}
+
+			var simRequestID pgtype.UUID
+
+			err = simRequestID.Scan(simMsg.SimulationID)
+			if err != nil {
+				log.Printf("Error converting simulation request id to uuid: %v", err)
+
+				return
+			}
+
+			simOptions, err := loadSimulationOptions(ctx, *dbClient, simRequestID)
+			if err != nil {
+				if errors.Is(err, pgx.ErrNoRows) {
+					log.Printf(
+						"Failed to locate simulation request to resolve options. Cannot process request: %v",
+						err,
+					)
+
+					return
+				}
+
+				log.Printf("Error occurred while trying to resolve simulation request options: %v", err)
+
+				return
+			}
+
+			processSimulationMessage(ctx, simOptions, simRequestID, *dbClient)
 		}
 	}()
 
