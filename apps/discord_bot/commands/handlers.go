@@ -15,8 +15,11 @@ var CommandHandlers = map[SaintCommandInteraction]func(s *discordgo.Session, i *
 	SaintHelp:     handleInteraction_SaintHelp,
 }
 
-// Checks that the data struct of the Interaction object is of type `ApplicationCommandInteractionData`
-func validateApplicationCommandInteractionData(i *discordgo.InteractionCreate) (*discordgo.ApplicationCommandInteractionData, error) {
+// Checks that the data struct of the Interaction object is of type
+// `ApplicationCommandInteractionData`
+func validateApplicationCommandInteractionData(
+	i *discordgo.InteractionCreate,
+) (*discordgo.ApplicationCommandInteractionData, error) {
 	data, ok := i.Interaction.Data.(discordgo.ApplicationCommandInteractionData)
 
 	if ok {
@@ -30,9 +33,12 @@ func handleInteraction_SaintSimulate(s *discordgo.Session, i *discordgo.Interact
 	// Ensure the received interaction has data of type ApplicationCommandInteractionData
 	interactionData, err := validateApplicationCommandInteractionData(i)
 
-	// Handle case where this handler receives incorrect interaction type (we need application command interactions only)
+	// Handle case where this handler receives incorrect interaction type (we need application
+	// command interactions only)
 	if err != nil {
-		interResponse := utils.CreateErrorInteractionResponse("Something went wrong, please try again")
+		interResponse := utils.CreateErrorInteractionResponse(
+			"Something went wrong, please try again",
+		)
 		s.InteractionRespond(i.Interaction, &interResponse)
 		return err
 	}
@@ -48,7 +54,9 @@ func handleInteraction_SaintSimulate(s *discordgo.Session, i *discordgo.Interact
 	// Send simulation request to api
 	simRes, err := utils.SendSimulationRequest(s, i, simOptions)
 	if err != nil {
-		interResponse := utils.CreateErrorInteractionResponse(fmt.Sprintf("Failed to create simulation request: %v", err.Error()))
+		interResponse := utils.CreateErrorInteractionResponse(
+			fmt.Sprintf("Failed to create simulation request: %v", err.Error()),
+		)
 		s.InteractionRespond(i.Interaction, &interResponse)
 		return err
 	}

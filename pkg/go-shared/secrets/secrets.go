@@ -1,17 +1,29 @@
+// Package secrets provides utilities for loading secrets into memory
 package secrets
 
 import (
-	"fmt"
+	"log"
 	"os"
 
 	"github.com/joho/godotenv"
 )
 
-// Load secrets into memory when this package is imported
+const (
+	defaultVisibleSecretChars = 3
+	minMaskableTokenLength    = 3
+)
+
+// Load secrets into memory when this package is imported.
+//
+//nolint:gochecknoinits // makes sense to use init here imo
 func init() {
-	godotenv.Load(".env")
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Printf("WARNING: failed to load .env. Secrets may not be populated: %v", err)
+	}
 }
 
+// Secret is a key value pair, where the value is sensitive.
 type Secret interface {
 	// Returns the key the secret (the same as the key in the .env file we load these from)
 	Key() string
@@ -21,43 +33,43 @@ type Secret interface {
 	MaskedValue() string
 }
 
-type SecretImpl struct {
+type secretImpl struct {
 	key   string
 	value string
 }
 
-func (s *SecretImpl) Key() string {
+func (s *secretImpl) Key() string {
 	return s.key
 }
 
-func (s *SecretImpl) Value() string {
+func (s *secretImpl) Value() string {
 	return s.value
 }
 
-func (s *SecretImpl) MaskedValue() string {
-	return MaskToken(s.value, 3)
+func (s *secretImpl) MaskedValue() string {
+	return MaskToken(s.value, defaultVisibleSecretChars)
 }
 
-func NewSecret(key, value string) Secret {
-	return &SecretImpl{key: key, value: value}
+func newSecret(key, value string) *secretImpl {
+	return &secretImpl{key: key, value: value}
 }
 
-// Panics on error
+// LoadSecret returns the secret stored under key.
+//
+//nolint:ireturn // package callers intentionally depend on the Secret interface.
 func LoadSecret(key string) Secret {
-	var secret Secret = nil
-
 	if value, exists := os.LookupEnv(key); exists {
-		secret = NewSecret(key, value)
-	} else {
-		panic(fmt.Sprintf("failed to load secret with key: %s", key))
+		return newSecret(key, value)
 	}
-	return secret
+
+	panic("failed to load secret with key: " + key)
 }
 
-// Used to print out the secrets to console
+// MaskToken returns token with only visibleChars characters preserved.
 func MaskToken(token string, visibleChars int) string {
-	if len(token) < 3 {
+	if len(token) < minMaskableTokenLength {
 		return "XXXXXXXX"
 	}
+
 	return token[:visibleChars] + "XXXXX"
 }

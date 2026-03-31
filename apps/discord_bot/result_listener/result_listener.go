@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/DomNidy/saint_sim/apps/discord_bot/utils"
-	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
 	"github.com/bwmarrin/discordgo"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/DomNidy/saint_sim/apps/discord_bot/utils"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
 )
 
 // stores discord user id and discord channel id of user who invoked a simrequest
@@ -55,7 +56,9 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		// Find the user who requested this sim
 		requestOrigin, exists := OutboundSimRequests[notification.Payload]
 		if !exists {
-			log.Printf("Received notification of sim data, but no mapping to the request origin exists.")
+			log.Printf(
+				"Received notification of sim data, but no mapping to the request origin exists.",
+			)
 			continue
 		}
 
@@ -63,7 +66,14 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		// TODO: We Need to perform transformations on the simulation_data as it's excessively long
 		// TODO: we should not need to truncate it to 2000 chars, but this is the discord bot limit
 		// TODO: Also, prob should remove the mapping from the map after it gets consumed here
-		messageContent := utils.ParseSimcReport(simRes.SimResult.String, fmt.Sprintf("<@%v>, your sim request %v has been processed:\n", requestOrigin.DiscordUserId, notification.Payload))
+		messageContent := utils.ParseSimcReport(
+			simRes.SimResult.String,
+			fmt.Sprintf(
+				"<@%v>, your sim request %v has been processed:\n",
+				requestOrigin.DiscordUserId,
+				notification.Payload,
+			),
+		)
 		_, err = s.ChannelMessageSend(requestOrigin.DiscordChannelId, messageContent)
 		if err != nil {
 			log.Printf("Failed to send message in discord channel with sim data: %v", err)
@@ -78,5 +88,9 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 // we can use the mapping to notify the discord user of the results.
 func AddOutboundSimRequestMapping(simRequestId string, requestOrigin *SimRequestOrigin) {
 	OutboundSimRequests[simRequestId] = requestOrigin
-	log.Printf("Added outbound sim request mapping: %v (sim req id) -> %v (discord user id)", simRequestId, requestOrigin.DiscordUserId)
+	log.Printf(
+		"Added outbound sim request mapping: %v (sim req id) -> %v (discord user id)",
+		simRequestId,
+		requestOrigin.DiscordUserId,
+	)
 }

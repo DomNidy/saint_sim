@@ -131,7 +131,10 @@ func AddHandlers(s *discordgo.Session) {
 				log.Printf("Error occured while executing application command handler: %v", err)
 			}
 		default:
-			log.Printf("Received interaction of type %v, but we do not have any handlers for this type of interaction", i.Type)
+			log.Printf(
+				"Received interaction of type %v, but we do not have any handlers for this type of interaction",
+				i.Type,
+			)
 		}
 	})
 }

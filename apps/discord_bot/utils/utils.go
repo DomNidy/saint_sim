@@ -9,14 +9,17 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/bwmarrin/discordgo"
+
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
 	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	saintutils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
-	"github.com/bwmarrin/discordgo"
 )
 
 // Pass the slice of interaction options received from discord command here
-func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.ApplicationCommandInteractionDataOption) (*api_types.SimulationOptions, error) {
+func ValidateInteractionSimOptions(
+	appCmdInteractionData []*discordgo.ApplicationCommandInteractionDataOption,
+) (*api_types.SimulationOptions, error) {
 	simOptions := api_types.SimulationOptions{
 		WowCharacter: api_types.WowCharacter{},
 	}
@@ -69,7 +72,11 @@ func ValidateInteractionSimOptions(appCmdInteractionData []*discordgo.Applicatio
 	return &simOptions, nil
 }
 
-func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate, options *api_types.SimulationOptions) (*api_types.Simulation, error) {
+func SendSimulationRequest(
+	s *discordgo.Session,
+	i *discordgo.InteractionCreate,
+	options *api_types.SimulationOptions,
+) (*api_types.Simulation, error) {
 	url := constants.SaintApiUrl.Value() + "/simulate"
 	jsonData, err := json.Marshal(options)
 	if err != nil {
@@ -83,7 +90,8 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 	}
 	apiReq.Header.Set("Api-Key", constants.SaintApiKey.Value())
 
-	// TODO: Probably should stop creating this on each call of this function (http.Client caches tcp connections in internal state)
+	// TODO: Probably should stop creating this on each call of this function (http.Client caches
+	// tcp connections in internal state)
 	// TODO: we can just re-use the client, and it's concurrency safe for multiple goroutines
 	client := &http.Client{}
 	resp, err := client.Do(apiReq)
@@ -95,11 +103,14 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 
 	// this only occurs when the discord bot fails to authenticate with it's api key
 	if resp.StatusCode == http.StatusForbidden {
-		log.Printf("WARNING: Failed to authenticate with saint API. Please ensure the API key has been set in the environment variables, and is correct.")
+		log.Printf(
+			"WARNING: Failed to authenticate with saint API. Please ensure the API key has been set in the environment variables, and is correct.",
+		)
 		return nil, fmt.Errorf("internal server error occured, please try again later")
 	}
 
-	// TODO: Currently, a lot of our api responses dont actually correctly use the ErrorResponse interface,
+	// TODO: Currently, a lot of our api responses dont actually correctly use the ErrorResponse
+	// interface,
 	// TODO: so this interface assertions is never correct.
 	// TODO: we should update the api responses to use that interface.
 	// Check the response status code
@@ -107,18 +118,29 @@ func SendSimulationRequest(s *discordgo.Session, i *discordgo.InteractionCreate,
 		var errResp interface{}
 		decodeErr := json.NewDecoder(resp.Body).Decode(&errResp)
 		if decodeErr != nil {
-			log.Printf("Error returned from API. Could not decode the error. Status code from API was: %v. Decode error: %v", resp.StatusCode, decodeErr)
+			log.Printf(
+				"Error returned from API. Could not decode the error. Status code from API was: %v. Decode error: %v",
+				resp.StatusCode,
+				decodeErr,
+			)
 			return nil, fmt.Errorf("Internal server error occurred, please try again later.")
 		}
 
 		// Assert that the returned JSON is of the expected shape and has a message
 		apiErr, ok := errResp.(api_types.ErrorResponse)
 		if !ok {
-			log.Printf("Error returned from API, but error shape did not mathc api_types.ErrorResponse. Status code from API was: %v, errResp: %v", resp.StatusCode, errResp)
+			log.Printf(
+				"Error returned from API, but error shape did not mathc api_types.ErrorResponse. Status code from API was: %v, errResp: %v",
+				resp.StatusCode,
+				errResp,
+			)
 			return nil, fmt.Errorf("Internal server error occurred, please try again later.")
 		}
 		if apiErr.Message == nil {
-			log.Printf("Error returned from API. Error message was empty. Status code from API was: %v", resp.StatusCode)
+			log.Printf(
+				"Error returned from API. Error message was empty. Status code from API was: %v",
+				resp.StatusCode,
+			)
 			return nil, fmt.Errorf("Internal server error occurred, please try again later.")
 		}
 
@@ -153,7 +175,9 @@ func CreateErrorInteractionResponse(msg string) discordgo.InteractionResponse {
 // todo: deprecate this and modify the simulation_worker to handling parsing of the results
 // todo: this will work for now though
 func ParseSimcReport(data, mentionUser string) string {
-	reg, err := regexp.Compile(`([D|H]PS *\w+:(\n *[0-9]+\b .*)+|https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)|((\bConstant\b Buffs:)\n *(\b.*\b)*))`)
+	reg, err := regexp.Compile(
+		`([D|H]PS *\w+:(\n *[0-9]+\b .*)+|https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)|((\bConstant\b Buffs:)\n *(\b.*\b)*))`,
+	)
 	if err != nil {
 		log.Printf("Failed to compile regular expression, simply returning the truncated sim data")
 		return data[0:1000]
