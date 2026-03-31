@@ -4,12 +4,13 @@ import (
 	"context"
 	"log"
 
+	gin "github.com/gin-gonic/gin"
+
 	handlers "github.com/DomNidy/saint_sim/apps/api/handlers"
 	middleware "github.com/DomNidy/saint_sim/apps/api/middleware"
 	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
 	"github.com/DomNidy/saint_sim/pkg/go-shared/secrets"
 	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
-	gin "github.com/gin-gonic/gin"
 )
 
 var queue *utils.SimulationQueueClient = nil

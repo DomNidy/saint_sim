@@ -6,11 +6,12 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	"github.com/DomNidy/saint_sim/pkg/go-shared/db"
 	"github.com/DomNidy/saint_sim/pkg/go-shared/utils"
-	"github.com/gin-gonic/gin"
 )
 
 type wowCharacterValidationFailure struct {
@@ -88,7 +89,9 @@ func Simulate(c *gin.Context, dbClient *db.Queries, simQueue *utils.SimulationQu
 
 }
 
-func validateWowCharacter(character api_types.WowCharacter) (*wowCharacterValidationFailure, error) {
+func validateWowCharacter(
+	character api_types.WowCharacter,
+) (*wowCharacterValidationFailure, error) {
 	if !utils.IsValidWowRealm(string(character.Realm)) {
 		return &wowCharacterValidationFailure{
 			statusCode: http.StatusBadRequest,

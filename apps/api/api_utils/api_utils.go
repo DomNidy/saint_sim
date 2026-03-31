@@ -7,8 +7,9 @@ import (
 
 	"crypto/sha256"
 
-	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	uuid "github.com/google/uuid"
+
+	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 )
 
 // Use to generate UUID for simulation operations & results
@@ -23,7 +24,12 @@ func HashApiKey(apiKey string) string {
 
 // Check to see if a WoWCharacter actually exists on wow armory
 func CheckWowCharacterExists(character *api_types.WowCharacter) (bool, error) {
-	url := fmt.Sprintf("https://worldofwarcraft.blizzard.com/en-us/character/%s/%s/%s", character.Region, character.Realm, character.CharacterName)
+	url := fmt.Sprintf(
+		"https://worldofwarcraft.blizzard.com/en-us/character/%s/%s/%s",
+		character.Region,
+		character.Realm,
+		character.CharacterName,
+	)
 	log.Printf("Checking if char exists at url: %v", url)
 	res, err := http.Get(url)
 	if err != nil {
