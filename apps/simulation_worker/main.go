@@ -297,6 +297,80 @@ func processSimulationMessage(
 	}
 }
 
+func handleSimulationDelivery(
+	ctx context.Context,
+	msg amqp091.Delivery,
+	simcBinaryPath string,
+	dbClient dbqueries.Queries,
+	receivedCount uint64,
+) {
+	log.Printf("Received a message: %s\n", msg.Body)
+	log.Printf("receivedCount = %d\n", receivedCount)
+
+	simMsg, err := parseSimulationMessage(msg)
+	if err != nil {
+		log.Printf(
+			"WARNING: Received a sim message that could not be parsed. Discarding it. Body was: %v",
+			string(msg.Body),
+		)
+
+		return
+	}
+
+	var simRequestID pgtype.UUID
+
+	err = simRequestID.Scan(simMsg.SimulationID)
+	if err != nil {
+		log.Printf("Error converting simulation request id to uuid: %v", err)
+
+		return
+	}
+
+	simOptions, err := loadSimulationOptions(ctx, dbClient, simRequestID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			log.Printf(
+				"Failed to locate simulation request to resolve options. Cannot process request: %v",
+				err,
+			)
+
+			return
+		}
+
+		log.Printf(
+			"Error occurred while trying to resolve simulation request options: %v",
+			err,
+		)
+
+		return
+	}
+
+	processSimulationMessage(ctx, simcBinaryPath, simOptions, simRequestID, dbClient)
+}
+
+func startSimulationConsumer(
+	ctx context.Context,
+	queue *utils.SimulationQueueClient,
+	simcBinaryPath string,
+	dbClient dbqueries.Queries,
+) error {
+	msgChan, err := queue.Consume("", true, false, false, false, nil)
+	if err != nil {
+		return fmt.Errorf("register as consumer: %w", err)
+	}
+
+	go func() {
+		var receivedCount uint64
+
+		for msg := range msgChan {
+			receivedCount++
+			handleSimulationDelivery(ctx, msg, simcBinaryPath, dbClient, receivedCount)
+		}
+	}()
+
+	return nil
+}
+
 func main() {
 	ctx := context.Background()
 	config := loadWorkerConfig()
@@ -313,71 +387,8 @@ func main() {
 	defer connections.dbPool.Close()
 	defer connections.queue.Close()
 
-	// Immediately start receiving queued messages
-	msgChan, err := connections.queue.Consume(
-		"",    // consumer
-		true,  // auto ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
-		nil,   // args
-	)
-	utils.FailOnError(err, "Failed to register as consumer")
-
-	var receivedCount uint64
-
-	go func() {
-		for msg := range msgChan {
-			receivedCount++
-
-			log.Printf("Received a message: %s\n", msg.Body)
-			log.Printf("receivedCount = %d\n", receivedCount)
-
-			simMsg, err := parseSimulationMessage(msg)
-			if err != nil {
-				log.Printf(
-					"WARNING: Received a sim message that could not be parsed. Discarding it. Body was: %v",
-					string(msg.Body),
-				)
-			}
-
-			var simRequestID pgtype.UUID
-
-			err = simRequestID.Scan(simMsg.SimulationID)
-			if err != nil {
-				log.Printf("Error converting simulation request id to uuid: %v", err)
-
-				return
-			}
-
-			simOptions, err := loadSimulationOptions(ctx, *dbClient, simRequestID)
-			if err != nil {
-				if errors.Is(err, pgx.ErrNoRows) {
-					log.Printf(
-						"Failed to locate simulation request to resolve options. Cannot process request: %v",
-						err,
-					)
-
-					return
-				}
-
-				log.Printf(
-					"Error occurred while trying to resolve simulation request options: %v",
-					err,
-				)
-
-				return
-			}
-
-			processSimulationMessage(
-				ctx,
-				config.simcBinaryPath,
-				simOptions,
-				simRequestID,
-				*dbClient,
-			)
-		}
-	}()
+	err = startSimulationConsumer(ctx, connections.queue, config.simcBinaryPath, *dbClient)
+	utils.FailOnError(err, "Failed to start simulation consumer")
 
 	select {}
 }
