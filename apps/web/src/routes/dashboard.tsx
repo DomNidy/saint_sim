@@ -70,7 +70,7 @@ function DashboardPage() {
 		resolver: zodResolver(simulationRequestSchema),
 		defaultValues: {
 			region: "us",
-			realm: "thrall",
+			realm: "hydraxis",
 			character_name: "",
 		},
 	});

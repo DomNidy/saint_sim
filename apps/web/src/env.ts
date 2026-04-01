@@ -3,8 +3,17 @@ import { z } from "zod";
 
 export const env = createEnv({
 	server: {
+		DB_USER: z.string().min(1),
+		DB_PASSWORD: z.string().min(1),
+		DB_HOST: z.string().min(1),
+		DB_NAME: z.string().min(1),
+
 		SAINT_API_KEY: z.string(),
 		SAINT_API_URL: z.url(),
+
+		// Get from https://discord.com/developers/applications/ 
+		DISCORD_CLIENT_SECRET: z.string(),
+		DISCORD_CLIENT_ID: z.string()
 	},
 
 	/**

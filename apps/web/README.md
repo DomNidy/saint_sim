@@ -104,13 +104,22 @@ export const auth = betterAuth({
 });
 ```
 
-Then run migrations:
+### Integrate Better Auth with our Postgres DB
 
-```bash
-npx -y @better-auth/cli migrate
+This app uses Better Auth for authentication. We connect to the same postgres database as the other services.
+
+The required database tables for Better Auth are applied manually. Better Auth provides a command to generate
+a SQL migration script to create the necessary tables. This command is:
+
+```
+npx auth@latest generate
 ```
 
+The resulting SQL migration file will be added into `/apps/web/better-auth_migrations`. From here, we need to:
 
+1. Move the migration file into `/db/migrations` in project root
+2. Edit the migration file so it integrates with `goose` tooling:
+  - Add a `-- +goose Up` comment to the top of the file.
 
 ## Routing
 

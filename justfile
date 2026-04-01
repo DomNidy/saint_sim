@@ -21,7 +21,8 @@ help:
     Setup and lifecycle
       just help                     Show this help
       just setup                    Create .env from .env.example if needed
-      just start                    Build and start the full local stack
+      just start                    Build and start the full local stack (except web)
+      just web                      Start the web app in dev mode.
       just stop                     Stop the full local stack
 
     Database
@@ -78,6 +79,12 @@ start:
     echo "Building and starting the local stack..."
     docker compose build
     docker compose up --detach
+  
+# Start the web app in dev mode
+web:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd ./apps/web && npm run dev
 
 # Stop the full local stack.
 stop:

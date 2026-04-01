@@ -14,6 +14,10 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
+# Ensure we don't accidentally include any `just` temp directories
+just-*/
+
+
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
@@ -24,3 +28,4 @@
 secrets/*.txt
 .plans/
 .gocache
+.codex

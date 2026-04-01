@@ -1,3 +1,8 @@
 import { createAuthClient } from "better-auth/react";
 
+
+/**
+ * Better Auth comes with a client-side library to
+ * interact with the auth server.
+ */
 export const authClient = createAuthClient();
