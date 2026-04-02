@@ -4,18 +4,22 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
 	"regexp"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	amqp "github.com/rabbitmq/amqp091-go"
 
 	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	secrets "github.com/DomNidy/saint_sim/pkg/go-shared/secrets"
 )
+
+var errUnexpectedUUIDValueType = errors.New("uuid was not encoded as string")
 
 // IntPtr returns a pointer to i.
 func IntPtr(i int) *int {
@@ -25,6 +29,21 @@ func IntPtr(i int) *int {
 // StrPtr returns a pointer to s.
 func StrPtr(s string) *string {
 	return &s
+}
+
+// UUIDString converts a Postgres UUID to its string representation.
+func UUIDString(id pgtype.UUID) (string, error) {
+	value, err := id.Value()
+	if err != nil {
+		return "", fmt.Errorf("read uuid value: %w", err)
+	}
+
+	uuidString, ok := value.(string)
+	if !ok {
+		return "", errUnexpectedUUIDValueType
+	}
+
+	return uuidString, nil
 }
 
 // FailOnError logs msg and panics when err is non-nil.

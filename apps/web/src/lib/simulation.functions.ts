@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
+import { requireAuthMiddleware } from "#/lib/auth.middleware";
 import {
 	fetchSaintApi,
 	readSaintApiError,
@@ -13,9 +14,10 @@ import {
 } from "#/lib/simulation.schemas";
 
 export const submitSimulationRequest = createServerFn({ method: "POST" })
+	.middleware([requireAuthMiddleware])
 	.inputValidator(simulationRequestSchema)
 	.handler(async ({ data }) => {
-		const response = await fetchSaintApi("/simulate", {
+		const response = await fetchSaintApi("/simulation", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -31,36 +33,47 @@ export const submitSimulationRequest = createServerFn({ method: "POST" })
 
 		const payload = await readSaintApiJson<SaintSimulationResponse>(response);
 
-		if (!payload.simulation_request_id) {
-			throw new Error("Saint API did not return a simulation request id.");
+		if (!payload.simulation_id) {
+			throw new Error("Saint API did not return a simulation id.");
 		}
 
 		return {
-			simulationRequestId: payload.simulation_request_id,
+			simulationRequestId: payload.simulation_id,
 		};
 	});
 
 export const getSimulationResultByRequestId = createServerFn()
+	.middleware([requireAuthMiddleware])
 	.inputValidator(simulationResultLookupSchema)
 	.handler(async ({ data }) => {
 		const response = await fetchSaintApi(
-			`/report/request/${encodeURIComponent(data.requestId)}`,
+			`/simulation/${encodeURIComponent(data.requestId)}`,
 		);
-
-		if (response.status === 202 || response.status === 404) {
-			return {
-				status: "pending" as const,
-			};
-		}
 
 		if (!response.ok) {
 			throw new Error(await readSaintApiError(response));
 		}
 
-		const payload = await response.json();
+		const payload = await readSaintApiJson<SaintSimulationData>(response);
 
-		return {
-			status: "complete" as const,
-			result: payload as SaintSimulationData,
-		};
+		switch (payload.simulation_status) {
+			case "complete":
+				return {
+					status: "complete" as const,
+					result: payload,
+				};
+			case "error":
+				return {
+					status: "error" as const,
+					result: payload,
+				};
+			case "in_progress":
+			case "in_queue":
+				return {
+					status: "pending" as const,
+					result: payload,
+				};
+			default:
+				throw new Error("Saint API returned an unknown simulation status.");
+		}
 	});

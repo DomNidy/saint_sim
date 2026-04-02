@@ -1,18 +1,14 @@
 import { env } from "#/env";
 
 export interface SaintSimulationResponse {
-	simulation_request_id?: string;
+	simulation_id?: string;
 }
 
 export interface SaintSimulationData {
-	id?: number;
-	request_id?: string;
+	id?: string;
+	simulation_status?: "in_progress" | "in_queue" | "error" | "complete";
 	sim_result?: string;
-}
-
-interface SaintApiFetchOptions extends Omit<RequestInit, "headers"> {
-	headers?: HeadersInit;
-	authorization?: string;
+	error_text?: string;
 }
 
 function getSaintApiConfig() {
@@ -22,10 +18,7 @@ function getSaintApiConfig() {
 	};
 }
 
-function buildSaintApiHeaders({
-	headers,
-	authorization,
-}: Pick<SaintApiFetchOptions, "headers" | "authorization">): Headers {
+function buildSaintApiHeaders({ headers }: { headers?: HeadersInit }): Headers {
 	const { apiKey } = getSaintApiConfig();
 
 	if (!apiKey) {
@@ -36,10 +29,6 @@ function buildSaintApiHeaders({
 
 	const requestHeaders = new Headers(headers);
 	requestHeaders.set("Api-Key", apiKey);
-
-	if (authorization) {
-		requestHeaders.set("Authorization", authorization);
-	}
 
 	return requestHeaders;
 }
@@ -63,13 +52,16 @@ async function readApiError(response: Response) {
 
 export async function fetchSaintApi(
 	path: string,
-	{ headers, authorization, ...init }: SaintApiFetchOptions = {},
+	{
+		headers,
+		...init
+	}: Omit<RequestInit, "headers"> & { headers?: HeadersInit } = {},
 ) {
 	const { baseUrl } = getSaintApiConfig();
 
 	const response = await fetch(new URL(path, baseUrl), {
 		...init,
-		headers: buildSaintApiHeaders({ headers, authorization }),
+		headers: buildSaintApiHeaders({ headers }),
 	});
 
 	return response;

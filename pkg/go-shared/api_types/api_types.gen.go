@@ -4,7 +4,7 @@
 package api_types
 
 const (
-	JWTAuthScopes = "JWTAuth.Scopes"
+	ApiKeyAuthScopes = "ApiKeyAuth.Scopes"
 )
 
 // Defines values for SimulationStatus.
@@ -40,22 +40,25 @@ type ErrorResponse struct {
 
 // Simulation All details & data about a simulation.
 type Simulation struct {
-	// Content The output / result of the simulation operation
-	Content *string `json:"content,omitempty"`
+	// ErrorText Error message for the simulation job (if one occurred)
+	ErrorText *string `json:"error_text,omitempty"`
 
 	// Id ID for the simulation operation
-	Id     *string           `json:"id,omitempty"`
-	Status *SimulationStatus `json:"status,omitempty"`
-}
+	Id *string `json:"id,omitempty"`
 
-// SimulationStatus defines model for Simulation.Status.
-type SimulationStatus string
+	// SimResult The raw output / result of the simulation operation
+	SimResult        *string           `json:"sim_result,omitempty"`
+	SimulationStatus *SimulationStatus `json:"simulation_status,omitempty"`
+}
 
 // SimulationOptions Specifices sim options, and the character of interest to sim, send this to the api
 type SimulationOptions struct {
 	// WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
 	WowCharacter WowCharacter `json:"wow_character"`
 }
+
+// SimulationStatus defines model for simulation_status.
+type SimulationStatus string
 
 // WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
 type WowCharacter struct {

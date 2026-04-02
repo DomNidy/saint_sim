@@ -92,19 +92,22 @@ export interface components {
         };
         /** @description All details & data about a simulation. */
         simulation: {
+            /** @description Error message for the simulation job (if one occurred) */
+            error_text?: string;
             /**
              * @description ID for the simulation operation
              * @example 41e9a22f-d2c1-48b2-b234-15db461049d4
              */
             id?: string;
-            /** @enum {string} */
-            status?: "in_progress" | "in_queue" | "error" | "complete";
+            simulation_status?: components["schemas"]["simulation_status"];
             /**
-             * @description The output / result of the simulation operation
+             * @description The raw output / result of the simulation operation
              * @example ...
              */
-            content?: string;
+            sim_result?: string;
         };
+        /** @enum {string} */
+        simulation_status: "in_progress" | "in_queue" | "error" | "complete";
         /** @description Error response returned by API when something goes wrong */
         error_response: {
             /** @description Message explaining the error */

@@ -1,8 +1,10 @@
+// Package main runs the Gin API server.
 package main
 
 import (
 	"context"
 	"log"
+	"net/http"
 
 	gin "github.com/gin-gonic/gin"
 
@@ -13,42 +15,46 @@ import (
 	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 )
 
-var queue *utils.SimulationQueueClient
-
-func init() {
+func main() {
 	user := secrets.LoadSecret("RABBITMQ_USER").Value()
 	pass := secrets.LoadSecret("RABBITMQ_PASS").Value()
 	host := secrets.LoadSecret("RABBITMQ_HOST").Value()
 	port := secrets.LoadSecret("RABBITMQ_PORT").Value()
 
-	q, err := utils.NewSimulationQueueClient("saint_api", user, pass, host, port)
+	simulationQueue, err := utils.NewSimulationQueueClient("saint_api", user, pass, host, port)
 	if err != nil {
 		log.Panicf("ERROR: Failed to initialize connection to simulation queue: %v", err)
+
 		return
 	}
 
-	queue = q
-}
-
-func main() {
 	pool := utils.InitPostgresConnectionPool(context.Background())
-	db := dbqueries.New(pool)
+	dbClient := dbqueries.New(pool)
 
 	defer pool.Close()
-	defer queue.Close()
+	defer simulationQueue.Close()
 
 	// Setup api server
-	r := gin.Default()
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
+	router := gin.Default()
+	router.GET("/health", func(ginContext *gin.Context) {
+		ginContext.JSON(http.StatusOK, gin.H{
 			"status": "healthy",
 		})
 	})
 
+	router.GET("/simulation/:id", func(ginContext *gin.Context) {
+		handlers.GetSimulation(ginContext, dbClient)
+	})
+
 	// Authorization group: https://gin-gonic.com/zh-tw/docs/examples/using-middleware/
-	authorized := r.Group("/", func(ctx *gin.Context) { middleware.AuthRequire(db) })
+	authorized := router.Group("/", middleware.AuthRequire(dbClient))
 
-	authorized.POST("/simulate", func(ctx *gin.Context) { handlers.Simulate(ctx, db, queue) })
+	authorized.POST("/simulation", func(ginContext *gin.Context) {
+		handlers.Simulate(ginContext, dbClient, simulationQueue)
+	})
 
-	r.Run("0.0.0.0:8080")
+	err = router.Run("0.0.0.0:8080")
+	if err != nil {
+		log.Printf("ERROR: Failed to start API server: %v", err)
+	}
 }

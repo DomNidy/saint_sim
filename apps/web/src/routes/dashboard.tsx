@@ -164,7 +164,10 @@ function DashboardPage() {
 				return false;
 			}
 
-			if (query.state.data?.status === "complete") {
+			if (
+				query.state.data?.status === "complete" ||
+				query.state.data?.status === "error"
+			) {
 				return false;
 			}
 
@@ -192,6 +195,16 @@ function DashboardPage() {
 							resultQuery.data.result.sim_result ??
 							"The simulation completed, but the API did not return a report body.",
 						error: undefined,
+					};
+				}
+
+				if (resultQuery.data.status === "error") {
+					return {
+						...entry,
+						status: "error",
+						error:
+							resultQuery.data.result.error_text ??
+							"The simulation failed before a report was generated.",
 					};
 				}
 

@@ -41,7 +41,7 @@ paths:
             schema:
               $ref: "#/components/schemas/simulation_options"
       security:
-        - JWTAuth: []
+        - ApiKeyAuth: []
       responses:
         "202":
           description: Simulation request was accepted
@@ -84,13 +84,13 @@ components:
           schema:
             $ref: "#/components/schemas/error_response"
   securitySchemes:
-    JWTAuth:
+    ApiKeyAuth:
       description: |
-        Schema that any frontend client uses to authenticate with our API
-        Use the `Authorization: Bearer <user_jwt_token>` header to authenticate
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+        Schema used by trusted services that authenticate with our API.
+        Use the `Api-Key: <api_key>` header to authenticate.
+      type: apiKey
+      in: header
+      name: Api-Key
   schemas:
     wow_character:
       type: object
@@ -143,17 +143,23 @@ components:
           type: string
           description: ID for the simulation operation
           example: "41e9a22f-d2c1-48b2-b234-15db461049d4"
-        status:
+        simulation_status:
+            $ref: "#/components/schemas/simulation_status"
+        sim_result:
           type: string
-          enum:
-            - "in_progress" # currently being performed
-            - "in_queue" # waiting to be picked up and in queue
-            - "error" # failed
-            - "complete"
-        content:
-          type: string
-          description: The output / result of the simulation operation
+          description: The raw output / result of the simulation operation
           example: "..."
+        error_text:
+          type: string
+          description: Error message for the simulation job (if one occurred)
+
+    simulation_status:
+      type: string
+      enum:
+        - in_progress # currently being performed
+        - in_queue # waiting to be picked up and in queue
+        - error # failed
+        - complete 
 
     error_response:
       type: object
