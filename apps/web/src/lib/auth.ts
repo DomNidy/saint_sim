@@ -18,7 +18,11 @@ export const auth = betterAuth({
 	socialProviders: {
 		discord: {
 			clientId: env.DISCORD_CLIENT_ID,
-			clientSecret: env.DISCORD_CLIENT_SECRET
+			clientSecret: env.DISCORD_CLIENT_SECRET,
+			// permissions: ... - permissions param works only when `bot` scope is
+			// included in the OAuth2 scopes. We might wanna look into this later,
+			// cause we may find a use for it.
+			// link: https://docs.discord.com/developers/topics/permissions
 		}
 	},
 	plugins: [tanstackStartCookies()],
