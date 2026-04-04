@@ -148,18 +148,6 @@ func (s *SimulationQueueClient) Consume(
 	return deliveryChannel, nil
 }
 
-// ConsumeSimulationMessages consumes using the worker defaults.
-func (s *SimulationQueueClient) ConsumeSimulationMessages() (<-chan amqp.Delivery, error) {
-	return s.Consume(
-		"",
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-}
-
 // Close closes the queue channel and connection.
 func (s *SimulationQueueClient) Close() {
 	log.Printf("Closing SimulationQueueClient...")
