@@ -5,15 +5,12 @@ use (
 	./apps/discord_bot
 	./apps/simulation_worker
 	./pkg/go-shared/api_types
-	./pkg/go-shared/auth
 	./pkg/go-shared/db
 	./pkg/go-shared/secrets
 	./pkg/go-shared/utils
 )
 
 replace github.com/DomNidy/saint_sim/pkg/go-shared/api_types v0.0.0 => ./pkg/go-shared/api_types
-
-replace github.com/DomNidy/saint_sim/pkg/go-shared/auth v0.0.0 => ./pkg/go-shared/auth
 
 replace github.com/DomNidy/saint_sim/pkg/go-shared/db v0.0.0 => ./pkg/go-shared/db
 

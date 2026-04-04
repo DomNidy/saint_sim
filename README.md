@@ -17,7 +17,6 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
 
   - `/pkg/go-shared`: Shared Go workspace modules
   - `/pkg/go-shared/api_types`: Automatically generated Go types from the OpenAPI schema
-  - `/pkg/go-shared/auth`: Provides mechanisms for authenticating user requests
   - `/pkg/go-shared/db`: Generated Go database access code from `sqlc`
   - `/pkg/go-shared/secrets`: Utility for reading secrets into memory
   - `/pkg/go-shared/utils`: Miscellaneous shared utilities
