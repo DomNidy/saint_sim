@@ -37,6 +37,7 @@ help:
       just fmt                      Run formatters on all Go and TS code
       just lint                     Lint all Go and TS code in the repo
       just api-key                  Generate and insert a local API key
+      just sqlc [args...]           Run sqlc in Docker with raw sqlc CLI args
       just codegen [target]         Generate shared code for db and/or api
       just tidy                     Run go mod tidy across all modules
       just doctor                   Check required host tools and setup
@@ -199,6 +200,21 @@ api-key:
     echo "Success: inserted API key into the database."
     echo "API key: $generated_api_key"
 
+# Run sqlc in Docker with passthrough CLI arguments.
+[positional-arguments]
+sqlc *args='':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    docker run --rm \
+      -e DB_HOST \
+      -e DB_NAME \
+      -e DB_USER \
+      -e DB_PASSWORD \
+      --network saint_network \
+      -v "$PWD:/src" \
+      -w /src \
+      {{ sqlc_image }} "$@"
+
 # Generate shared code for the database and/or OpenAPI schema.
 codegen target="":
     #!/usr/bin/env bash
@@ -206,15 +222,7 @@ codegen target="":
     generate_db() {
       # v1.30.0 of sqlc crashes in pgx/os-user lookup when sqlc analyzes database.uri.
       mkdir -p ./pkg/go-shared/db ./pkg/ts-shared/db
-      docker pull {{ sqlc_image }}
-      docker run --rm \
-        -e DB_HOST \
-        -e DB_NAME \
-        -e DB_USER \
-        -e DB_PASSWORD \
-        --network saint_network \
-        -v "$PWD:/src" \
-        {{ sqlc_image }} generate -f /src/db/sqlc.yaml
+      just sqlc generate -f db/sqlc.yaml
     }
 
     generate_api() {
