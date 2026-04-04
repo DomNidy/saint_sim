@@ -30,7 +30,10 @@ func main() {
 		return
 	}
 
-	pool := utils.InitPostgresConnectionPool(context.Background())
+	pool, err := utils.InitPostgresConnectionPool(context.Background())
+	if err != nil {
+		log.Panicf("%s: could not make postgres pool", err)
+	}
 
 	dbClient := dbqueries.New(pool)
 	if dbClient == nil {

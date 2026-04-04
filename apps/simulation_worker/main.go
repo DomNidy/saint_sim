@@ -63,12 +63,16 @@ func setupWorkerConnections(ctx context.Context) (workerConnections, error) {
 		return workerConnections{}, err
 	}
 
-	dbPool := utils.InitPostgresConnectionPool(ctx)
+	dbPool, err := utils.InitPostgresConnectionPool(ctx)
+	if err != nil {
+		return workerConnections{}, fmt.Errorf("%w: failed to create postgres pool", err)
+	}
 
-	return workerConnections{
-		dbPool: dbPool,
-		queue:  queue,
-	}, nil
+	workerConnections := workerConnections{
+		dbPool, queue,
+	}
+
+	return workerConnections, nil
 }
 
 func validateSimInput(region, realm, name string) error {
@@ -388,7 +392,9 @@ func main() {
 	defer connections.queue.Close()
 
 	err = startSimulationConsumer(ctx, connections.queue, config.simcBinaryPath, *dbClient)
-	utils.FailOnError(err, "Failed to start simulation consumer")
+	if err != nil {
+		log.Panicf("Failed to start simulation consumer: %v", err)
+	}
 
 	select {}
 }

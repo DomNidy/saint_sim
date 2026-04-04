@@ -40,13 +40,16 @@ func init() {
 func main() {
 	ctx := context.Background()
 	// Setup postgres connection
-	db := saintutils.InitPostgresConnectionPool(ctx)
-	defer db.Close()
+	pool, err := saintutils.InitPostgresConnectionPool(ctx)
+	if err != nil {
+		log.Panicf("%s: could not create postgres pool", err)
+	}
+	defer pool.Close()
 
 	// get a connection to listen for sim result trigger
-	conn, err := db.Acquire(ctx)
+	conn, err := pool.Acquire(ctx)
 	if err != nil {
-		log.Fatalf("Failed to get conn from pool: %v", err)
+		log.Panicf("Failed to get conn from pool: %v", err)
 	}
 
 	go resultlistener.ListenForSimResults(ctx, conn, s)
@@ -54,11 +57,11 @@ func main() {
 	// Open websocket connection
 	err = s.Open()
 	if err != nil {
-		log.Fatalf("Cannot open the session: %v", err)
+		log.Panicf("Cannot open the session: %v", err)
 	}
 	defer s.Close()
 
-	fmt.Println("Bot is now running. Press CTRL+C to exit.")
+	log.Printf("Bot is now running. Press CTRL+C to exit.")
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop

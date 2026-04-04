@@ -46,13 +46,6 @@ func UUIDString(id pgtype.UUID) (string, error) {
 	return uuidString, nil
 }
 
-// FailOnError logs msg and panics when err is non-nil.
-func FailOnError(err error, msg string) {
-	if err != nil {
-		log.Panicf("%s:%s", msg, err)
-	}
-}
-
 // SimulationQueueClient is a client connection to the simulation queue.
 // It can be used by publishers and consumers.
 type SimulationQueueClient struct {
@@ -187,7 +180,7 @@ func (s *SimulationQueueClient) Close() {
 }
 
 // InitPostgresConnectionPool creates a postgres connection pool.
-func InitPostgresConnectionPool(ctx context.Context) *pgxpool.Pool {
+func InitPostgresConnectionPool(ctx context.Context) (*pgxpool.Pool, error) {
 	dbUser := secrets.LoadSecret("DB_USER").Value()
 	dbPassword := secrets.LoadSecret("DB_PASSWORD").Value()
 	dbHost := secrets.LoadSecret("DB_HOST").Value()
@@ -205,9 +198,11 @@ func InitPostgresConnectionPool(ctx context.Context) *pgxpool.Pool {
 	log.Printf("Connecting to postgres database with name '%s' at %s:%s", dbName, dbHost, dbPort)
 
 	pool, err := pgxpool.New(ctx, connectionURI)
-	FailOnError(err, "Failed to create postgres connection")
+	if err != nil {
+		return pool, fmt.Errorf("%w: failed to create pool", err)
+	}
 
-	return pool
+	return pool, nil
 }
 
 // IsValidSimOptions validates the user-provided simulation options.
