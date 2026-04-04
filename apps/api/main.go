@@ -16,6 +16,8 @@ import (
 )
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lshortfile) // include filename:linenumber in log output
+
 	user := secrets.LoadSecret("RABBITMQ_USER").Value()
 	pass := secrets.LoadSecret("RABBITMQ_PASS").Value()
 	host := secrets.LoadSecret("RABBITMQ_HOST").Value()
@@ -29,7 +31,11 @@ func main() {
 	}
 
 	pool := utils.InitPostgresConnectionPool(context.Background())
+
 	dbClient := dbqueries.New(pool)
+	if dbClient == nil {
+		log.Panicf("API failed to acquire a dbClient, cannot run.")
+	}
 
 	defer pool.Close()
 	defer simulationQueue.Close()
@@ -47,7 +53,7 @@ func main() {
 	})
 
 	// Authorization group: https://gin-gonic.com/zh-tw/docs/examples/using-middleware/
-	authorized := router.Group("/", middleware.AuthRequire(dbClient))
+	authorized := router.Group("/", middleware.AuthRequire(*dbClient))
 
 	authorized.POST("/simulation", func(ginContext *gin.Context) {
 		handlers.Simulate(ginContext, dbClient, simulationQueue)

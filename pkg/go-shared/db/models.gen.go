@@ -8,12 +8,37 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Account struct {
+	ID                    string
+	AccountId             string
+	ProviderId            string
+	UserId                string
+	AccessToken           pgtype.Text
+	RefreshToken          pgtype.Text
+	IdToken               pgtype.Text
+	AccessTokenExpiresAt  pgtype.Timestamptz
+	RefreshTokenExpiresAt pgtype.Timestamptz
+	Scope                 pgtype.Text
+	Password              pgtype.Text
+	CreatedAt             pgtype.Timestamptz
+	UpdatedAt             pgtype.Timestamptz
+}
+
 type ApiKey struct {
-	ID          int32
-	ApiKey      string
-	ServiceName string
-	CreatedAt   pgtype.Timestamp
-	UpdatedAt   pgtype.Timestamp
+	ID        int32
+	ApiKey    string
+	CreatedAt pgtype.Timestamp
+}
+
+type Session struct {
+	ID        string
+	ExpiresAt pgtype.Timestamptz
+	Token     string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	IpAddress pgtype.Text
+	UserAgent pgtype.Text
+	UserId    string
 }
 
 type Simulation struct {
@@ -24,4 +49,23 @@ type Simulation struct {
 	CreatedAt   pgtype.Timestamptz
 	StartedAt   pgtype.Timestamptz
 	CompletedAt pgtype.Timestamptz
+}
+
+type User struct {
+	ID            string
+	Name          string
+	Email         string
+	EmailVerified bool
+	Image         pgtype.Text
+	CreatedAt     pgtype.Timestamptz
+	UpdatedAt     pgtype.Timestamptz
+}
+
+type Verification struct {
+	ID         string
+	Identifier string
+	Value      string
+	ExpiresAt  pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }

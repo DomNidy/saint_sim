@@ -1,7 +1,10 @@
+// Package middleware provides middleware that is used to authenticate incoming API requests
 package middleware
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -12,44 +15,65 @@ import (
 	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
 )
 
-// AuthRequire authenticates incoming request
-func AuthRequire(db *dbqueries.Queries) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		apiKey := c.GetHeader("Api-Key")
+var (
+	errAPIKeySanityCheckFail = errors.New("api key sanity check failed")
+	errInvalidAPIKey         = errors.New("invalid api key")
+)
+
+// AuthRequire validates that incoming requests provide a valid Api-Key.
+func AuthRequire(dbClient dbqueries.Queries) gin.HandlerFunc {
+	return func(ginContext *gin.Context) {
+		apiKey := ginContext.GetHeader("Api-Key")
 		if apiKey == "" {
 			log.Printf("No API key provided in request")
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+			ginContext.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+
 			return
 		}
-		hashedApiKey := api_utils.HashApiKey(apiKey)
-		serviceName, err := db.GetApiKeyServiceName(c, hashedApiKey)
 
+		err := checkAPIKeyExists(ginContext, dbClient, apiKey)
 		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				log.Printf(
-					"Auth middleware -- invalid API key provided. Cannot authenticate request.",
+			log.Printf("Error occurred while checking request's API key: %v", err)
+
+			if errors.Is(err, errInvalidAPIKey) {
+				ginContext.AbortWithStatusJSON(
+					http.StatusForbidden,
+					gin.H{"error": "Invalid API key"},
 				)
-				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Invalid API key"})
+
 				return
 			}
-			log.Printf("Error occured in auth middleware while trying to validate API key: %s", err)
-			c.AbortWithStatusJSON(
+
+			ginContext.AbortWithStatusJSON(
 				http.StatusInternalServerError,
-				gin.H{"error": "Internal server error occurred"},
+				gin.H{"error": "Internal server error"},
 			)
+
 			return
 		}
 
-		// Ensure the api key is authorized for this service
-		if serviceName != "api" {
-			log.Printf(
-				"api key '%s' was issued for a service other than 'api': '%s'",
-				apiKey,
-				serviceName,
-			)
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
-			return
-		}
-		c.Next()
+		ginContext.Next()
 	}
+}
+
+// check if a raw (unhashed) API key exists in the db.
+// Call with API keys received directly from users; key is hashed internally and looked up.
+func checkAPIKeyExists(c context.Context, dbClient dbqueries.Queries, rawAPIKey string) error {
+	hashedAPIKey := api_utils.HashApiKey(rawAPIKey)
+
+	resAPIKey, err := dbClient.GetApiKey(c, hashedAPIKey)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errInvalidAPIKey
+		}
+
+		return fmt.Errorf("error occurred while looking up API key: %w", err)
+	}
+
+	// sanity check
+	if resAPIKey.ApiKey != hashedAPIKey {
+		return errAPIKeySanityCheckFail
+	}
+
+	return nil
 }

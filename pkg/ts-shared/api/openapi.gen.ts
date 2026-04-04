@@ -92,8 +92,6 @@ export interface components {
         };
         /** @description All details & data about a simulation. */
         simulation: {
-            /** @description Error message for the simulation job (if one occurred) */
-            error_text?: string;
             /**
              * @description ID for the simulation operation
              * @example 41e9a22f-d2c1-48b2-b234-15db461049d4
@@ -105,6 +103,8 @@ export interface components {
              * @example ...
              */
             sim_result?: string;
+            /** @description Error message for the simulation job (if one occurred) */
+            error_text?: string;
         };
         /** @enum {string} */
         simulation_status: "in_progress" | "in_queue" | "error" | "complete";

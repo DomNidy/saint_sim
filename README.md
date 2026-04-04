@@ -102,14 +102,14 @@ just setup
 | `RABBITMQ_USER`    | RabbitMQ username                                        | `saint`                                                                                    |
 | `RABBITMQ_PASS`    | RabbitMQ password                                        | `saint_dev_password`                                                                       |
 | `SAINT_API_URL`    | Internal API URL used by `discord_bot`                   | `http://api:8080`                                                                          |
-| `SAINT_API_KEY`    | API key used by `discord_bot` to authenticate with `api` | Replace after running `just api-key`                                                       |
+| `SAINT_API_KEY`    | Raw API key used by clients such as `discord_bot` to authenticate with `api` | Replace after running `just api-key`                                  |
 | `DISCORD_TOKEN`    | Discord bot token                                        | Required to run `discord_bot` against Discord                                              |
 | `APPLICATION_ID`   | Discord application ID                                   | Required to run `discord_bot` against Discord                                              |
 | `SIMC_IMAGE`       | Base image `simulation_worker` builds off of             | Default will use the latest version. This is a build-time argument, not an actual env var. |
 
 ### Authenticating the `discord_bot` with the `api`
 
-`discord_bot` authenticates with the saint API using an API key. If you wish to run the `discord_bot`, you must generate an API key, hash it with sha256, and then insert it into the database. You can use `just api-key` to do this automatically when running locally, but **you still need to update the `.env` file with the printed `SAINT_API_KEY`** so `discord_bot` has access to it at runtime. The database needs to be running in order for the API key to be inserted.
+`discord_bot` authenticates with the saint API using an API key. If you wish to run the `discord_bot`, you must generate an API key and insert its sha256 hash into the database. You can use `just api-key` to do this automatically when running locally. That command prints the raw key for the client and stores only the hashed value in Postgres. You still need to update `.env` with the printed `SAINT_API_KEY` so `discord_bot` has access to it at runtime. The database needs to be running in order for the API key to be inserted.
 
 ### Changing Postgres or RabbitMQ credentials
 

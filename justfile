@@ -36,7 +36,7 @@ help:
     Maintenance
       just fmt                      Run formatters on all Go and TS code
       just lint                     Lint all Go and TS code in the repo
-      just api-key                  Generate and insert a local API key
+      just api-key                  Generate a local API key and insert its hash
       just sqlc [args...]           Run sqlc in Docker with raw sqlc CLI args
       just codegen [target]         Generate shared code for db and/or api
       just tidy                     Run go mod tidy across all modules
@@ -184,7 +184,7 @@ db-reset:
       just start
     EOF
 
-# Generate and insert a local API key for discord_bot.
+# Generate a local API key and insert its sha256 hash for local clients.
 api-key:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -196,8 +196,8 @@ api-key:
     : "${DB_NAME:?Missing DB_NAME in .env}"
     generated_api_key="$(openssl rand -hex 32)"
     hashed_api_key="$(printf '%s' "$generated_api_key" | openssl dgst -sha256 -r | awk '{print $1}')"
-    docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -c "INSERT INTO api_keys (api_key, service_name) VALUES ('$hashed_api_key', 'api');"
-    echo "Success: inserted API key into the database."
+    docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" -c "INSERT INTO api_keys (api_key) VALUES ('$hashed_api_key');"
+    echo "Success: inserted hashed API key into the database."
     echo "API key: $generated_api_key"
 
 # Run sqlc in Docker with passthrough CLI arguments.

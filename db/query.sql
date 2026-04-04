@@ -1,12 +1,10 @@
--- name: GetApiKeys :one
+-- name: GetApiKeyById :one
 SELECT * FROM public.api_keys 
 WHERE id = $1 LIMIT 1;
 
--- name: GetApiKeyServiceName :one
-SELECT service_name
-FROM public.api_keys
-WHERE api_key = $1
-LIMIT 1;
+-- name: GetApiKey :one
+SELECT * FROM public.api_keys
+WHERE api_key = $1 LIMIT 1;
 
 -- name: CreateSimulation :one
 INSERT INTO public.simulation (sim_config)

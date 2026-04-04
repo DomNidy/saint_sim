@@ -4,25 +4,23 @@ interface Client {
     query: (config: QueryArrayConfig) => Promise<QueryArrayResult>;
 }
 
-export const getApiKeysQuery = `-- name: GetApiKeys :one
-SELECT id, api_key, service_name, created_at, updated_at FROM public.api_keys 
+export const getApiKeyByIdQuery = `-- name: GetApiKeyById :one
+SELECT id, api_key, created_at FROM public.api_keys 
 WHERE id = $1 LIMIT 1`;
 
-export interface GetApiKeysArgs {
+export interface GetApiKeyByIdArgs {
     id: string;
 }
 
-export interface GetApiKeysRow {
+export interface GetApiKeyByIdRow {
     id: number;
     apiKey: string;
-    serviceName: string;
     createdAt: Date | null;
-    updatedAt: Date | null;
 }
 
-export async function getApiKeys(client: Client, args: GetApiKeysArgs): Promise<GetApiKeysRow | null> {
+export async function getApiKeyById(client: Client, args: GetApiKeyByIdArgs): Promise<GetApiKeyByIdRow | null> {
     const result = await client.query({
-        text: getApiKeysQuery,
+        text: getApiKeyByIdQuery,
         values: [args.id],
         rowMode: "array"
     });
@@ -33,29 +31,27 @@ export async function getApiKeys(client: Client, args: GetApiKeysArgs): Promise<
     return {
         id: row[0],
         apiKey: row[1],
-        serviceName: row[2],
-        createdAt: row[3],
-        updatedAt: row[4]
+        createdAt: row[2]
     };
 }
 
-export const getApiKeyServiceNameQuery = `-- name: GetApiKeyServiceName :one
-SELECT service_name
-FROM public.api_keys
-WHERE api_key = $1
-LIMIT 1`;
+export const getApiKeyQuery = `-- name: GetApiKey :one
+SELECT id, api_key, created_at FROM public.api_keys
+WHERE api_key = $1 LIMIT 1`;
 
-export interface GetApiKeyServiceNameArgs {
+export interface GetApiKeyArgs {
     apiKey: string;
 }
 
-export interface GetApiKeyServiceNameRow {
-    serviceName: string;
+export interface GetApiKeyRow {
+    id: number;
+    apiKey: string;
+    createdAt: Date | null;
 }
 
-export async function getApiKeyServiceName(client: Client, args: GetApiKeyServiceNameArgs): Promise<GetApiKeyServiceNameRow | null> {
+export async function getApiKey(client: Client, args: GetApiKeyArgs): Promise<GetApiKeyRow | null> {
     const result = await client.query({
-        text: getApiKeyServiceNameQuery,
+        text: getApiKeyQuery,
         values: [args.apiKey],
         rowMode: "array"
     });
@@ -64,7 +60,9 @@ export async function getApiKeyServiceName(client: Client, args: GetApiKeyServic
     }
     const row = result.rows[0];
     return {
-        serviceName: row[0]
+        id: row[0],
+        apiKey: row[1],
+        createdAt: row[2]
     };
 }
 

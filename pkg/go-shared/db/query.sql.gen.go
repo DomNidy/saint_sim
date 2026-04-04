@@ -32,35 +32,27 @@ func (q *Queries) CreateSimulation(ctx context.Context, simConfig []byte) (Simul
 	return i, err
 }
 
-const getApiKeyServiceName = `-- name: GetApiKeyServiceName :one
-SELECT service_name
-FROM public.api_keys
-WHERE api_key = $1
-LIMIT 1
+const getApiKey = `-- name: GetApiKey :one
+SELECT id, api_key, created_at FROM public.api_keys
+WHERE api_key = $1 LIMIT 1
 `
 
-func (q *Queries) GetApiKeyServiceName(ctx context.Context, apiKey string) (string, error) {
-	row := q.db.QueryRow(ctx, getApiKeyServiceName, apiKey)
-	var service_name string
-	err := row.Scan(&service_name)
-	return service_name, err
+func (q *Queries) GetApiKey(ctx context.Context, apiKey string) (ApiKey, error) {
+	row := q.db.QueryRow(ctx, getApiKey, apiKey)
+	var i ApiKey
+	err := row.Scan(&i.ID, &i.ApiKey, &i.CreatedAt)
+	return i, err
 }
 
-const getApiKeys = `-- name: GetApiKeys :one
-SELECT id, api_key, service_name, created_at, updated_at FROM public.api_keys 
+const getApiKeyById = `-- name: GetApiKeyById :one
+SELECT id, api_key, created_at FROM public.api_keys 
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetApiKeys(ctx context.Context, id int32) (ApiKey, error) {
-	row := q.db.QueryRow(ctx, getApiKeys, id)
+func (q *Queries) GetApiKeyById(ctx context.Context, id int32) (ApiKey, error) {
+	row := q.db.QueryRow(ctx, getApiKeyById, id)
 	var i ApiKey
-	err := row.Scan(
-		&i.ID,
-		&i.ApiKey,
-		&i.ServiceName,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
+	err := row.Scan(&i.ID, &i.ApiKey, &i.CreatedAt)
 	return i, err
 }
 

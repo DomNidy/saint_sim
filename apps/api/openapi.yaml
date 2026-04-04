@@ -86,7 +86,7 @@ components:
   securitySchemes:
     ApiKeyAuth:
       description: |
-        Schema used by trusted services that authenticate with our API.
+        Schema used by trusted clients that authenticate with our API.
         Use the `Api-Key: <api_key>` header to authenticate.
       type: apiKey
       in: header
