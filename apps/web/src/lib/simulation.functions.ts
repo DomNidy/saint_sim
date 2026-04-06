@@ -10,7 +10,7 @@ import { saintApiClient } from "./saint-api/saint-api-client";
 
 
 const simulationResultLookupSchema = z.object({
-	requestId: z.string().uuid(),
+	requestId: z.uuid(),
 });
 
 /**
