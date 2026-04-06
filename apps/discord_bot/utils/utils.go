@@ -34,13 +34,13 @@ func ValidateInteractionSimOptions(
 			}
 		case "realm":
 			if realm, ok := option.Value.(string); ok {
-				simOptions.WowCharacter.Realm = api_types.WowCharacterRealm(realm)
+				simOptions.WowCharacter.Realm = api_types.WowRealm(realm)
 			} else {
 				return nil, fmt.Errorf("realm must be a string")
 			}
 		case "region":
 			if region, ok := option.Value.(string); ok {
-				simOptions.WowCharacter.Region = api_types.WowCharacterRegion(region)
+				simOptions.WowCharacter.Region = api_types.WowRegion(region)
 			} else {
 				return nil, fmt.Errorf("region must be a string")
 			}

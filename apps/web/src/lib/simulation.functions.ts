@@ -1,37 +1,62 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 
+import { simulationRequestSchema } from "#/lib/saint-api/contracts";
+import type { ErrorResponse } from "#/lib/saint-api/generated";
+import { getSimulation, simulate } from "#/lib/saint-api/generated";
 import { requireAuthMiddleware } from "#/lib/auth.middleware";
-import {
-	fetchSaintApi,
-	readSaintApiError,
-	readSaintApiJson,
-	type SaintSimulationData,
-	type SaintSimulationResponse,
-} from "#/lib/saint-api.server";
-import {
-	simulationRequestSchema,
-	simulationResultLookupSchema,
-} from "#/lib/simulation.schemas";
+import { saintApiClient } from "./saint-api/saint-api-client";
+
+
+
+const simulationResultLookupSchema = z.object({
+	requestId: z.string().uuid(),
+});
+
+/**
+ * Extract API message from response when present, otherwise use the 
+ * supplied fallback.
+ */
+function readSaintApiErrorMessage(
+	error: string | ErrorResponse | undefined,
+	fallback: string,
+) {
+	if (error === undefined) {
+		return fallback;
+	}
+
+	if (typeof error === "string") {
+		return error.trim();
+	}
+
+	if (error?.message) {
+		return error.message;
+	}
+
+	return fallback;
+}
 
 export const submitSimulationRequest = createServerFn({ method: "POST" })
 	.middleware([requireAuthMiddleware])
 	.inputValidator(simulationRequestSchema)
 	.handler(async ({ data }) => {
-		const response = await fetchSaintApi("/simulation", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
+		const response = await simulate({
+			client: saintApiClient,
+			body: {
+				wow_character: data,
 			},
-			body: JSON.stringify({
-				wow_character: {
-					region: data.region,
-					realm: data.realm,
-					character_name: data.character_name,
-				},
-			}),
 		});
 
-		const payload = await readSaintApiJson<SaintSimulationResponse>(response);
+		if (response.error || !response.data) {
+			throw new Error(
+				readSaintApiErrorMessage(
+					response.error,
+					"Unable to submit simulation request.",
+				),
+			);
+		}
+
+		const payload = response.data;
 
 		if (!payload.simulation_id) {
 			throw new Error("Saint API did not return a simulation id.");
@@ -46,15 +71,21 @@ export const getSimulationResultByRequestId = createServerFn()
 	.middleware([requireAuthMiddleware])
 	.inputValidator(simulationResultLookupSchema)
 	.handler(async ({ data }) => {
-		const response = await fetchSaintApi(
-			`/simulation/${encodeURIComponent(data.requestId)}`,
-		);
+		const response = await getSimulation({
+			client: saintApiClient,
+			path: { id: data.requestId },
+		});
 
-		if (!response.ok) {
-			throw new Error(await readSaintApiError(response));
+		if (response.error || !response.data) {
+			throw new Error(
+				readSaintApiErrorMessage(
+					response.error,
+					`Unable to retrieve simulation status for ${data.requestId}.`,
+				),
+			);
 		}
 
-		const payload = await readSaintApiJson<SaintSimulationData>(response);
+		const payload = response.data;
 
 		switch (payload.simulation_status) {
 			case "complete":

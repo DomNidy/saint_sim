@@ -226,9 +226,12 @@ codegen target="":
     }
 
     generate_api() {
-      mkdir -p ./pkg/go-shared/api_types ./pkg/ts-shared/api
+      mkdir -p ./pkg/go-shared/api_types
       go run github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.16.3 --generate types,skip-prune -o ./pkg/go-shared/api_types/api_types.gen.go -package api_types ./apps/api/openapi.yaml
-      npx --yes openapi-typescript@7.8.0 ./apps/api/openapi.yaml -o ./pkg/ts-shared/api/openapi.gen.ts
+      (
+        cd ./apps/web
+        npm run codegen:api
+      )
     }
 
     case "{{ target }}" in

@@ -31,15 +31,15 @@ import {
 	SelectValue,
 } from "#/components/ui/select";
 import {
-	getSimulationResultByRequestId,
-	submitSimulationRequest,
-} from "#/lib/simulation.functions";
-import {
-	type SimulationRequestInput,
+	type WowCharacter as SimulationRequestInput,
 	simulationRealms,
 	simulationRegions,
 	simulationRequestSchema,
-} from "#/lib/simulation.schemas";
+} from "#/lib/saint-api/contracts";
+import {
+	getSimulationResultByRequestId,
+	submitSimulationRequest,
+} from "#/lib/simulation.functions";
 
 export const Route = createFileRoute("/dashboard")({
 	component: DashboardPage,

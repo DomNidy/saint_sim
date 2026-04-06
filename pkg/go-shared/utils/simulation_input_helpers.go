@@ -21,7 +21,7 @@ func isValidInput(input string) bool {
 
 // IsValidWowRegion reports whether region is in the allowlist.
 func IsValidWowRegion(region string) bool {
-	switch api_types.WowCharacterRegion(region) {
+	switch api_types.WowRegion(region) {
 	case api_types.Us, api_types.Eu, api_types.Tw, api_types.Cn, api_types.Kr:
 		return true
 	default:
@@ -31,7 +31,7 @@ func IsValidWowRegion(region string) bool {
 
 // IsValidWowRealm reports whether realm is in the allowlist.
 func IsValidWowRealm(realm string) bool {
-	switch api_types.WowCharacterRealm(realm) {
+	switch api_types.WowRealm(realm) {
 	case api_types.Draenor, api_types.Hydraxis, api_types.Silvermoon, api_types.Thrall:
 		return true
 	default:

@@ -15,21 +15,21 @@ const (
 	InQueue    SimulationStatus = "in_queue"
 )
 
-// Defines values for WowCharacterRealm.
+// Defines values for WowRealm.
 const (
-	Draenor    WowCharacterRealm = "draenor"
-	Hydraxis   WowCharacterRealm = "hydraxis"
-	Silvermoon WowCharacterRealm = "silvermoon"
-	Thrall     WowCharacterRealm = "thrall"
+	Draenor    WowRealm = "draenor"
+	Hydraxis   WowRealm = "hydraxis"
+	Silvermoon WowRealm = "silvermoon"
+	Thrall     WowRealm = "thrall"
 )
 
-// Defines values for WowCharacterRegion.
+// Defines values for WowRegion.
 const (
-	Cn WowCharacterRegion = "cn"
-	Eu WowCharacterRegion = "eu"
-	Kr WowCharacterRegion = "kr"
-	Tw WowCharacterRegion = "tw"
-	Us WowCharacterRegion = "us"
+	Cn WowRegion = "cn"
+	Eu WowRegion = "eu"
+	Kr WowRegion = "kr"
+	Tw WowRegion = "tw"
+	Us WowRegion = "us"
 )
 
 // ErrorResponse Error response returned by API when something goes wrong
@@ -66,17 +66,17 @@ type WowCharacter struct {
 	CharacterName string `json:"character_name"`
 
 	// Realm The realm which the character is located on
-	Realm WowCharacterRealm `json:"realm"`
+	Realm WowRealm `json:"realm"`
 
 	// Region Identifies the region in which the characters realm is located
-	Region WowCharacterRegion `json:"region"`
+	Region WowRegion `json:"region"`
 }
 
-// WowCharacterRealm The realm which the character is located on
-type WowCharacterRealm string
+// WowRealm The realm which the character is located on
+type WowRealm string
 
-// WowCharacterRegion Identifies the region in which the characters realm is located
-type WowCharacterRegion string
+// WowRegion Identifies the region in which the characters realm is located
+type WowRegion string
 
 // BadRequestError Error response returned by API when something goes wrong
 type BadRequestError = ErrorResponse

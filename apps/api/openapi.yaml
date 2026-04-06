@@ -9,6 +9,7 @@ info:
 paths:
   /simulation/{id}:
     get:
+      operationId: getSimulation
       description: View the result of a simulation.
       parameters:
         - name: id
@@ -92,6 +93,27 @@ components:
       in: header
       name: Api-Key
   schemas:
+    wow_region:
+      type: string
+      description: Identifies the region in which the characters realm is located
+      example: us
+      enum:
+        - us
+        - eu
+        - kr
+        - tw
+        - cn
+
+    wow_realm:
+      type: string
+      description: The realm which the character is located on
+      example: hydraxis
+      enum:
+        - thrall
+        - hydraxis
+        - silvermoon
+        - draenor
+
     wow_character:
       type: object
       description: Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
@@ -101,24 +123,9 @@ components:
         - character_name
       properties:
         region:
-          type: string
-          description: Identifies the region in which the characters realm is located
-          example: us
-          enum:
-            - us
-            - eu
-            - kr
-            - tw
-            - cn
+          $ref: "#/components/schemas/wow_region"
         realm:
-          type: string
-          description: The realm which the character is located on
-          example: hydraxis
-          enum:
-            - thrall
-            - hydraxis
-            - silvermoon
-            - draenor
+          $ref: "#/components/schemas/wow_realm"
         character_name:
           type: string
           description: The name of the WoW character
