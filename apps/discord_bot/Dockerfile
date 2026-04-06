@@ -1,6 +1,6 @@
 # * It is important to know that the names of directories here aren't entirely arbitrary
 # * We name them in accordance with the modules defined in our go.work file at the root of our directory
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /build
 

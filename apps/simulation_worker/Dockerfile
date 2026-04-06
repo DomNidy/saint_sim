@@ -12,7 +12,7 @@ RUN apk --version
 
 # copy golang from a base image so we don't need to install it in the container
 # add it to sytem path
-COPY --from=golang:1.21-alpine /usr/local/go/ /usr/local/go
+COPY --from=golang:1.24-alpine /usr/local/go/ /usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 
 COPY --from=root go.work go.work.sum ./

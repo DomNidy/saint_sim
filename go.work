@@ -1,5 +1,13 @@
-go 1.21.6
+go 1.24.0
 
+// This file is mostly for gopls and LSPs it supports, as it does not
+// understand submodules correctly without it.
+//
+// Add new shared modules here, but also ensure that any module that 
+// depends on a local shared module, includes a 
+// `replace abc => {local_path}/abc` 
+// directive in it's go.mod so it knows how to resolve module during
+// build.
 use (
 	./apps/api
 	./apps/discord_bot
@@ -9,11 +17,3 @@ use (
 	./pkg/go-shared/secrets
 	./pkg/go-shared/utils
 )
-
-replace github.com/DomNidy/saint_sim/pkg/go-shared/api_types v0.0.0 => ./pkg/go-shared/api_types
-
-replace github.com/DomNidy/saint_sim/pkg/go-shared/db v0.0.0 => ./pkg/go-shared/db
-
-replace github.com/DomNidy/saint_sim/pkg/go-shared/secrets v0.0.0 => ./pkg/go-shared/secrets
-
-replace github.com/DomNidy/saint_sim/pkg/go-shared/utils v0.0.0 => ./pkg/go-shared/utils
