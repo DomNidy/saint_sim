@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProtectedAccountRouteImport } from './routes/_protected/account'
 import { Route as AuthSignUpIndexRouteImport } from './routes/auth/sign-up/index'
 import { Route as AuthSignInIndexRouteImport } from './routes/auth/sign-in/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -20,10 +22,19 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedRoute = ProtectedRouteImport.update({
+  id: '/_protected',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedAccountRoute = ProtectedAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => ProtectedRoute,
 } as any)
 const AuthSignUpIndexRoute = AuthSignUpIndexRouteImport.update({
   id: '/auth/sign-up/',
@@ -44,6 +55,7 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/account': typeof ProtectedAccountRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/auth/sign-in/': typeof AuthSignInIndexRoute
   '/auth/sign-up/': typeof AuthSignUpIndexRoute
@@ -51,6 +63,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/account': typeof ProtectedAccountRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/auth/sign-in': typeof AuthSignInIndexRoute
   '/auth/sign-up': typeof AuthSignUpIndexRoute
@@ -58,7 +71,9 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_protected': typeof ProtectedRouteWithChildren
   '/dashboard': typeof DashboardRoute
+  '/_protected/account': typeof ProtectedAccountRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/auth/sign-in/': typeof AuthSignInIndexRoute
   '/auth/sign-up/': typeof AuthSignUpIndexRoute
@@ -68,15 +83,24 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/account'
     | '/api/auth/$'
     | '/auth/sign-in/'
     | '/auth/sign-up/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/api/auth/$' | '/auth/sign-in' | '/auth/sign-up'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/account'
+    | '/api/auth/$'
+    | '/auth/sign-in'
+    | '/auth/sign-up'
   id:
     | '__root__'
     | '/'
+    | '/_protected'
     | '/dashboard'
+    | '/_protected/account'
     | '/api/auth/$'
     | '/auth/sign-in/'
     | '/auth/sign-up/'
@@ -84,6 +108,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ProtectedRoute: typeof ProtectedRouteWithChildren
   DashboardRoute: typeof DashboardRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   AuthSignInIndexRoute: typeof AuthSignInIndexRoute
@@ -99,12 +124,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected': {
+      id: '/_protected'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof ProtectedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_protected/account': {
+      id: '/_protected/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof ProtectedAccountRouteImport
+      parentRoute: typeof ProtectedRoute
     }
     '/auth/sign-up/': {
       id: '/auth/sign-up/'
@@ -130,8 +169,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ProtectedRouteChildren {
+  ProtectedAccountRoute: typeof ProtectedAccountRoute
+}
+
+const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedAccountRoute: ProtectedAccountRoute,
+}
+
+const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
+  ProtectedRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ProtectedRoute: ProtectedRouteWithChildren,
   DashboardRoute: DashboardRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   AuthSignInIndexRoute: AuthSignInIndexRoute,

@@ -1,9 +1,18 @@
 import { betterAuth } from "better-auth";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { Pool } from "pg";
-
 import { env } from "@/env";
 
+/**
+ * Better auth server-side client.
+ * 
+ * Not meant to be called from browser/client-side;
+ * only call on server.
+ * 
+ * NOTE: If you try to access this on client, it
+ * browser console might log error due to node-only
+ * types being pulled in (e.g., from pg)
+ */
 export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,

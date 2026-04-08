@@ -41,6 +41,7 @@ import {
 	submitSimulationRequest,
 } from "@/lib/simulation.functions";
 
+
 export const Route = createFileRoute("/dashboard")({
 	component: DashboardPage,
 });
@@ -63,7 +64,7 @@ function DashboardPage() {
 	const [requests, setRequests] = useState<SimulationRequestHistoryItem[]>([]);
 	const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
 		null,
-	);
+	)
 	const [submitError, setSubmitError] = useState<string | null>(null);
 
 	const form = useForm<SimulationRequestInput>({
@@ -73,14 +74,14 @@ function DashboardPage() {
 			realm: "hydraxis",
 			character_name: "",
 		},
-	});
+	})
 
 	const selectedRequest = useMemo(
 		() =>
 			requests.find((request) => request.requestId === selectedRequestId) ??
 			null,
 		[requests, selectedRequestId],
-	);
+	)
 
 	const submitMutation = useMutation({
 		mutationFn: submitSimulationRequest,
@@ -93,30 +94,31 @@ function DashboardPage() {
 				submittedAt: Date.now(),
 				inputs: variables.data,
 				status: "pending",
-			};
+			}
 
 			setRequests((current) => [nextRequest, ...current]);
 			setSelectedRequestId(simulationRequestId);
 		},
 		onError: (error) => {
+			console.log("got err", JSON.stringify(error))
 			setSubmitError(
 				error instanceof Error
 					? error.message
 					: "Unable to submit simulation request.",
-			);
+			)
 		},
-	});
+	})
 
 	useEffect(() => {
 		if (!selectedRequestId) {
-			return;
+			return
 		}
 
 		const request = requests.find(
 			(entry) => entry.requestId === selectedRequestId,
-		);
+		)
 		if (!request || request.status !== "pending") {
-			return;
+			return
 		}
 
 		const remainingMs = request.submittedAt + POLL_TIMEOUT_MS - Date.now();
@@ -128,8 +130,8 @@ function DashboardPage() {
 						? { ...entry, status: "timed_out" }
 						: entry,
 				),
-			);
-			return;
+			)
+			return
 		}
 
 		const timeoutId = window.setTimeout(() => {
@@ -139,7 +141,7 @@ function DashboardPage() {
 						? { ...entry, status: "timed_out" }
 						: entry,
 				),
-			);
+			)
 		}, remainingMs);
 
 		return () => window.clearTimeout(timeoutId);
@@ -151,12 +153,12 @@ function DashboardPage() {
 			if (!selectedRequestId) {
 				throw new Error(
 					"A simulation request must be selected before polling.",
-				);
+				)
 			}
 
 			return getSimulationResultByRequestId({
 				data: { requestId: selectedRequestId },
-			});
+			})
 		},
 		enabled: selectedRequest?.status === "pending",
 		refetchInterval: (query) => {
@@ -174,17 +176,17 @@ function DashboardPage() {
 			return POLL_INTERVAL_MS;
 		},
 		retry: false,
-	});
+	})
 
 	useEffect(() => {
 		if (!selectedRequestId || !resultQuery.data) {
-			return;
+			return
 		}
 
 		setRequests((current) =>
 			current.map((entry) => {
 				if (entry.requestId !== selectedRequestId) {
-					return entry;
+					return entry
 				}
 
 				if (resultQuery.data.status === "complete") {
@@ -195,7 +197,7 @@ function DashboardPage() {
 							resultQuery.data.result.sim_result ??
 							"The simulation completed, but the API did not return a report body.",
 						error: undefined,
-					};
+					}
 				}
 
 				if (resultQuery.data.status === "error") {
@@ -205,7 +207,7 @@ function DashboardPage() {
 						error:
 							resultQuery.data.result.error_text ??
 							"The simulation failed before a report was generated.",
-					};
+					}
 				}
 
 				if (entry.status !== "timed_out") {
@@ -213,17 +215,17 @@ function DashboardPage() {
 						...entry,
 						status: "pending",
 						error: undefined,
-					};
+					}
 				}
 
 				return entry;
 			}),
-		);
+		)
 	}, [resultQuery.data, selectedRequestId]);
 
 	useEffect(() => {
 		if (!selectedRequestId || !resultQuery.isError) {
-			return;
+			return
 		}
 
 		const message =
@@ -237,7 +239,7 @@ function DashboardPage() {
 					? { ...entry, status: "error", error: message }
 					: entry,
 			),
-		);
+		)
 	}, [resultQuery.error, resultQuery.isError, selectedRequestId]);
 
 	const resultBody = useMemo(() => {
@@ -246,7 +248,7 @@ function DashboardPage() {
 				tone: "error" as const,
 				title: "We could not start that simulation.",
 				description: submitError,
-			};
+			}
 		}
 
 		if (!selectedRequest) {
@@ -255,7 +257,7 @@ function DashboardPage() {
 				title: "Ready for a simulation request",
 				description:
 					"Pick a region and realm, enter a character name, and we will proxy the request through the web app to the Gin API.",
-			};
+			}
 		}
 
 		if (selectedRequest.status === "timed_out") {
@@ -264,7 +266,7 @@ function DashboardPage() {
 				title: "Simulation still running",
 				description:
 					"The request is still pending after two minutes. You can leave it in the list and check back later in this session.",
-			};
+			}
 		}
 
 		if (selectedRequest.status === "error") {
@@ -273,7 +275,7 @@ function DashboardPage() {
 				title: "We hit an error while checking the report.",
 				description:
 					selectedRequest.error ?? "Unable to retrieve simulation status.",
-			};
+			}
 		}
 
 		if (selectedRequest.status === "complete") {
@@ -283,7 +285,7 @@ function DashboardPage() {
 				description:
 					selectedRequest.result ??
 					"The simulation completed, but the API did not return a report body.",
-			};
+			}
 		}
 
 		return {
@@ -291,7 +293,7 @@ function DashboardPage() {
 			title: "Simulation queued",
 			description:
 				"We forwarded your request through TanStack Start and are polling the saint API for the completed report.",
-		};
+		}
 	}, [selectedRequest, submitError]);
 
 	const isPolling =
@@ -423,8 +425,8 @@ function DashboardPage() {
 										type="button"
 										variant="secondary"
 										onClick={() => {
-											form.reset();
-											setSubmitError(null);
+											form.reset()
+											setSubmitError(null)
 										}}
 									>
 										Reset form
@@ -455,7 +457,7 @@ function DashboardPage() {
 											)}
 											onClick={() => {
 												setSelectedRequestId(request.requestId);
-												setSubmitError(null);
+												setSubmitError(null)
 											}}
 										>
 											<div className="flex items-start justify-between gap-3">
@@ -552,13 +554,13 @@ function DashboardPage() {
 				</Card>
 			</section>
 		</main>
-	);
+	)
 }
 
 function formatRealmLabel(realm: string) {
 	return realm.replace(/(^\w|-\w)/g, (match) =>
 		match.replace("-", "").toUpperCase(),
-	);
+	)
 }
 
 function formatHistoryStatus(status: SimulationRequestStatus) {
