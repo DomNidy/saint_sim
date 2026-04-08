@@ -13,7 +13,7 @@ import { env } from "@/env";
  * browser console might log error due to node-only
  * types being pulled in (e.g., from pg)
  */
-export const auth = betterAuth({
+export const authServerClient = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 	},

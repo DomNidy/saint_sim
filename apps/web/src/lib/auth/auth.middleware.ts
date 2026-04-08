@@ -1,7 +1,7 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 
-import { auth } from "@/lib/auth";
+import { authServerClient } from "@/lib/auth/auth-server-client";
 
 /**
  * Middleware that ensures incoming request is authenticated.
@@ -32,7 +32,7 @@ export const requireAuthMiddleware = createMiddleware().
 		// better auth checks that the session token
 		// is valid, looking up the token in database,
 		// and resolving to a session w/ data if so
-		const session = await auth.api.getSession({
+		const session = await authServerClient.api.getSession({
 			headers: headers
 		});
 

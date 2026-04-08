@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireAuthMiddleware } from "@/lib/auth.middleware";
+import { requireAuthMiddleware } from "@/lib/auth/auth.middleware";
 import { simulationRequestSchema } from "@/lib/saint-api/contracts";
 import type { ErrorResponse } from "@/lib/saint-api/generated";
 import { getSimulation, simulate } from "@/lib/saint-api/generated";
