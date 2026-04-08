@@ -12,13 +12,18 @@ import (
 )
 
 const createSimulation = `-- name: CreateSimulation :one
-INSERT INTO public.simulation (sim_config)
-VALUES ($1)
-RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at
+INSERT INTO public.simulation (sim_config, owner_id)
+VALUES ($1, $2)
+RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id
 `
 
-func (q *Queries) CreateSimulation(ctx context.Context, simConfig []byte) (Simulation, error) {
-	row := q.db.QueryRow(ctx, createSimulation, simConfig)
+type CreateSimulationParams struct {
+	SimConfig []byte
+	OwnerID   pgtype.Text
+}
+
+func (q *Queries) CreateSimulation(ctx context.Context, arg CreateSimulationParams) (Simulation, error) {
+	row := q.db.QueryRow(ctx, createSimulation, arg.SimConfig, arg.OwnerID)
 	var i Simulation
 	err := row.Scan(
 		&i.ID,
@@ -28,6 +33,7 @@ func (q *Queries) CreateSimulation(ctx context.Context, simConfig []byte) (Simul
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.CompletedAt,
+		&i.OwnerID,
 	)
 	return i, err
 }
@@ -56,8 +62,27 @@ func (q *Queries) GetApiKeyById(ctx context.Context, id int32) (ApiKey, error) {
 	return i, err
 }
 
+const getJwkByID = `-- name: GetJwkByID :one
+SELECT id, "publicKey", "privateKey", "createdAt", "expiresAt"
+FROM public.jwks
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetJwkByID(ctx context.Context, id string) (Jwk, error) {
+	row := q.db.QueryRow(ctx, getJwkByID, id)
+	var i Jwk
+	err := row.Scan(
+		&i.ID,
+		&i.PublicKey,
+		&i.PrivateKey,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+	)
+	return i, err
+}
+
 const getSimulation = `-- name: GetSimulation :one
-SELECT id, sim_config, sim_result, error_text, created_at, started_at, completed_at
+SELECT id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id
 FROM public.simulation
 WHERE id = $1
 `
@@ -73,6 +98,7 @@ func (q *Queries) GetSimulation(ctx context.Context, id pgtype.UUID) (Simulation
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.CompletedAt,
+		&i.OwnerID,
 	)
 	return i, err
 }
@@ -108,7 +134,7 @@ SET
     started_at = COALESCE($3, started_at),
     completed_at = COALESCE($4, completed_at)
 WHERE id = $5
-RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at
+RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id
 `
 
 type UpdateSimulationParams struct {
@@ -136,6 +162,7 @@ func (q *Queries) UpdateSimulation(ctx context.Context, arg UpdateSimulationPara
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.CompletedAt,
+		&i.OwnerID,
 	)
 	return i, err
 }

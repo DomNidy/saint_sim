@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/DomNidy/saint_sim/apps/api/api_utils"
+	"github.com/DomNidy/saint_sim/apps/api/middleware"
 	"github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	"github.com/DomNidy/saint_sim/pkg/go-shared/db"
 	"github.com/DomNidy/saint_sim/pkg/go-shared/utils"
@@ -124,7 +125,10 @@ func createSimulationRequest(
 		return "", fmt.Errorf("marshal simulation options: %w", err)
 	}
 
-	simEntry, err := dbClient.CreateSimulation(ginContext.Request.Context(), simOptionsJSON)
+	simEntry, err := dbClient.CreateSimulation(ginContext.Request.Context(), db.CreateSimulationParams{
+		SimConfig: simOptionsJSON,
+		OwnerID:   simulationOwnerID(ginContext),
+	})
 	if err != nil {
 		return "", fmt.Errorf("create simulation row: %w", err)
 	}
@@ -135,6 +139,21 @@ func createSimulationRequest(
 	}
 
 	return simulationID, nil
+}
+
+func simulationOwnerID(ginContext *gin.Context) pgtype.Text {
+	principal, ok := middleware.GetAuthPrincipal(ginContext)
+	if !ok || principal.Scheme != middleware.AuthSchemeBearer || principal.UserID == "" {
+		return pgtype.Text{
+			String: "",
+			Valid:  false,
+		}
+	}
+
+	return pgtype.Text{
+		String: principal.UserID,
+		Valid:  true,
+	}
 }
 
 // GetSimulation returns the current state or completed result for a simulation.

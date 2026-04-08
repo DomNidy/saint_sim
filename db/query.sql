@@ -6,9 +6,14 @@ WHERE id = $1 LIMIT 1;
 SELECT * FROM public.api_keys
 WHERE api_key = $1 LIMIT 1;
 
+-- name: GetJwkByID :one
+SELECT *
+FROM public.jwks
+WHERE id = $1 LIMIT 1;
+
 -- name: CreateSimulation :one
-INSERT INTO public.simulation (sim_config)
-VALUES ($1)
+INSERT INTO public.simulation (sim_config, owner_id)
+VALUES ($1, $2)
 RETURNING *;
 
 -- name: UpdateSimulation :one

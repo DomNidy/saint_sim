@@ -66,13 +66,50 @@ export async function getApiKey(client: Client, args: GetApiKeyArgs): Promise<Ge
     };
 }
 
+export const getJwkByIDQuery = `-- name: GetJwkByID :one
+SELECT id, "publicKey", "privateKey", "createdAt", "expiresAt"
+FROM public.jwks
+WHERE id = $1 LIMIT 1`;
+
+export interface GetJwkByIDArgs {
+    id: string;
+}
+
+export interface GetJwkByIDRow {
+    id: string;
+    publickey: string;
+    privatekey: string;
+    createdat: Date;
+    expiresat: Date | null;
+}
+
+export async function getJwkByID(client: Client, args: GetJwkByIDArgs): Promise<GetJwkByIDRow | null> {
+    const result = await client.query({
+        text: getJwkByIDQuery,
+        values: [args.id],
+        rowMode: "array"
+    });
+    if (result.rows.length !== 1) {
+        return null;
+    }
+    const row = result.rows[0];
+    return {
+        id: row[0],
+        publickey: row[1],
+        privatekey: row[2],
+        createdat: row[3],
+        expiresat: row[4]
+    };
+}
+
 export const createSimulationQuery = `-- name: CreateSimulation :one
-INSERT INTO public.simulation (sim_config)
-VALUES ($1)
-RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at`;
+INSERT INTO public.simulation (sim_config, owner_id)
+VALUES ($1, $2)
+RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id`;
 
 export interface CreateSimulationArgs {
     simConfig: any;
+    ownerId: string | null;
 }
 
 export interface CreateSimulationRow {
@@ -83,12 +120,13 @@ export interface CreateSimulationRow {
     createdAt: Date;
     startedAt: Date | null;
     completedAt: Date | null;
+    ownerId: string | null;
 }
 
 export async function createSimulation(client: Client, args: CreateSimulationArgs): Promise<CreateSimulationRow | null> {
     const result = await client.query({
         text: createSimulationQuery,
-        values: [args.simConfig],
+        values: [args.simConfig, args.ownerId],
         rowMode: "array"
     });
     if (result.rows.length !== 1) {
@@ -102,7 +140,8 @@ export async function createSimulation(client: Client, args: CreateSimulationArg
         errorText: row[3],
         createdAt: row[4],
         startedAt: row[5],
-        completedAt: row[6]
+        completedAt: row[6],
+        ownerId: row[7]
     };
 }
 
@@ -114,7 +153,7 @@ SET
     started_at = COALESCE($3, started_at),
     completed_at = COALESCE($4, completed_at)
 WHERE id = $5
-RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at`;
+RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id`;
 
 export interface UpdateSimulationArgs {
     simResult: string | null;
@@ -132,6 +171,7 @@ export interface UpdateSimulationRow {
     createdAt: Date;
     startedAt: Date | null;
     completedAt: Date | null;
+    ownerId: string | null;
 }
 
 export async function updateSimulation(client: Client, args: UpdateSimulationArgs): Promise<UpdateSimulationRow | null> {
@@ -151,7 +191,8 @@ export async function updateSimulation(client: Client, args: UpdateSimulationArg
         errorText: row[3],
         createdAt: row[4],
         startedAt: row[5],
-        completedAt: row[6]
+        completedAt: row[6],
+        ownerId: row[7]
     };
 }
 
@@ -185,7 +226,7 @@ export async function getSimulationOptions(client: Client, args: GetSimulationOp
 }
 
 export const getSimulationQuery = `-- name: GetSimulation :one
-SELECT id, sim_config, sim_result, error_text, created_at, started_at, completed_at
+SELECT id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id
 FROM public.simulation
 WHERE id = $1`;
 
@@ -201,6 +242,7 @@ export interface GetSimulationRow {
     createdAt: Date;
     startedAt: Date | null;
     completedAt: Date | null;
+    ownerId: string | null;
 }
 
 export async function getSimulation(client: Client, args: GetSimulationArgs): Promise<GetSimulationRow | null> {
@@ -220,7 +262,8 @@ export async function getSimulation(client: Client, args: GetSimulationArgs): Pr
         errorText: row[3],
         createdAt: row[4],
         startedAt: row[5],
-        completedAt: row[6]
+        completedAt: row[6],
+        ownerId: row[7]
     };
 }
 

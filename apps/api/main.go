@@ -18,6 +18,7 @@ import (
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile) // include filename:linenumber in log output
 
+	betterAuthURL := secrets.LoadSecret("BETTER_AUTH_URL").Value()
 	user := secrets.LoadSecret("RABBITMQ_USER").Value()
 	pass := secrets.LoadSecret("RABBITMQ_PASS").Value()
 	host := secrets.LoadSecret("RABBITMQ_HOST").Value()
@@ -56,7 +57,9 @@ func main() {
 	})
 
 	// Authorization group: https://gin-gonic.com/zh-tw/docs/examples/using-middleware/
-	authorized := router.Group("/", middleware.AuthRequire(*dbClient))
+	apiKeyValidator := middleware.NewAPIKeyValidator(dbClient)
+	jwtVerifier := middleware.NewJWTVerifier(dbClient, betterAuthURL, "saint-api")
+	authorized := router.Group("/", middleware.AuthRequire(apiKeyValidator, jwtVerifier))
 
 	authorized.POST("/simulation", func(ginContext *gin.Context) {
 		handlers.Simulate(ginContext, dbClient, simulationQueue)

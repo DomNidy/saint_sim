@@ -15,6 +15,7 @@ require (
 	github.com/DomNidy/saint_sim/pkg/go-shared/secrets v0.0.0-20260404192636-ff4dbb6469b9
 	github.com/DomNidy/saint_sim/pkg/go-shared/utils v0.0.0-00010101000000-000000000000
 	github.com/gin-gonic/gin v1.10.0
+	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.1
 )

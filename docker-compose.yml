@@ -44,6 +44,7 @@ services:
       tags:
         - "saint_api:latest"
     environment:
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL}
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=${RABBITMQ_PORT}
       - RABBITMQ_USER=${RABBITMQ_USER}

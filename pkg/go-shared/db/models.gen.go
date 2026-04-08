@@ -30,6 +30,14 @@ type ApiKey struct {
 	CreatedAt pgtype.Timestamp
 }
 
+type Jwk struct {
+	ID         string
+	PublicKey  string
+	PrivateKey string
+	CreatedAt  pgtype.Timestamptz
+	ExpiresAt  pgtype.Timestamptz
+}
+
 type Session struct {
 	ID        string
 	ExpiresAt pgtype.Timestamptz
@@ -49,6 +57,7 @@ type Simulation struct {
 	CreatedAt   pgtype.Timestamptz
 	StartedAt   pgtype.Timestamptz
 	CompletedAt pgtype.Timestamptz
+	OwnerID     pgtype.Text
 }
 
 type User struct {
