@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
-import { authBrowserClient } from "@/lib/auth/auth-browser-client";
+import { authClient } from "@/lib/auth/auth-client";
 
 export const Route = createFileRoute("/auth/sign-in/")({
 	component: RouteComponent,
@@ -8,7 +8,7 @@ export const Route = createFileRoute("/auth/sign-in/")({
 
 function RouteComponent() {
 	const signInWithDiscord = async () => {
-		const data = await authBrowserClient.signIn.social({ provider: "discord" });
+		const data = await authClient.signIn.social({ provider: "discord" });
 		console.log(`res data: ${JSON.stringify(data)}`);
 	};
 	return (

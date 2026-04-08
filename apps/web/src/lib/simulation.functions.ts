@@ -5,6 +5,7 @@ import { simulationRequestSchema } from "@/lib/saint-api/contracts";
 import type { ErrorResponse } from "@/lib/saint-api/generated";
 import { getSimulation, simulate } from "@/lib/saint-api/generated";
 import { saintApiClient } from "./saint-api/saint-api-client";
+import { getToken } from "./auth/auth.functions";
 
 const simulationResultLookupSchema = z.object({
 	requestId: z.uuid(),
@@ -37,6 +38,9 @@ export const submitSimulationRequest = createServerFn({ method: "POST" })
 	.middleware([requireAuthMiddleware])
 	.inputValidator(simulationRequestSchema)
 	.handler(async ({ data }) => {
+		const tok = await getToken()
+		console.log(`Generated JWT: ${JSON.stringify(tok)}`)
+
 		const response = await simulate({
 			client: saintApiClient,
 			body: {
@@ -54,6 +58,7 @@ export const submitSimulationRequest = createServerFn({ method: "POST" })
 		}
 
 		const payload = response.data;
+
 
 		if (!payload.simulation_id) {
 			throw new Error("Saint API did not return a simulation id.");

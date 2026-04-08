@@ -1,4 +1,5 @@
 import { createAuthClient } from "better-auth/react";
+import { jwtClient } from "better-auth/client/plugins"
 
 /**
  * Better Auth comes with a client-side library to
@@ -6,4 +7,6 @@ import { createAuthClient } from "better-auth/react";
  * 
  * By "client-side", we mean the from the browser.
  */
-export const authBrowserClient = createAuthClient();
+export const authClient = createAuthClient({
+    plugins: [jwtClient()]
+});

@@ -1,7 +1,7 @@
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 
-import { auth } from "@/lib/auth/auth-server-client";
+import { auth } from "@/lib/auth/auth";
 
 /**
  * Middleware that ensures incoming request is authenticated.

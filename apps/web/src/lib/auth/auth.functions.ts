@@ -1,5 +1,5 @@
-import { createServerFn } from "@tanstack/react-start";
-import { auth } from "./auth-server-client";
+import { createServerFn, createServerOnlyFn } from "@tanstack/react-start";
+import { auth } from "./auth";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 
 /**
@@ -24,4 +24,19 @@ export const ensureSession = createServerFn({ method: "GET" }).handler(async () 
     }
 
     return session
+})
+
+/**
+ * Server only function to retrieve better auth JWT
+ * 
+ * Server only because client side token retrieval is best done
+ * using authClient.token()
+ * 
+ * Docs: https://better-auth.com/docs/plugins/jwt#retrieve-the-token
+ */
+export const getToken = createServerOnlyFn(async () => {
+    const token = await auth.api.getToken({
+        headers: getRequestHeaders()
+    })
+    return token
 })
