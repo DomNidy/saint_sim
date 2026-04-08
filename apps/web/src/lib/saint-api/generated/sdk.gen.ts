@@ -27,7 +27,7 @@ export const getSimulation = <ThrowOnError extends boolean = false>(options: Opt
  * Request a simulation, powered by SimC.
  */
 export const simulate = <ThrowOnError extends boolean = false>(options: Options<SimulateData, ThrowOnError>) => (options.client ?? client).post<SimulateResponses, SimulateErrors, ThrowOnError>({
-    security: [{ name: 'Api-Key', type: 'apiKey' }],
+    security: [{ scheme: 'bearer', type: 'http' }, { name: 'Api-Key', type: 'apiKey' }],
     url: '/simulation',
     ...options,
     headers: {

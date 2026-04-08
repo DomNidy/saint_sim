@@ -142,6 +142,10 @@ export type SimulateErrors = {
      */
     400: ErrorResponse;
     /**
+     * Returned when the request does not include valid authentication credentials.
+     */
+    401: ErrorResponse;
+    /**
      * Returned when the api could not locate a requested resource.
      */
     404: ErrorResponse;

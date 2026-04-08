@@ -6,7 +6,7 @@ const configDir = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
 	input: resolve(configDir, "../api/openapi.yaml"),
-	output: resolve(configDir, "src/lib/api/generated"),
+	output: resolve(configDir, "src/lib/saint-api/generated"),
 	plugins: [
 		{
 			name: "@hey-api/typescript",

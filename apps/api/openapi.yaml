@@ -42,6 +42,7 @@ paths:
             schema:
               $ref: "#/components/schemas/simulation_options"
       security:
+        - BearerAuth: []
         - ApiKeyAuth: []
       responses:
         "202":
@@ -56,6 +57,12 @@ paths:
                     description: ID of the simulation that was created
         "400":
           description: When one or more of the simulation options were invalid. For example, passing an invalid region or realm for the wow character may cause this.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error_response"
+        "401":
+          description: Returned when the request does not include valid authentication credentials.
           content:
             application/json:
               schema:
@@ -85,6 +92,14 @@ components:
           schema:
             $ref: "#/components/schemas/error_response"
   securitySchemes:
+    BearerAuth:
+      description: |
+        Better Auth JWT used by first-party callers.
+        Use the `Authorization: Bearer <jwt>` header to authenticate.
+        Tokens should be issued by `BETTER_AUTH_URL` and intended for `SAINT_API_URL`.
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
     ApiKeyAuth:
       description: |
         Schema used by trusted clients that authenticate with our API.

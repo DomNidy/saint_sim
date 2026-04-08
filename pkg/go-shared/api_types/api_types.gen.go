@@ -5,6 +5,7 @@ package api_types
 
 const (
 	ApiKeyAuthScopes = "ApiKeyAuth.Scopes"
+	BearerAuthScopes = "BearerAuth.Scopes"
 )
 
 // Defines values for SimulationStatus.
