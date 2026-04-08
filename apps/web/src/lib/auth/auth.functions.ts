@@ -5,6 +5,11 @@ import { createRemoteJWKSet, jwtVerify } from "jose"
 import { env } from "@/env";
 
 /**
+ * Name of saint API to use in JWT
+ */
+const SAINT_API_SERVICE_NAME = "saint-api"
+
+/**
  * Server function to get the session from user.
  */
 export const getSession = createServerFn({ method: "GET" }).handler(async () => {
@@ -29,16 +34,23 @@ export const ensureSession = createServerFn({ method: "GET" }).handler(async () 
 })
 
 /**
- * Server only function to retrieve better auth JWT
+ * Server only function to generate and sign a JWT that the saint api can
+ * use to authenticate requests.
  * 
  * Server only because client side token retrieval is best done
  * using authClient.token()
  * 
  * Docs: https://better-auth.com/docs/plugins/jwt#retrieve-the-token
  */
-export const getToken = createServerOnlyFn(async () => {
-    const token = await auth.api.getToken({
-        headers: getRequestHeaders()
+export const getTokenForSaintApi = createServerOnlyFn(async () => {
+    const { session } = await ensureSession()
+    const token = await auth.api.signJWT({
+        body: {
+            payload: {
+                sub: session.userId,
+                aud: SAINT_API_SERVICE_NAME,
+            }
+        },
     })
     return token
 })
@@ -51,7 +63,7 @@ export const getToken = createServerOnlyFn(async () => {
  * 
  * We validate two claims:
  * - issuer: Token must be issued by web (BETTER_AUTH_URL)
- * - audience: Token audience should be saint api URL (token is meant
+ * - audience: Token audience should be `saint-api` (token is meant
  * only to authenticate w/ saint api)
  */
 export const verifyJwtForSaintApi = createServerOnlyFn(async (token: string) => {
@@ -59,7 +71,7 @@ export const verifyJwtForSaintApi = createServerOnlyFn(async (token: string) => 
     try {
         const { payload } = await jwtVerify(token, JWKS, {
             issuer: env.BETTER_AUTH_URL,
-            audience: env.SAINT_API_URL,
+            audience: SAINT_API_SERVICE_NAME
         })
         return payload !== null
     } catch (exception) {

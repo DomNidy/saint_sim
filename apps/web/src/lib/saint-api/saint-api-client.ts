@@ -1,5 +1,6 @@
 import { env } from "@/env";
 import { createClient } from "./generated/client/client.gen";
+import { getTokenForSaintApi, verifyJwtForSaintApi } from "../auth/auth.functions";
 
 /**
  * API client that tanstack backend uses to send requests to Saint API.
@@ -9,8 +10,16 @@ export const saintApiClient = createClient({
 	baseUrl: env.SAINT_API_URL,
 
 	/**
-	 * Tanstack backend uses an API key to authenticate
-	 * with saint API currently.
+	 * OpenAPI-generated client will call this for each scheme
+	 * configured on an endpoint until one returns an auth token.
 	 */
-	auth: env.SAINT_API_KEY,
+	async auth(auth) {
+		// use bearer auth as the default for all requests initiated via
+		// the client.
+		if (auth.type === 'http' && auth.scheme === 'bearer') {
+			const { token } = await getTokenForSaintApi()
+			await verifyJwtForSaintApi(token)
+			return token
+		}
+	},
 });

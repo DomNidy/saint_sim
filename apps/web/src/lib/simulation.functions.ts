@@ -5,7 +5,6 @@ import { simulationRequestSchema } from "@/lib/saint-api/contracts";
 import type { ErrorResponse } from "@/lib/saint-api/generated";
 import { getSimulation, simulate } from "@/lib/saint-api/generated";
 import { saintApiClient } from "./saint-api/saint-api-client";
-import { getToken, verifyJwtForSaintApi } from "./auth/auth.functions";
 
 const simulationResultLookupSchema = z.object({
 	requestId: z.uuid(),
@@ -38,10 +37,6 @@ export const submitSimulationRequest = createServerFn({ method: "POST" })
 	.middleware([requireAuthMiddleware])
 	.inputValidator(simulationRequestSchema)
 	.handler(async ({ data }) => {
-		const tok = await getToken()
-		console.log(`Generated JWT: ${JSON.stringify(tok)}`)
-		await verifyJwtForSaintApi(tok.token)
-
 		const response = await simulate({
 			client: saintApiClient,
 			body: {
