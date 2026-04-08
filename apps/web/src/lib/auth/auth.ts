@@ -15,6 +15,7 @@ import { jwt } from "better-auth/plugins"
  * types being pulled in (e.g., from pg)
  */
 export const auth = betterAuth({
+	baseURL: env.BETTER_AUTH_URL,
 	emailAndPassword: {
 		enabled: true,
 	},
