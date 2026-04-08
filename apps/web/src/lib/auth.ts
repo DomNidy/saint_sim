@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { Pool } from "pg";
 
-import { env } from "#/env";
+import { env } from "@/env";
 
 export const auth = betterAuth({
 	emailAndPassword: {
@@ -23,7 +23,7 @@ export const auth = betterAuth({
 			// included in the OAuth2 scopes. We might wanna look into this later,
 			// cause we may find a use for it.
 			// link: https://docs.discord.com/developers/topics/permissions
-		}
+		},
 	},
 	plugins: [tanstackStartCookies()],
 });

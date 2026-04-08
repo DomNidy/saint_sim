@@ -1,4 +1,4 @@
-import { env } from "#/env";
+import { env } from "@/env";
 import { createClient } from "./generated/client/client.gen";
 
 /**
@@ -8,9 +8,9 @@ import { createClient } from "./generated/client/client.gen";
 export const saintApiClient = createClient({
 	baseUrl: env.SAINT_API_URL,
 
-    /**
-     * Tanstack backend uses an API key to authenticate
-     * with saint API currently.
-     */
+	/**
+	 * Tanstack backend uses an API key to authenticate
+	 * with saint API currently.
+	 */
 	auth: env.SAINT_API_KEY,
 });

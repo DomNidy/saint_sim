@@ -23,3 +23,7 @@ npx auth@latest generate
 
 The resulting SQL migration file then needs to be added to `/db/migrations` in project root so it can be
 applied on startup.
+
+## Gotchas/Potential Issues 
+
+Refer to TROUBLESHOOTING.md for common issues (and their solutions) that may occur throughout dev on the web app.

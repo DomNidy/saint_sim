@@ -9,8 +9,8 @@ import {
 	type WowCharacter,
 	WowRealm,
 	WowRegion,
-} from "#/lib/saint-api/generated";
-import { zWowCharacter } from "#/lib/saint-api/generated/zod.gen";
+} from "@/lib/saint-api/generated";
+import { zWowCharacter } from "@/lib/saint-api/generated/zod.gen";
 
 export type { Simulation, SimulationOptions, WowCharacter };
 export { SimulationStatus, WowRealm, WowRegion };

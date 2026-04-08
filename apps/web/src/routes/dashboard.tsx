@@ -5,14 +5,14 @@ import { LoaderCircle, Search, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { Button } from "#/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
 	CardDescription,
 	CardHeader,
 	CardTitle,
-} from "#/components/ui/card";
+} from "@/components/ui/card";
 import {
 	Form,
 	FormControl,
@@ -21,25 +21,25 @@ import {
 	FormItem,
 	FormLabel,
 	FormMessage,
-} from "#/components/ui/form";
-import { Input } from "#/components/ui/input";
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
 	SelectItem,
 	SelectTrigger,
 	SelectValue,
-} from "#/components/ui/select";
+} from "@/components/ui/select";
 import {
 	type WowCharacter as SimulationRequestInput,
 	simulationRealms,
 	simulationRegions,
 	simulationRequestSchema,
-} from "#/lib/saint-api/contracts";
+} from "@/lib/saint-api/contracts";
 import {
 	getSimulationResultByRequestId,
 	submitSimulationRequest,
-} from "#/lib/simulation.functions";
+} from "@/lib/simulation.functions";
 
 export const Route = createFileRoute("/dashboard")({
 	component: DashboardPage,
