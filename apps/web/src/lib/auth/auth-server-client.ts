@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { Pool } from "pg";
 import { env } from "@/env";
+import { jwt } from "better-auth/plugins"
 
 /**
  * Better auth server-side client.
@@ -13,7 +14,7 @@ import { env } from "@/env";
  * browser console might log error due to node-only
  * types being pulled in (e.g., from pg)
  */
-export const authServerClient = betterAuth({
+export const auth = betterAuth({
 	emailAndPassword: {
 		enabled: true,
 	},
@@ -34,5 +35,8 @@ export const authServerClient = betterAuth({
 			// link: https://docs.discord.com/developers/topics/permissions
 		},
 	},
-	plugins: [tanstackStartCookies()],
+	plugins: [
+		jwt(),
+		tanstackStartCookies()
+	],
 });
