@@ -32,7 +32,7 @@ RUN go mod download
 # copy the remaining contents of discord_bot into container
 COPY . .
 
-RUN go build -o simulation_worker main.go
+RUN go build -o simulation_worker .
 
 # alpine index: https://dl-4.alpinelinux.org/alpine/
 FROM --platform=${SIMC_PLATFORM} alpine:3.20 AS runner

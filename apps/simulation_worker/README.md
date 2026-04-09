@@ -1,3 +1,3 @@
 # simulation_worker
 
-This application simply pulls messages from a queue, executes `simc`, and writes the results to db.
+This worker consumes queued simulation requests, runs `simc`, and persists either the result or a terminal error back to the database.
