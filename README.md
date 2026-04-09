@@ -20,8 +20,7 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
   - `/pkg/go-shared/db`: Generated Go database access code from `sqlc`
   - `/pkg/go-shared/secrets`: Utility for reading secrets into memory
   - `/pkg/go-shared/utils`: Miscellaneous shared utilities
-  - `/pkg/ts-shared`: Shared generated TypeScript contracts for database access
-  - `/pkg/ts-shared/db`: `sqlc`-generated TypeScript query bindings
+  - `/apps/web/src/lib/db`: `sqlc`-generated TypeScript query bindings for the web app
   - `/apps/web/src/lib/api/generated`: OpenAPI-derived TypeScript types, SDK functions, Fetch client, and Zod schemas for the web app
 
 - `/db/migrations`: Goose SQL migrations. This is the single source of truth for database schema changes.

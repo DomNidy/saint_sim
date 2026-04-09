@@ -221,8 +221,10 @@ codegen target="":
     set -euo pipefail
     generate_db() {
       # v1.30.0 of sqlc crashes in pgx/os-user lookup when sqlc analyzes database.uri.
-      mkdir -p ./pkg/go-shared/db ./pkg/ts-shared/db
+      mkdir -p ./pkg/go-shared/db ./apps/web/src/lib/db
       just sqlc generate -f db/sqlc.yaml
+      # Use import type {...} syntax
+      perl -0pi -e 's|import { QueryArrayConfig, QueryArrayResult } from "pg";|import type { QueryArrayConfig, QueryArrayResult } from "pg";|' ./apps/web/src/lib/db/query_sql.ts 
     }
 
     generate_api() {

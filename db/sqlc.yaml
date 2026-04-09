@@ -20,7 +20,7 @@ sql:
         output_db_file_name: db.gen.go
         output_files_suffix: .gen
     codegen:
-      - out: ../pkg/ts-shared/db
+      - out: ../apps/web/src/lib/db
         plugin: ts
         options:
           runtime: node
