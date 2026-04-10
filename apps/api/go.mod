@@ -1,6 +1,8 @@
 module github.com/DomNidy/saint_sim/apps/api
 
-go 1.21.6
+go 1.24.0
+
+toolchain go1.24.2
 
 replace (
 	github.com/DomNidy/saint_sim/pkg/go-shared/api_types => ../../pkg/go-shared/api_types

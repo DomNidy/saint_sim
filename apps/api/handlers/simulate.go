@@ -10,6 +10,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -149,12 +150,7 @@ func createSimulationRequest(
 		return "", fmt.Errorf("create simulation row: %w", err)
 	}
 
-	simulationID, err := utils.UUIDString(simEntry.ID)
-	if err != nil {
-		return "", fmt.Errorf("convert simulation id to string: %w", err)
-	}
-
-	return simulationID, nil
+	return simEntry.ID.String(), nil
 }
 
 func simulationOwnerID(ginContext *gin.Context) pgtype.Text {
@@ -174,9 +170,7 @@ func simulationOwnerID(ginContext *gin.Context) pgtype.Text {
 
 // GetSimulation returns the current state or completed result for a simulation.
 func GetSimulation(ginContext *gin.Context, dbClient *db.Queries) {
-	var simulationID pgtype.UUID
-
-	err := simulationID.Scan(ginContext.Param("id"))
+	simulationID, err := uuid.Parse(ginContext.Param("id"))
 	if err != nil {
 		ginContext.JSON(http.StatusNotFound, api_types.ErrorResponse{
 			Message: utils.StrPtr("Simulation not found"),
@@ -217,15 +211,11 @@ func GetSimulation(ginContext *gin.Context, dbClient *db.Queries) {
 }
 
 func simulationResponseFromRecord(simulation db.Simulation) (api_types.Simulation, error) {
-	simulationID, err := utils.UUIDString(simulation.ID)
-	if err != nil {
-		return api_types.Simulation{}, fmt.Errorf("convert simulation id to string: %w", err)
-	}
-
 	var response api_types.Simulation
 
 	status := simulationStatusFromRecord(simulation)
 
+	simulationID := simulation.ID.String()
 	response.Id = &simulationID
 	response.SimulationStatus = &status
 

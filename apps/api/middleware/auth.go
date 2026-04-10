@@ -146,7 +146,8 @@ func EffectiveUserID(authContext AuthContext) (string, bool) {
 		return "", false
 	}
 
-	if authContext.APIKey.PrincipalType != dbqueries.PrincipalTypeUser || authContext.APIKey.UserID == nil {
+	if authContext.APIKey.PrincipalType != dbqueries.PrincipalTypeUser ||
+		authContext.APIKey.UserID == nil {
 		return "", false
 	}
 

@@ -98,7 +98,7 @@ FROM public.simulation
 WHERE id = $1
 `
 
-func (q *Queries) GetSimulation(ctx context.Context, id pgtype.UUID) (Simulation, error) {
+func (q *Queries) GetSimulation(ctx context.Context, id uuid.UUID) (Simulation, error) {
 	row := q.db.QueryRow(ctx, getSimulation, id)
 	var i Simulation
 	err := row.Scan(
@@ -121,7 +121,7 @@ WHERE id = $1
 LIMIT 1
 `
 
-func (q *Queries) GetSimulationOptions(ctx context.Context, id pgtype.UUID) ([]byte, error) {
+func (q *Queries) GetSimulationOptions(ctx context.Context, id uuid.UUID) ([]byte, error) {
 	row := q.db.QueryRow(ctx, getSimulationOptions, id)
 	var sim_config []byte
 	err := row.Scan(&sim_config)
@@ -153,7 +153,7 @@ type UpdateSimulationParams struct {
 	ErrorText   pgtype.Text
 	StartedAt   pgtype.Timestamptz
 	CompletedAt pgtype.Timestamptz
-	ID          pgtype.UUID
+	ID          uuid.UUID
 }
 
 func (q *Queries) UpdateSimulation(ctx context.Context, arg UpdateSimulationParams) (Simulation, error) {

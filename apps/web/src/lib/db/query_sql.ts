@@ -1,4 +1,4 @@
-import type { QueryArrayConfig, QueryArrayResult } from "pg";
+import { QueryArrayConfig, QueryArrayResult } from "pg";
 
 interface Client {
     query: (config: QueryArrayConfig) => Promise<QueryArrayResult>;
@@ -258,3 +258,4 @@ export async function listenNewSimulationData(client: Client): Promise<void> {
         rowMode: "array"
     });
 }
+

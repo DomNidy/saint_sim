@@ -15,6 +15,7 @@ require (
 	github.com/DomNidy/saint_sim/pkg/go-shared/secrets v0.0.0
 	github.com/DomNidy/saint_sim/pkg/go-shared/utils v0.0.0
 	github.com/bwmarrin/discordgo v0.28.1
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.1
 )
 

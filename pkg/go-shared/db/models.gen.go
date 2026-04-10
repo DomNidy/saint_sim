@@ -96,7 +96,7 @@ type Principal struct {
 }
 
 type Service struct {
-	ID        pgtype.UUID
+	ID        uuid.UUID
 	CreatedAt pgtype.Timestamptz
 	Name      string
 }
@@ -113,7 +113,7 @@ type Session struct {
 }
 
 type Simulation struct {
-	ID          pgtype.UUID
+	ID          uuid.UUID
 	SimConfig   []byte
 	SimResult   pgtype.Text
 	ErrorText   pgtype.Text

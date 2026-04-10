@@ -14,6 +14,7 @@ require (
 	github.com/DomNidy/saint_sim/pkg/go-shared/db v0.0.0-20260404192636-ff4dbb6469b9
 	github.com/DomNidy/saint_sim/pkg/go-shared/secrets v0.0.0-20260404192636-ff4dbb6469b9
 	github.com/DomNidy/saint_sim/pkg/go-shared/utils v0.0.0-20260404192636-ff4dbb6469b9
+	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/rabbitmq/amqp091-go v1.10.0
 )
