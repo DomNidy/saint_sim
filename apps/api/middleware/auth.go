@@ -4,18 +4,14 @@ package middleware
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 
-	"github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
-	"github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 )
 
 // AuthScheme identifies which authentication scheme authorized the request.
@@ -62,36 +58,26 @@ type APIKeyLookup interface {
 	GetApiKey(ctx context.Context, apiKey string) (dbqueries.GetApiKeyRow, error)
 }
 
-// APIKeyAuthenticator validates raw API keys from incoming requests.
-type APIKeyAuthenticator interface {
-	Authenticate(ctx context.Context, rawAPIKey string) (AuthContext, error)
-}
-
-// JWTVerifier validates bearer JWTs and returns the authenticated context.
-type JWTVerifier interface {
-	Verify(ctx context.Context, rawToken string) (AuthContext, error)
-}
-
-type dbAPIKeyAuthenticator struct {
-	lookup APIKeyLookup
-}
-
-// NewAPIKeyAuthenticator builds an API key authenticator backed by the database.
-func NewAPIKeyAuthenticator(lookup APIKeyLookup) APIKeyAuthenticator {
-	return &dbAPIKeyAuthenticator{lookup: lookup}
+// RequestAuthenticator authenticates a request with a key, returning an
+// auth context that represents the authenticated entity.
+type RequestAuthenticator interface {
+	Authenticate(ctx context.Context, key string) (AuthContext, error)
 }
 
 // AuthRequire validates that incoming requests provide either a valid Api-Key or a valid Bearer
 // JWT.
-func AuthRequire(apiKeyAuthenticator APIKeyAuthenticator, jwtVerifier JWTVerifier) gin.HandlerFunc {
+func AuthRequire(
+	jwtAuthenticator RequestAuthenticator,
+	apiKeyAuthenticator RequestAuthenticator,
+) gin.HandlerFunc {
 	return func(ginContext *gin.Context) {
 		apiKey := strings.TrimSpace(ginContext.GetHeader("Api-Key"))
 		authorizationValue := strings.TrimSpace(ginContext.GetHeader("Authorization"))
 
 		authContext, err := authenticateRequest(
 			ginContext.Request.Context(),
+			jwtAuthenticator,
 			apiKeyAuthenticator,
-			jwtVerifier,
 			apiKey,
 			authorizationValue,
 		)
@@ -166,51 +152,6 @@ func GetEffectiveUserID(ginContext *gin.Context) (string, bool) {
 	return EffectiveUserID(authContext)
 }
 
-func (validator *dbAPIKeyAuthenticator) Authenticate(
-	ctx context.Context,
-	rawAPIKey string,
-) (AuthContext, error) {
-	secretPortion, ok := sliceSecretFromAPIKey(rawAPIKey)
-	if !ok {
-		return AuthContext{}, errInvalidAPIKey
-	}
-
-	hashedAPIKey := api_utils.HashAPIKey(secretPortion)
-
-	resAPIKey, err := validator.lookup.GetApiKey(ctx, hashedAPIKey)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return AuthContext{}, errInvalidAPIKey
-		}
-
-		return AuthContext{}, fmt.Errorf("error occurred while looking up API key: %w", err)
-	}
-
-	// sanity check
-	if resAPIKey.SecretHash != hashedAPIKey {
-		return AuthContext{}, errAPIKeySanityCheckFail
-	}
-
-	return AuthContext{
-		Scheme: AuthSchemeAPIKey,
-		APIKey: &resAPIKey,
-	}, nil
-}
-
-// sliceSecretFromAPIKey extracts the "secret" portion a raw API key string.
-// example: "sk_test_12345" -> "12345" is returned.
-func sliceSecretFromAPIKey(rawAPIKey string) (string, bool) {
-	lastIndex := strings.LastIndex(rawAPIKey, "_")
-
-	if lastIndex == -1 || lastIndex == len(rawAPIKey)-1 {
-		return "", false
-	}
-
-	secretPart := rawAPIKey[lastIndex+1:]
-
-	return secretPart, true
-}
-
 // authenticateRequest authenticates an incoming request. Supports both API key and
 // bearer JWT authentication.
 //
@@ -220,8 +161,8 @@ func sliceSecretFromAPIKey(rawAPIKey string) (string, bool) {
 //nolint:cyclop // This function intentionally implements fallback auth scheme evaluation.
 func authenticateRequest(
 	ctx context.Context,
-	apiKeyAuthenticator APIKeyAuthenticator,
-	jwtVerifier JWTVerifier,
+	jwtAuthenticator RequestAuthenticator,
+	apiKeyAuthenticator RequestAuthenticator,
 	apiKey string,
 	authorizationValue string,
 ) (AuthContext, error) {
@@ -233,7 +174,7 @@ func authenticateRequest(
 		rawToken, err := bearerTokenFromHeader(authorizationValue)
 		switch {
 		case err == nil:
-			authContext, verifyErr := jwtVerifier.Verify(ctx, rawToken)
+			authContext, verifyErr := jwtAuthenticator.Authenticate(ctx, rawToken)
 			switch {
 			case verifyErr == nil:
 				return authContext, nil
@@ -285,6 +226,6 @@ func bearerTokenFromHeader(authorizationValue string) (string, error) {
 
 func abortWithError(ginContext *gin.Context, statusCode int, message string) {
 	ginContext.AbortWithStatusJSON(statusCode, api_types.ErrorResponse{
-		Message: utils.StrPtr(message),
+		Message: &message,
 	})
 }

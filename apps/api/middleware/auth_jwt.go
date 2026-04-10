@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/go-jose/go-jose/v4"
 	gojwt "github.com/go-jose/go-jose/v4/jwt"
@@ -19,26 +18,35 @@ var errEmptyPublicKey = errors.New("public key is empty")
 
 // JWTKeyLookup loads signing keys from the backing store by key ID.
 type JWTKeyLookup interface {
-	GetJwkByID(ctx context.Context, id string) (dbqueries.Jwk, error)
+	GetJwkByID(ctx context.Context, keyID string) (dbqueries.Jwk, error)
 }
 
-type dbJWTVerifier struct {
+// JWTAuthenticator validates bearer JWTs and returns the authenticated context.
+// Authenticate method returned an error if the JWT is invalid, or lacks the expected claims.
+type JWTAuthenticator struct {
 	keyLookup JWTKeyLookup
-	issuer    string
-	audience  string
+	claims    *gojwt.Expected
 }
 
-// NewJWTVerifier builds a JWT verifier backed by keys from the jwks table.
-func NewJWTVerifier(keyLookup JWTKeyLookup, issuer string, audience string) JWTVerifier {
-	return &dbJWTVerifier{
+// NewJWTAuthenticator builds a JWT authenticator that enforces the provided
+// claims and uses the key lookup to retrieve the signing key from the
+// backing store by key ID.
+//
+// If no expected claims are provided, then the authenticator will pass as
+// long as the key decodes.
+func NewJWTAuthenticator(keyLookup JWTKeyLookup, claims *gojwt.Expected) *JWTAuthenticator {
+	return &JWTAuthenticator{
 		keyLookup: keyLookup,
-		issuer:    issuer,
-		audience:  audience,
+		claims:    claims,
 	}
 }
 
-//nolint:cyclop // JWT verification intentionally checks several independent failure modes.
-func (verifier *dbJWTVerifier) Verify(ctx context.Context, rawToken string) (AuthContext, error) {
+// Authenticate verifies that the provided JWT token is valid and
+// satisfies the claims expected by the JWTAuthenticator.
+func (authenticator *JWTAuthenticator) Authenticate(
+	ctx context.Context,
+	rawToken string,
+) (AuthContext, error) {
 	parsedToken, err := gojwt.ParseSigned(rawToken, supportedJWTAlgorithms())
 	if err != nil {
 		return AuthContext{}, fmt.Errorf("%w: parse signed token: %w", errInvalidBearerToken, err)
@@ -58,7 +66,7 @@ func (verifier *dbJWTVerifier) Verify(ctx context.Context, rawToken string) (Aut
 		return AuthContext{}, fmt.Errorf("%w: token missing key id", errInvalidBearerToken)
 	}
 
-	jwkRecord, err := verifier.keyLookup.GetJwkByID(ctx, keyID)
+	jwkRecord, err := authenticator.keyLookup.GetJwkByID(ctx, keyID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return AuthContext{}, fmt.Errorf("%w: unknown signing key", errInvalidBearerToken)
@@ -83,25 +91,9 @@ func (verifier *dbJWTVerifier) Verify(ctx context.Context, rawToken string) (Aut
 		)
 	}
 
-	expectedClaims := gojwt.Expected{
-		Issuer:      verifier.issuer,
-		Subject:     "",
-		AnyAudience: nil,
-		ID:          "",
-		Time:        time.Now(),
-	}
-
-	err = claims.ValidateWithLeeway(expectedClaims, 0)
+	err = validateExpectedJWTClaims(claims, authenticator.claims)
 	if err != nil {
-		return AuthContext{}, fmt.Errorf(
-			"%w: validate standard claims: %w",
-			errInvalidBearerToken,
-			err,
-		)
-	}
-
-	if !claims.Audience.Contains(verifier.audience) {
-		return AuthContext{}, fmt.Errorf("%w: unexpected audience", errInvalidBearerToken)
+		return AuthContext{}, err
 	}
 
 	if strings.TrimSpace(claims.Subject) == "" {
@@ -111,7 +103,21 @@ func (verifier *dbJWTVerifier) Verify(ctx context.Context, rawToken string) (Aut
 	return AuthContext{
 		Scheme: AuthSchemeBearer,
 		UserID: claims.Subject,
+		APIKey: nil,
 	}, nil
+}
+
+func validateExpectedJWTClaims(claims gojwt.Claims, expected *gojwt.Expected) error {
+	if expected == nil {
+		return nil
+	}
+
+	err := claims.ValidateWithLeeway(*expected, 0)
+	if err != nil {
+		return fmt.Errorf("%w: validate standard claims: %w", errInvalidBearerToken, err)
+	}
+
+	return nil
 }
 
 func parseStoredPublicJWK(rawKey string) (jose.JSONWebKey, error) {

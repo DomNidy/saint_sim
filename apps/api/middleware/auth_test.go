@@ -32,11 +32,14 @@ func (stub stubAPIKeyAuthenticator) Authenticate(
 	return stub.authenticate(ctx, rawAPIKey)
 }
 
-type stubJWTVerifier struct {
+type stubJWTAuthenticator struct {
 	verify func(context.Context, string) (AuthContext, error)
 }
 
-func (stub stubJWTVerifier) Verify(ctx context.Context, rawToken string) (AuthContext, error) {
+func (stub stubJWTAuthenticator) Authenticate(
+	ctx context.Context,
+	rawToken string,
+) (AuthContext, error) {
 	return stub.verify(ctx, rawToken)
 }
 
@@ -54,12 +57,7 @@ func TestAuthRequireAcceptsBearerJWT(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(AuthRequire(
-		stubAPIKeyAuthenticator{authenticate: func(context.Context, string) (AuthContext, error) {
-			t.Fatal("api key validator should not run when bearer auth succeeds")
-
-			return AuthContext{}, nil
-		}},
-		stubJWTVerifier{verify: func(_ context.Context, rawToken string) (AuthContext, error) {
+		stubJWTAuthenticator{verify: func(_ context.Context, rawToken string) (AuthContext, error) {
 			if rawToken != "valid-token" {
 				t.Fatalf("unexpected token %q", rawToken)
 			}
@@ -68,6 +66,11 @@ func TestAuthRequireAcceptsBearerJWT(t *testing.T) {
 				Scheme: AuthSchemeBearer,
 				UserID: "user_123",
 			}, nil
+		}},
+		stubAPIKeyAuthenticator{authenticate: func(context.Context, string) (AuthContext, error) {
+			t.Fatal("api key validator should not run when bearer auth succeeds")
+
+			return AuthContext{}, nil
 		}},
 	))
 	router.POST("/", func(c *gin.Context) {
@@ -99,27 +102,29 @@ func TestAuthRequireFallsBackToAPIKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(AuthRequire(
-		stubAPIKeyAuthenticator{authenticate: func(_ context.Context, rawAPIKey string) (AuthContext, error) {
-			if rawAPIKey != "good-api-key" {
-				t.Fatalf("unexpected api key %q", rawAPIKey)
-			}
-
-			userID := "user_123"
-
-			return AuthContext{
-				Scheme: AuthSchemeAPIKey,
-				APIKey: &dbqueries.GetApiKeyRow{
-					SecretHash:    "hashed-key",
-					PrincipalID:   uuid.MustParse("3ef10f0f-cd18-454d-8724-e0d9d3ac67bf"),
-					PrincipalType: dbqueries.PrincipalTypeUser,
-					UserID:        &userID,
-					ServiceID:     nil,
-				},
-			}, nil
-		}},
-		stubJWTVerifier{verify: func(context.Context, string) (AuthContext, error) {
+		stubJWTAuthenticator{verify: func(context.Context, string) (AuthContext, error) {
 			return AuthContext{Scheme: "", UserID: "", APIKey: nil}, errInvalidBearerToken
 		}},
+		stubAPIKeyAuthenticator{
+			authenticate: func(_ context.Context, rawAPIKey string) (AuthContext, error) {
+				if rawAPIKey != "good-api-key" {
+					t.Fatalf("unexpected api key %q", rawAPIKey)
+				}
+
+				userID := "user_123"
+
+				return AuthContext{
+					Scheme: AuthSchemeAPIKey,
+					APIKey: &dbqueries.GetApiKeyRow{
+						SecretHash:    "hashed-key",
+						PrincipalID:   uuid.MustParse("3ef10f0f-cd18-454d-8724-e0d9d3ac67bf"),
+						PrincipalType: dbqueries.PrincipalTypeUser,
+						UserID:        &userID,
+						ServiceID:     nil,
+					},
+				}, nil
+			},
+		},
 	))
 	router.POST("/", func(c *gin.Context) {
 		authContext, ok := GetAuthContext(c)
@@ -129,7 +134,8 @@ func TestAuthRequireFallsBackToAPIKey(t *testing.T) {
 		if authContext.Scheme != AuthSchemeAPIKey {
 			t.Fatalf("unexpected auth scheme %q", authContext.Scheme)
 		}
-		if authContext.APIKey == nil || authContext.APIKey.PrincipalType != dbqueries.PrincipalTypeUser {
+		if authContext.APIKey == nil ||
+			authContext.APIKey.PrincipalType != dbqueries.PrincipalTypeUser {
 			t.Fatalf("expected user-owned api key auth context, got %#v", authContext.APIKey)
 		}
 
@@ -154,11 +160,11 @@ func TestAuthRequireRejectsMissingCredentials(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(AuthRequire(
+		stubJWTAuthenticator{verify: func(context.Context, string) (AuthContext, error) {
+			return AuthContext{Scheme: "", UserID: "", APIKey: nil}, nil
+		}},
 		stubAPIKeyAuthenticator{authenticate: func(context.Context, string) (AuthContext, error) {
 			return AuthContext{}, nil
-		}},
-		stubJWTVerifier{verify: func(context.Context, string) (AuthContext, error) {
-			return AuthContext{Scheme: "", UserID: "", APIKey: nil}, nil
 		}},
 	))
 	router.POST("/", func(c *gin.Context) {
@@ -175,7 +181,7 @@ func TestAuthRequireRejectsMissingCredentials(t *testing.T) {
 	}
 }
 
-func TestJWTVerifierValidatesClaimsAndSignature(t *testing.T) {
+func TestJWTAuthenticatorValidatesClaimsAndSignature(t *testing.T) {
 	t.Parallel()
 
 	publicKeyJSON, signedToken := signedTestJWT(
@@ -185,7 +191,7 @@ func TestJWTVerifierValidatesClaimsAndSignature(t *testing.T) {
 		"saint-api",
 		"user-42",
 	)
-	verifier := NewJWTVerifier(
+	verifier := NewJWTAuthenticator(
 		stubJWTKeyLookup{
 			get: func(_ context.Context, id string) (dbqueries.Jwk, error) {
 				if id != "test-kid" {
@@ -198,11 +204,14 @@ func TestJWTVerifierValidatesClaimsAndSignature(t *testing.T) {
 				}, nil
 			},
 		},
-		"https://auth.example.com",
-		"saint-api",
+		&gojwt.Expected{
+			AnyAudience: []string{"saint-api"},
+			Issuer:      "https://auth.example.com",
+			Subject:     "user-42",
+		},
 	)
 
-	principal, err := verifier.Verify(context.Background(), signedToken)
+	principal, err := verifier.Authenticate(context.Background(), signedToken)
 	if err != nil {
 		t.Fatalf("verify token: %v", err)
 	}
@@ -222,32 +231,35 @@ func TestAuthRequireAcceptsServiceOwnedAPIKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(AuthRequire(
-		stubAPIKeyAuthenticator{authenticate: func(_ context.Context, rawAPIKey string) (AuthContext, error) {
-			if rawAPIKey != "service-api-key" {
-				t.Fatalf("unexpected api key %q", rawAPIKey)
-			}
-
-			return AuthContext{
-				Scheme: AuthSchemeAPIKey,
-				APIKey: &dbqueries.GetApiKeyRow{
-					SecretHash:    "hashed-key",
-					PrincipalID:   uuid.MustParse("4d3c35af-430f-45de-9d12-ec3b84db5042"),
-					PrincipalType: dbqueries.PrincipalTypeService,
-					UserID:        nil,
-					ServiceID:     &serviceID,
-				},
-			}, nil
-		}},
-		stubJWTVerifier{verify: func(context.Context, string) (AuthContext, error) {
+		stubJWTAuthenticator{verify: func(context.Context, string) (AuthContext, error) {
 			return AuthContext{Scheme: "", UserID: "", APIKey: nil}, errInvalidBearerToken
 		}},
+		stubAPIKeyAuthenticator{
+			authenticate: func(_ context.Context, rawAPIKey string) (AuthContext, error) {
+				if rawAPIKey != "service-api-key" {
+					t.Fatalf("unexpected api key %q", rawAPIKey)
+				}
+
+				return AuthContext{
+					Scheme: AuthSchemeAPIKey,
+					APIKey: &dbqueries.GetApiKeyRow{
+						SecretHash:    "hashed-key",
+						PrincipalID:   uuid.MustParse("4d3c35af-430f-45de-9d12-ec3b84db5042"),
+						PrincipalType: dbqueries.PrincipalTypeService,
+						UserID:        nil,
+						ServiceID:     &serviceID,
+					},
+				}, nil
+			},
+		},
 	))
 	router.POST("/", func(c *gin.Context) {
 		authContext, ok := GetAuthContext(c)
 		if !ok {
 			t.Fatal("auth context missing")
 		}
-		if authContext.APIKey == nil || authContext.APIKey.PrincipalType != dbqueries.PrincipalTypeService {
+		if authContext.APIKey == nil ||
+			authContext.APIKey.PrincipalType != dbqueries.PrincipalTypeService {
 			t.Fatalf("expected service-owned api key auth context, got %#v", authContext.APIKey)
 		}
 
@@ -265,7 +277,7 @@ func TestAuthRequireAcceptsServiceOwnedAPIKey(t *testing.T) {
 	}
 }
 
-func TestJWTVerifierRejectsWrongAudience(t *testing.T) {
+func TestJWTAuthenticatorRejectsWrongAudience(t *testing.T) {
 	t.Parallel()
 
 	publicKeyJSON, signedToken := signedTestJWT(
@@ -275,7 +287,7 @@ func TestJWTVerifierRejectsWrongAudience(t *testing.T) {
 		"wrong-audience",
 		"user-42",
 	)
-	verifier := NewJWTVerifier(
+	verifier := NewJWTAuthenticator(
 		stubJWTKeyLookup{
 			get: func(context.Context, string) (dbqueries.Jwk, error) {
 				return dbqueries.Jwk{
@@ -284,17 +296,16 @@ func TestJWTVerifierRejectsWrongAudience(t *testing.T) {
 				}, nil
 			},
 		},
-		"https://auth.example.com",
-		"saint-api",
+		&gojwt.Expected{AnyAudience: []string{"saint-api"}, Issuer: "https://auth.example.com"},
 	)
 
-	_, err := verifier.Verify(context.Background(), signedToken)
+	_, err := verifier.Authenticate(context.Background(), signedToken)
 	if !errors.Is(err, errInvalidBearerToken) {
 		t.Fatalf("expected invalid bearer token, got %v", err)
 	}
 }
 
-func TestJWTVerifierRejectsUnknownKeyID(t *testing.T) {
+func TestJWTAuthenticatorRejectsUnknownKeyID(t *testing.T) {
 	t.Parallel()
 
 	_, signedToken := signedTestJWT(
@@ -304,17 +315,16 @@ func TestJWTVerifierRejectsUnknownKeyID(t *testing.T) {
 		"saint-api",
 		"user-42",
 	)
-	verifier := NewJWTVerifier(
+	verifier := NewJWTAuthenticator(
 		stubJWTKeyLookup{
 			get: func(context.Context, string) (dbqueries.Jwk, error) {
 				return dbqueries.Jwk{}, pgx.ErrNoRows
 			},
 		},
-		"https://auth.example.com",
-		"saint-api",
+		&gojwt.Expected{AnyAudience: []string{"saint-api"}, Issuer: "https://auth.example.com"},
 	)
 
-	_, err := verifier.Verify(context.Background(), signedToken)
+	_, err := verifier.Authenticate(context.Background(), signedToken)
 	if !errors.Is(err, errInvalidBearerToken) {
 		t.Fatalf("expected invalid bearer token, got %v", err)
 	}
