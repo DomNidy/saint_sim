@@ -42,7 +42,7 @@ import {
 } from "@/lib/simulation.functions";
 
 
-export const Route = createFileRoute("/dashboard")({
+export const Route = createFileRoute("/simulate")({
 	component: DashboardPage,
 });
 
