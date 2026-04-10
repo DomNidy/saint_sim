@@ -5,8 +5,10 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	gin "github.com/gin-gonic/gin"
+	"github.com/go-jose/go-jose/v4/jwt"
 
 	handlers "github.com/DomNidy/saint_sim/apps/api/handlers"
 	middleware "github.com/DomNidy/saint_sim/apps/api/middleware"
@@ -14,6 +16,42 @@ import (
 	"github.com/DomNidy/saint_sim/pkg/go-shared/secrets"
 	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 )
+
+// Max number of idle HTTP connections our HTTP client
+// will hold to any one host
+//
+// A HTTP/1.1 connection can only handle one
+// request at a time, and we may need to issue
+// multiple concurrent requests to blizzard armory;
+// tune as needed.
+const httpClientMaxIdleConnectionsPerHost = 10
+
+// Timeout on requests issued through our HTTP client.
+const httpClientTimeout = 5 * time.Second
+
+func newHTTPClient() *http.Client {
+	return &http.Client{ //nolint:exhaustruct
+		Timeout: httpClientTimeout,
+		Transport: &http.Transport{ //nolint:exhaustruct
+			MaxIdleConnsPerHost: httpClientMaxIdleConnectionsPerHost,
+		},
+	}
+}
+
+func newJWTAuthenticator(
+	dbClient *dbqueries.Queries,
+	betterAuthURL string,
+) *middleware.JWTAuthenticator {
+	return middleware.NewJWTAuthenticator(dbClient, &jwt.Expected{
+		// only accept jwt issued by our web app
+		Issuer: betterAuthURL,
+		// dont accept allow tokens for other audiences
+		AnyAudience: []string{"saint-api"},
+		Subject:     "",
+		ID:          "",
+		Time:        time.Time{},
+	})
+}
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile) // include filename:linenumber in log output
@@ -30,19 +68,20 @@ func main() {
 
 		return
 	}
+	defer simulationQueue.Close()
 
 	pool, err := utils.InitPostgresConnectionPool(context.Background())
 	if err != nil {
 		log.Panicf("%s: could not make postgres pool", err)
 	}
+	defer pool.Close()
 
 	dbClient := dbqueries.New(pool)
 	if dbClient == nil {
 		log.Panicf("API failed to acquire a dbClient, cannot run.")
 	}
 
-	defer pool.Close()
-	defer simulationQueue.Close()
+	httpClient := newHTTPClient()
 
 	// Setup api server
 	router := gin.Default()
@@ -57,12 +96,12 @@ func main() {
 	})
 
 	// Authorization group: https://gin-gonic.com/zh-tw/docs/examples/using-middleware/
-	apiKeyValidator := middleware.NewAPIKeyValidator(dbClient)
-	jwtVerifier := middleware.NewJWTVerifier(dbClient, betterAuthURL, "saint-api")
-	authorized := router.Group("/", middleware.AuthRequire(apiKeyValidator, jwtVerifier))
+	apiKeyAuthenticator := middleware.NewAPIKeyAuthenticator(dbClient)
+	jwtAuthenticator := newJWTAuthenticator(dbClient, betterAuthURL)
+	authorized := router.Group("/", middleware.AuthRequire(jwtAuthenticator, apiKeyAuthenticator))
 
 	authorized.POST("/simulation", func(ginContext *gin.Context) {
-		handlers.Simulate(ginContext, dbClient, simulationQueue)
+		handlers.Simulate(ginContext, dbClient, simulationQueue, httpClient)
 	})
 
 	err = router.Run("0.0.0.0:8080")

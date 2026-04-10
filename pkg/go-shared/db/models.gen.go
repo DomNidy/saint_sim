@@ -5,8 +5,54 @@
 package db
 
 import (
+	"database/sql/driver"
+	"fmt"
+
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type PrincipalType string
+
+const (
+	PrincipalTypeUser    PrincipalType = "user"
+	PrincipalTypeService PrincipalType = "service"
+)
+
+func (e *PrincipalType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PrincipalType(s)
+	case string:
+		*e = PrincipalType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PrincipalType: %T", src)
+	}
+	return nil
+}
+
+type NullPrincipalType struct {
+	PrincipalType PrincipalType
+	Valid         bool // Valid is true if PrincipalType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPrincipalType) Scan(value interface{}) error {
+	if value == nil {
+		ns.PrincipalType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PrincipalType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPrincipalType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PrincipalType), nil
+}
 
 type Account struct {
 	ID                    string
@@ -25,9 +71,13 @@ type Account struct {
 }
 
 type ApiKey struct {
-	ID        int32
-	ApiKey    string
-	CreatedAt pgtype.Timestamp
+	ID          int32
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+	LastUsedAt  pgtype.Timestamptz
+	VisibleHint string
+	SecretHash  string
+	PrincipalID uuid.UUID
 }
 
 type Jwk struct {
@@ -36,6 +86,19 @@ type Jwk struct {
 	PrivateKey string
 	CreatedAt  pgtype.Timestamptz
 	ExpiresAt  pgtype.Timestamptz
+}
+
+type Principal struct {
+	ID            uuid.UUID
+	ServiceID     *uuid.UUID
+	UserID        *string
+	PrincipalType PrincipalType
+}
+
+type Service struct {
+	ID        uuid.UUID
+	CreatedAt pgtype.Timestamptz
+	Name      string
 }
 
 type Session struct {
@@ -50,7 +113,7 @@ type Session struct {
 }
 
 type Simulation struct {
-	ID          pgtype.UUID
+	ID          uuid.UUID
 	SimConfig   []byte
 	SimResult   pgtype.Text
 	ErrorText   pgtype.Text

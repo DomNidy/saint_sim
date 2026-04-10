@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/google/uuid"
 	pgx "github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	amqp091 "github.com/rabbitmq/amqp091-go"
 
 	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
@@ -120,19 +120,17 @@ func (worker simulationWorker) processRequest(
 	return nil
 }
 
-func parseSimulationRequestID(msg amqp091.Delivery) (string, pgtype.UUID, error) {
+func parseSimulationRequestID(msg amqp091.Delivery) (string, uuid.UUID, error) {
 	var simRequestMsg utils.SimulationMessage
 
 	err := json.Unmarshal(msg.Body, &simRequestMsg)
 	if err != nil {
-		return "", pgtype.UUID{}, fmt.Errorf("unmarshal simulation message: %w", err)
+		return "", uuid.UUID{}, fmt.Errorf("unmarshal simulation message: %w", err)
 	}
 
-	var requestID pgtype.UUID
-
-	err = requestID.Scan(simRequestMsg.SimulationID)
+	requestID, err := uuid.Parse(simRequestMsg.SimulationID)
 	if err != nil {
-		return "", pgtype.UUID{}, fmt.Errorf(
+		return "", uuid.UUID{}, fmt.Errorf(
 			"parse simulation id %q: %w",
 			simRequestMsg.SimulationID,
 			err,

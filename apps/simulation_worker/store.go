@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
@@ -17,14 +18,14 @@ type simulationStore struct {
 }
 
 type simulationRequest struct {
-	id      pgtype.UUID
+	id      uuid.UUID
 	idText  string
 	options api_types.SimulationOptions
 }
 
 func (store simulationStore) LoadRequest(
 	ctx context.Context,
-	requestID pgtype.UUID,
+	requestID uuid.UUID,
 	requestIDText string,
 ) (simulationRequest, error) {
 	simOptionsJSON, err := store.queries.GetSimulationOptions(ctx, requestID)
@@ -46,7 +47,7 @@ func (store simulationStore) LoadRequest(
 	}, nil
 }
 
-func (store simulationStore) MarkStarted(ctx context.Context, requestID pgtype.UUID) error {
+func (store simulationStore) MarkStarted(ctx context.Context, requestID uuid.UUID) error {
 	_, err := store.queries.UpdateSimulation(
 		ctx,
 		dbqueries.UpdateSimulationParams{
@@ -66,7 +67,7 @@ func (store simulationStore) MarkStarted(ctx context.Context, requestID pgtype.U
 
 func (store simulationStore) MarkCompleted(
 	ctx context.Context,
-	requestID pgtype.UUID,
+	requestID uuid.UUID,
 	simulationResult []byte,
 ) error {
 	simResult := pgtype.Text{
@@ -93,7 +94,7 @@ func (store simulationStore) MarkCompleted(
 
 func (store simulationStore) MarkFailed(
 	ctx context.Context,
-	requestID pgtype.UUID,
+	requestID uuid.UUID,
 	cause error,
 ) error {
 	_, err := store.queries.UpdateSimulation(

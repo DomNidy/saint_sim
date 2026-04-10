@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -39,26 +40,36 @@ func (q *Queries) CreateSimulation(ctx context.Context, arg CreateSimulationPara
 }
 
 const getApiKey = `-- name: GetApiKey :one
-SELECT id, api_key, created_at FROM public.api_keys
-WHERE api_key = $1 LIMIT 1
+SELECT
+    api_keys.secret_hash,
+    principals.id AS principal_id,
+    principals.principal_type,
+    principals.user_id,
+    principals.service_id
+FROM
+    public.api_keys
+    INNER JOIN public.principals ON principals.id = api_keys.principal_id
+WHERE secret_hash = $1 LIMIT 1
 `
 
-func (q *Queries) GetApiKey(ctx context.Context, apiKey string) (ApiKey, error) {
-	row := q.db.QueryRow(ctx, getApiKey, apiKey)
-	var i ApiKey
-	err := row.Scan(&i.ID, &i.ApiKey, &i.CreatedAt)
-	return i, err
+type GetApiKeyRow struct {
+	SecretHash    string
+	PrincipalID   uuid.UUID
+	PrincipalType PrincipalType
+	UserID        *string
+	ServiceID     *uuid.UUID
 }
 
-const getApiKeyById = `-- name: GetApiKeyById :one
-SELECT id, api_key, created_at FROM public.api_keys 
-WHERE id = $1 LIMIT 1
-`
-
-func (q *Queries) GetApiKeyById(ctx context.Context, id int32) (ApiKey, error) {
-	row := q.db.QueryRow(ctx, getApiKeyById, id)
-	var i ApiKey
-	err := row.Scan(&i.ID, &i.ApiKey, &i.CreatedAt)
+func (q *Queries) GetApiKey(ctx context.Context, secretHash string) (GetApiKeyRow, error) {
+	row := q.db.QueryRow(ctx, getApiKey, secretHash)
+	var i GetApiKeyRow
+	err := row.Scan(
+		&i.SecretHash,
+		&i.PrincipalID,
+		&i.PrincipalType,
+		&i.UserID,
+		&i.ServiceID,
+	)
 	return i, err
 }
 
@@ -87,7 +98,7 @@ FROM public.simulation
 WHERE id = $1
 `
 
-func (q *Queries) GetSimulation(ctx context.Context, id pgtype.UUID) (Simulation, error) {
+func (q *Queries) GetSimulation(ctx context.Context, id uuid.UUID) (Simulation, error) {
 	row := q.db.QueryRow(ctx, getSimulation, id)
 	var i Simulation
 	err := row.Scan(
@@ -110,7 +121,7 @@ WHERE id = $1
 LIMIT 1
 `
 
-func (q *Queries) GetSimulationOptions(ctx context.Context, id pgtype.UUID) ([]byte, error) {
+func (q *Queries) GetSimulationOptions(ctx context.Context, id uuid.UUID) ([]byte, error) {
 	row := q.db.QueryRow(ctx, getSimulationOptions, id)
 	var sim_config []byte
 	err := row.Scan(&sim_config)
@@ -142,7 +153,7 @@ type UpdateSimulationParams struct {
 	ErrorText   pgtype.Text
 	StartedAt   pgtype.Timestamptz
 	CompletedAt pgtype.Timestamptz
-	ID          pgtype.UUID
+	ID          uuid.UUID
 }
 
 func (q *Queries) UpdateSimulation(ctx context.Context, arg UpdateSimulationParams) (Simulation, error) {

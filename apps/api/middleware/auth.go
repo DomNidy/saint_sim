@@ -4,18 +4,14 @@ package middleware
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5"
 
-	"github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
 	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
-	"github.com/DomNidy/saint_sim/pkg/go-shared/utils"
 )
 
 // AuthScheme identifies which authentication scheme authorized the request.
@@ -34,7 +30,7 @@ const (
 	// Using a normalized principal like this is helpful as we support
 	// authentication with multiple schemes (api_key, bearer JWT), so
 	// subsequent server code doesn't need to re-lower the scheme.
-	authPrincipalContextKey = "auth.principal"
+	authContextContextKey = "auth.context"
 )
 
 var (
@@ -45,55 +41,48 @@ var (
 	errMissingCredentials          = errors.New("missing credentials")
 )
 
-// AuthPrincipal stores the resolved authentication identity for a request.
-type AuthPrincipal struct {
+// AuthContext stores the resolved authentication identity for a request.
+type AuthContext struct {
 	Scheme AuthScheme
 
 	// If the scheme was bearer, the user ID that was encoded
 	// in the JWT. Otherwise, this is empty.
 	UserID string
+
+	// APIKey contains the resolved API key owner when Api-Key auth succeeds.
+	APIKey *dbqueries.GetApiKeyRow
 }
 
-// APIKeyLookup loads API keys from the backing store.
+// APIKeyLookup loads API keys and their owners from the backing store.
 type APIKeyLookup interface {
-	GetApiKey(ctx context.Context, apiKey string) (dbqueries.ApiKey, error)
+	GetApiKey(ctx context.Context, apiKey string) (dbqueries.GetApiKeyRow, error)
 }
 
-// APIKeyValidator validates raw API keys from incoming requests.
-type APIKeyValidator interface {
-	Validate(ctx context.Context, rawAPIKey string) error
-}
-
-// JWTVerifier validates bearer JWTs and returns the authenticated principal.
-type JWTVerifier interface {
-	Verify(ctx context.Context, rawToken string) (AuthPrincipal, error)
-}
-
-type dbAPIKeyValidator struct {
-	lookup APIKeyLookup
-}
-
-// NewAPIKeyValidator builds an API key validator backed by the database.
-func NewAPIKeyValidator(lookup APIKeyLookup) APIKeyValidator {
-	return &dbAPIKeyValidator{lookup: lookup}
+// RequestAuthenticator authenticates a request with a key, returning an
+// auth context that represents the authenticated entity.
+type RequestAuthenticator interface {
+	Authenticate(ctx context.Context, key string) (AuthContext, error)
 }
 
 // AuthRequire validates that incoming requests provide either a valid Api-Key or a valid Bearer
 // JWT.
-func AuthRequire(apiKeyValidator APIKeyValidator, jwtVerifier JWTVerifier) gin.HandlerFunc {
+func AuthRequire(
+	jwtAuthenticator RequestAuthenticator,
+	apiKeyAuthenticator RequestAuthenticator,
+) gin.HandlerFunc {
 	return func(ginContext *gin.Context) {
 		apiKey := strings.TrimSpace(ginContext.GetHeader("Api-Key"))
 		authorizationValue := strings.TrimSpace(ginContext.GetHeader("Authorization"))
 
-		principal, err := authenticateRequest(
+		authContext, err := authenticateRequest(
 			ginContext.Request.Context(),
-			apiKeyValidator,
-			jwtVerifier,
+			jwtAuthenticator,
+			apiKeyAuthenticator,
 			apiKey,
 			authorizationValue,
 		)
 		if err == nil {
-			ginContext.Set(authPrincipalContextKey, principal)
+			ginContext.Set(authContextContextKey, authContext)
 			ginContext.Next()
 
 			return
@@ -116,55 +105,67 @@ func AuthRequire(apiKeyValidator APIKeyValidator, jwtVerifier JWTVerifier) gin.H
 	}
 }
 
-// GetAuthPrincipal retrieves the authenticated request principal from Gin context.
-func GetAuthPrincipal(ginContext *gin.Context) (AuthPrincipal, bool) {
-	rawPrincipal, exists := ginContext.Get(authPrincipalContextKey)
+// GetAuthContext retrieves the authenticated request context from Gin context.
+func GetAuthContext(ginContext *gin.Context) (AuthContext, bool) {
+	rawPrincipal, exists := ginContext.Get(authContextContextKey)
 	if !exists {
-		return AuthPrincipal{Scheme: "", UserID: ""}, false
+		return AuthContext{Scheme: "", UserID: "", APIKey: nil}, false
 	}
 
-	principal, ok := rawPrincipal.(AuthPrincipal)
+	principal, ok := rawPrincipal.(AuthContext)
 	if !ok {
-		return AuthPrincipal{Scheme: "", UserID: ""}, false
+		return AuthContext{Scheme: "", UserID: "", APIKey: nil}, false
 	}
 
 	return principal, true
 }
 
-func (validator *dbAPIKeyValidator) Validate(c context.Context, rawAPIKey string) error {
-	hashedAPIKey := api_utils.HashApiKey(rawAPIKey)
-
-	resAPIKey, err := validator.lookup.GetApiKey(c, hashedAPIKey)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return errInvalidAPIKey
-		}
-
-		return fmt.Errorf("error occurred while looking up API key: %w", err)
+// EffectiveUserID returns the acting user ID for requests authenticated via bearer auth
+// or via a user-owned API key. It returns false for service-owned API keys and requests
+// without an authenticated user identity.
+func EffectiveUserID(authContext AuthContext) (string, bool) {
+	if authContext.Scheme == AuthSchemeBearer && authContext.UserID != "" {
+		return authContext.UserID, true
 	}
 
-	// sanity check
-	if resAPIKey.ApiKey != hashedAPIKey {
-		return errAPIKeySanityCheckFail
+	if authContext.Scheme != AuthSchemeAPIKey || authContext.APIKey == nil {
+		return "", false
 	}
 
-	return nil
+	if authContext.APIKey.PrincipalType != dbqueries.PrincipalTypeUser ||
+		authContext.APIKey.UserID == nil {
+		return "", false
+	}
+
+	return *authContext.APIKey.UserID, true
+}
+
+// GetEffectiveUserID returns the acting user ID for requests authenticated via bearer auth
+// or via a user-owned API key. It returns false for service-owned API keys and requests
+// without an authenticated user identity.
+func GetEffectiveUserID(ginContext *gin.Context) (string, bool) {
+	authContext, ok := GetAuthContext(ginContext)
+	if !ok {
+		return "", false
+	}
+
+	return EffectiveUserID(authContext)
 }
 
 // authenticateRequest authenticates an incoming request. Supports both API key and
 // bearer JWT authentication.
 //
-// The returned AuthPrincipal provides context on what scheme was used to authenticate the
+// The returned AuthContext provides context on what scheme was used to authenticate the
 // request (and additional context, such as the user id in the case of bearer JWT auth).
 //
 //nolint:cyclop // This function intentionally implements fallback auth scheme evaluation.
 func authenticateRequest(
 	ctx context.Context,
-	apiKeyValidator APIKeyValidator,
-	jwtVerifier JWTVerifier,
+	jwtAuthenticator RequestAuthenticator,
+	apiKeyAuthenticator RequestAuthenticator,
 	apiKey string,
 	authorizationValue string,
-) (AuthPrincipal, error) {
+) (AuthContext, error) {
 	var internalErrors []error
 
 	var invalidCredentialErrors []error
@@ -173,10 +174,10 @@ func authenticateRequest(
 		rawToken, err := bearerTokenFromHeader(authorizationValue)
 		switch {
 		case err == nil:
-			principal, verifyErr := jwtVerifier.Verify(ctx, rawToken)
+			authContext, verifyErr := jwtAuthenticator.Authenticate(ctx, rawToken)
 			switch {
 			case verifyErr == nil:
-				return principal, nil
+				return authContext, nil
 			case errors.Is(verifyErr, errInvalidBearerToken):
 				invalidCredentialErrors = append(invalidCredentialErrors, verifyErr)
 			default:
@@ -190,10 +191,10 @@ func authenticateRequest(
 	}
 
 	if apiKey != "" {
-		err := apiKeyValidator.Validate(ctx, apiKey)
+		authContext, err := apiKeyAuthenticator.Authenticate(ctx, apiKey)
 		switch {
 		case err == nil:
-			return AuthPrincipal{Scheme: AuthSchemeAPIKey, UserID: ""}, nil
+			return authContext, nil
 		case errors.Is(err, errInvalidAPIKey):
 			invalidCredentialErrors = append(invalidCredentialErrors, err)
 		default:
@@ -202,14 +203,14 @@ func authenticateRequest(
 	}
 
 	if len(internalErrors) > 0 {
-		return AuthPrincipal{}, errors.Join(internalErrors...)
+		return AuthContext{}, errors.Join(internalErrors...)
 	}
 
 	if len(invalidCredentialErrors) > 0 {
-		return AuthPrincipal{}, errors.Join(invalidCredentialErrors...)
+		return AuthContext{}, errors.Join(invalidCredentialErrors...)
 	}
 
-	return AuthPrincipal{Scheme: "", UserID: ""}, errMissingCredentials
+	return AuthContext{Scheme: "", UserID: "", APIKey: nil}, errMissingCredentials
 }
 
 // bearerTokenFromHeader parses the <authToken> from the `Bearer <authToken>` header string.
@@ -225,6 +226,6 @@ func bearerTokenFromHeader(authorizationValue string) (string, error) {
 
 func abortWithError(ginContext *gin.Context, statusCode int, message string) {
 	ginContext.AbortWithStatusJSON(statusCode, api_types.ErrorResponse{
-		Message: utils.StrPtr(message),
+		Message: &message,
 	})
 }

@@ -4,55 +4,34 @@ interface Client {
     query: (config: QueryArrayConfig) => Promise<QueryArrayResult>;
 }
 
-export const getApiKeyByIdQuery = `-- name: GetApiKeyById :one
-SELECT id, api_key, created_at FROM public.api_keys 
-WHERE id = $1 LIMIT 1`;
-
-export interface GetApiKeyByIdArgs {
-    id: string;
-}
-
-export interface GetApiKeyByIdRow {
-    id: number;
-    apiKey: string;
-    createdAt: Date | null;
-}
-
-export async function getApiKeyById(client: Client, args: GetApiKeyByIdArgs): Promise<GetApiKeyByIdRow | null> {
-    const result = await client.query({
-        text: getApiKeyByIdQuery,
-        values: [args.id],
-        rowMode: "array"
-    });
-    if (result.rows.length !== 1) {
-        return null;
-    }
-    const row = result.rows[0];
-    return {
-        id: row[0],
-        apiKey: row[1],
-        createdAt: row[2]
-    };
-}
-
 export const getApiKeyQuery = `-- name: GetApiKey :one
-SELECT id, api_key, created_at FROM public.api_keys
-WHERE api_key = $1 LIMIT 1`;
+SELECT
+    api_keys.secret_hash,
+    principals.id AS principal_id,
+    principals.principal_type,
+    principals.user_id,
+    principals.service_id
+FROM
+    public.api_keys
+    INNER JOIN public.principals ON principals.id = api_keys.principal_id
+WHERE secret_hash = $1 LIMIT 1`;
 
 export interface GetApiKeyArgs {
-    apiKey: string;
+    secretHash: string;
 }
 
 export interface GetApiKeyRow {
-    id: number;
-    apiKey: string;
-    createdAt: Date | null;
+    secretHash: string;
+    principalId: string;
+    principalType: string;
+    userId: string | null;
+    serviceId: string | null;
 }
 
 export async function getApiKey(client: Client, args: GetApiKeyArgs): Promise<GetApiKeyRow | null> {
     const result = await client.query({
         text: getApiKeyQuery,
-        values: [args.apiKey],
+        values: [args.secretHash],
         rowMode: "array"
     });
     if (result.rows.length !== 1) {
@@ -60,9 +39,11 @@ export async function getApiKey(client: Client, args: GetApiKeyArgs): Promise<Ge
     }
     const row = result.rows[0];
     return {
-        id: row[0],
-        apiKey: row[1],
-        createdAt: row[2]
+        secretHash: row[0],
+        principalId: row[1],
+        principalType: row[2],
+        userId: row[3],
+        serviceId: row[4]
     };
 }
 

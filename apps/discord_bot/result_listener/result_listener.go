@@ -6,7 +6,7 @@ import (
 	"log"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/utils"
@@ -41,8 +41,8 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		}
 		log.Printf("new simulation_data received, id: %v", notification.Payload)
 
-		var requestID pgtype.UUID
-		if err := requestID.Scan(notification.Payload); err != nil {
+		requestID, err := uuid.Parse(notification.Payload)
+		if err != nil {
 			log.Printf("Error converting request_id payload to uuid: %v", err)
 			continue
 		}
