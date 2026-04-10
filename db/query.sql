@@ -1,10 +1,6 @@
--- name: GetApiKeyById :one
-SELECT * FROM public.api_keys 
-WHERE id = $1 LIMIT 1;
-
 -- name: GetApiKey :one
 SELECT * FROM public.api_keys
-WHERE api_key = $1 LIMIT 1;
+WHERE secret_hash = $1 LIMIT 1;
 
 -- name: GetJwkByID :one
 SELECT *

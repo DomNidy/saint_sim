@@ -5,6 +5,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
 
 	gin "github.com/gin-gonic/gin"
 
@@ -41,6 +42,17 @@ func main() {
 		log.Panicf("API failed to acquire a dbClient, cannot run.")
 	}
 
+	httpClient := &http.Client{
+		Timeout: 5 * time.Second,
+		Transport: &http.Transport{
+			// Allow up to 10 idle connections per host.
+			// A HTTP/1.1 connection can only handle one
+			// request at a time, and we may need to issue
+			// multiple concurrent requests to blizzard armory
+			MaxIdleConnsPerHost: 10,
+		},
+	}
+
 	defer pool.Close()
 	defer simulationQueue.Close()
 
@@ -62,7 +74,7 @@ func main() {
 	authorized := router.Group("/", middleware.AuthRequire(apiKeyValidator, jwtVerifier))
 
 	authorized.POST("/simulation", func(ginContext *gin.Context) {
-		handlers.Simulate(ginContext, dbClient, simulationQueue)
+		handlers.Simulate(ginContext, dbClient, simulationQueue, httpClient)
 	})
 
 	err = router.Run("0.0.0.0:8080")

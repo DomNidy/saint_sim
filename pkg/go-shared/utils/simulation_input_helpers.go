@@ -32,9 +32,9 @@ func ValidateSimOptions(options *api_types.SimulationOptions) error {
 	switch {
 	case !isValidInput(options.WowCharacter.CharacterName):
 		return fmt.Errorf("%w %q", errInvalidCharacterName, options.WowCharacter.CharacterName)
-	case !isValidInput(string(options.WowCharacter.Realm)):
+	case !isValidInput(string(options.WowCharacter.Realm)) || !IsValidWowRealm(string(options.WowCharacter.Realm)):
 		return fmt.Errorf("%w %q", errInvalidRealm, options.WowCharacter.Realm)
-	case !isValidInput(string(options.WowCharacter.Region)):
+	case !isValidInput(string(options.WowCharacter.Region)) || !IsValidWowRegion(string(options.WowCharacter.Region)):
 		return fmt.Errorf("%w %q", errInvalidRegion, options.WowCharacter.Region)
 	default:
 		return nil

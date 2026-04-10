@@ -2,6 +2,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -37,20 +38,22 @@ func Simulate(
 	ginContext *gin.Context,
 	dbClient *db.Queries,
 	simQueue *utils.SimulationQueueClient,
+	httpClient *http.Client,
 ) {
-	simOptions, err := decodeAndValidateSimulationRequest(ginContext)
+	var simOptions api_types.SimulationOptions
+
+	err := ginContext.ShouldBindJSON(&simOptions)
 	if err != nil {
-		var validationFailure *wowCharacterValidationError
-		if errors.As(err, &validationFailure) {
-			ginContext.JSON(validationFailure.statusCode, validationFailure.response)
-
-			return
-		}
-
-		log.Printf("Error checking for character existence: %v", err)
-		ginContext.JSON(http.StatusInternalServerError, api_types.ErrorResponse{
-			Message: utils.StrPtr("Internal server error"),
+		ginContext.JSON(http.StatusBadRequest, api_types.ErrorResponse{
+			Message: utils.StrPtr("Invalid simulation options"),
 		})
+
+		return
+	}
+
+	errValidate := validateSimulationRequest(ginContext, httpClient, simOptions)
+	if errValidate != nil {
+		ginContext.JSON(errValidate.statusCode, errValidate.response)
 
 		return
 	}
@@ -85,21 +88,13 @@ func Simulate(
 	})
 }
 
-func decodeAndValidateSimulationRequest(c *gin.Context) (api_types.SimulationOptions, error) {
-	var simOptions api_types.SimulationOptions
-
-	err := c.ShouldBindJSON(&simOptions)
-	if err != nil {
-		return api_types.SimulationOptions{}, &wowCharacterValidationError{
-			statusCode: http.StatusBadRequest,
-			response: api_types.ErrorResponse{
-				Message: utils.StrPtr("Invalid simulation options"),
-			},
-		}
-	}
-
+func validateSimulationRequest(
+	ctx context.Context,
+	httpClient *http.Client,
+	simOptions api_types.SimulationOptions,
+) *wowCharacterValidationError {
 	if !utils.IsValidSimOptions(&simOptions) {
-		return api_types.SimulationOptions{}, &wowCharacterValidationError{
+		return &wowCharacterValidationError{
 			statusCode: http.StatusBadRequest,
 			response: api_types.ErrorResponse{
 				Message: utils.StrPtr("Bad request"),
@@ -107,12 +102,30 @@ func decodeAndValidateSimulationRequest(c *gin.Context) (api_types.SimulationOpt
 		}
 	}
 
-	err = validateWowCharacter(simOptions.WowCharacter)
+	err := api_utils.CheckWowCharacterExists(ctx, httpClient, &simOptions.WowCharacter)
 	if err != nil {
-		return api_types.SimulationOptions{}, err
+		log.Printf("%v", err)
+
+		if errors.Is(err, api_utils.ErrCharacterNotExistsOnArmory) {
+			return &wowCharacterValidationError{
+				statusCode: http.StatusNotFound,
+				response: api_types.ErrorResponse{
+					Message: utils.StrPtr("Character not found"),
+				},
+			}
+		}
+
+		if errors.Is(err, api_utils.ErrUnexpectedStatusCodeReceivedFromArmory) {
+			return &wowCharacterValidationError{
+				statusCode: http.StatusInternalServerError,
+				response: api_types.ErrorResponse{
+					Message: utils.StrPtr("Internal server error"),
+				},
+			}
+		}
 	}
 
-	return simOptions, nil
+	return nil
 }
 
 func createSimulationRequest(
@@ -125,10 +138,13 @@ func createSimulationRequest(
 		return "", fmt.Errorf("marshal simulation options: %w", err)
 	}
 
-	simEntry, err := dbClient.CreateSimulation(ginContext.Request.Context(), db.CreateSimulationParams{
-		SimConfig: simOptionsJSON,
-		OwnerID:   simulationOwnerID(ginContext),
-	})
+	simEntry, err := dbClient.CreateSimulation(
+		ginContext.Request.Context(),
+		db.CreateSimulationParams{
+			SimConfig: simOptionsJSON,
+			OwnerID:   simulationOwnerID(ginContext),
+		},
+	)
 	if err != nil {
 		return "", fmt.Errorf("create simulation row: %w", err)
 	}
@@ -238,42 +254,4 @@ func simulationStatusFromRecord(simulation db.Simulation) api_types.SimulationSt
 	}
 
 	return api_types.InQueue
-}
-
-func validateWowCharacter(character api_types.WowCharacter) error {
-	if !utils.IsValidWowRealm(string(character.Realm)) {
-		return &wowCharacterValidationError{
-			statusCode: http.StatusBadRequest,
-			response: api_types.ErrorResponse{
-				Message: utils.StrPtr("Invalid wow realm"),
-			},
-		}
-	}
-
-	if !utils.IsValidWowRegion(string(character.Region)) {
-		return &wowCharacterValidationError{
-			statusCode: http.StatusBadRequest,
-			response: api_types.ErrorResponse{
-				Message: utils.StrPtr("Invalid wow region"),
-			},
-		}
-	}
-
-	exists, err := api_utils.CheckWowCharacterExists(&character)
-	if err != nil {
-		return fmt.Errorf("check character existence: %w", err)
-	}
-
-	if !exists {
-		log.Printf("WoW character does not exist")
-
-		return &wowCharacterValidationError{
-			statusCode: http.StatusNotFound,
-			response: api_types.ErrorResponse{
-				Message: utils.StrPtr("WoW character does not exist"),
-			},
-		}
-	}
-
-	return nil
 }

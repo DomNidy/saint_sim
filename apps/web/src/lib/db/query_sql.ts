@@ -4,55 +4,28 @@ interface Client {
     query: (config: QueryArrayConfig) => Promise<QueryArrayResult>;
 }
 
-export const getApiKeyByIdQuery = `-- name: GetApiKeyById :one
-SELECT id, api_key, created_at FROM public.api_keys 
-WHERE id = $1 LIMIT 1`;
-
-export interface GetApiKeyByIdArgs {
-    id: string;
-}
-
-export interface GetApiKeyByIdRow {
-    id: number;
-    apiKey: string;
-    createdAt: Date | null;
-}
-
-export async function getApiKeyById(client: Client, args: GetApiKeyByIdArgs): Promise<GetApiKeyByIdRow | null> {
-    const result = await client.query({
-        text: getApiKeyByIdQuery,
-        values: [args.id],
-        rowMode: "array"
-    });
-    if (result.rows.length !== 1) {
-        return null;
-    }
-    const row = result.rows[0];
-    return {
-        id: row[0],
-        apiKey: row[1],
-        createdAt: row[2]
-    };
-}
-
 export const getApiKeyQuery = `-- name: GetApiKey :one
-SELECT id, api_key, created_at FROM public.api_keys
-WHERE api_key = $1 LIMIT 1`;
+SELECT id, created_at, updated_at, last_used_at, visible_hint, secret_hash, principal_id FROM public.api_keys
+WHERE secret_hash = $1 LIMIT 1`;
 
 export interface GetApiKeyArgs {
-    apiKey: string;
+    secretHash: string;
 }
 
 export interface GetApiKeyRow {
     id: number;
-    apiKey: string;
-    createdAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    lastUsedAt: Date | null;
+    visibleHint: string;
+    secretHash: string;
+    principalId: string;
 }
 
 export async function getApiKey(client: Client, args: GetApiKeyArgs): Promise<GetApiKeyRow | null> {
     const result = await client.query({
         text: getApiKeyQuery,
-        values: [args.apiKey],
+        values: [args.secretHash],
         rowMode: "array"
     });
     if (result.rows.length !== 1) {
@@ -61,8 +34,12 @@ export async function getApiKey(client: Client, args: GetApiKeyArgs): Promise<Ge
     const row = result.rows[0];
     return {
         id: row[0],
-        apiKey: row[1],
-        createdAt: row[2]
+        createdAt: row[1],
+        updatedAt: row[2],
+        lastUsedAt: row[3],
+        visibleHint: row[4],
+        secretHash: row[5],
+        principalId: row[6]
     };
 }
 

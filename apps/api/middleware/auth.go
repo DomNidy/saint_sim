@@ -131,10 +131,15 @@ func GetAuthPrincipal(ginContext *gin.Context) (AuthPrincipal, bool) {
 	return principal, true
 }
 
-func (validator *dbAPIKeyValidator) Validate(c context.Context, rawAPIKey string) error {
-	hashedAPIKey := api_utils.HashApiKey(rawAPIKey)
+func (validator *dbAPIKeyValidator) Validate(ctx context.Context, rawAPIKey string) error {
+	secretPortion, ok := sliceSecretFromAPIKey(rawAPIKey)
+	if !ok {
+		return fmt.Errorf("invalid API key")
+	}
 
-	resAPIKey, err := validator.lookup.GetApiKey(c, hashedAPIKey)
+	hashedAPIKey := api_utils.HashAPIKey(secretPortion)
+
+	resAPIKey, err := validator.lookup.GetApiKey(ctx, hashedAPIKey)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errInvalidAPIKey
@@ -144,11 +149,25 @@ func (validator *dbAPIKeyValidator) Validate(c context.Context, rawAPIKey string
 	}
 
 	// sanity check
-	if resAPIKey.ApiKey != hashedAPIKey {
+	if resAPIKey.SecretHash != hashedAPIKey {
 		return errAPIKeySanityCheckFail
 	}
 
 	return nil
+}
+
+// sliceSecretFromAPIKey extracts the "secret" portion a raw API key string.
+// example: "sk_test_12345" -> "12345" is returned.
+func sliceSecretFromAPIKey(rawAPIKey string) (string, bool) {
+	lastIndex := strings.LastIndex(rawAPIKey, "_")
+
+	if lastIndex == -1 || lastIndex == len(rawAPIKey)-1 {
+		return "", false
+	}
+
+	secretPart := rawAPIKey[lastIndex+1:]
+
+	return secretPart, true
 }
 
 // authenticateRequest authenticates an incoming request. Supports both API key and

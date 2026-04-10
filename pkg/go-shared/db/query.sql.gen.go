@@ -39,26 +39,22 @@ func (q *Queries) CreateSimulation(ctx context.Context, arg CreateSimulationPara
 }
 
 const getApiKey = `-- name: GetApiKey :one
-SELECT id, api_key, created_at FROM public.api_keys
-WHERE api_key = $1 LIMIT 1
+SELECT id, created_at, updated_at, last_used_at, visible_hint, secret_hash, principal_id FROM public.api_keys
+WHERE secret_hash = $1 LIMIT 1
 `
 
-func (q *Queries) GetApiKey(ctx context.Context, apiKey string) (ApiKey, error) {
-	row := q.db.QueryRow(ctx, getApiKey, apiKey)
+func (q *Queries) GetApiKey(ctx context.Context, secretHash string) (ApiKey, error) {
+	row := q.db.QueryRow(ctx, getApiKey, secretHash)
 	var i ApiKey
-	err := row.Scan(&i.ID, &i.ApiKey, &i.CreatedAt)
-	return i, err
-}
-
-const getApiKeyById = `-- name: GetApiKeyById :one
-SELECT id, api_key, created_at FROM public.api_keys 
-WHERE id = $1 LIMIT 1
-`
-
-func (q *Queries) GetApiKeyById(ctx context.Context, id int32) (ApiKey, error) {
-	row := q.db.QueryRow(ctx, getApiKeyById, id)
-	var i ApiKey
-	err := row.Scan(&i.ID, &i.ApiKey, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.LastUsedAt,
+		&i.VisibleHint,
+		&i.SecretHash,
+		&i.PrincipalID,
+	)
 	return i, err
 }
 

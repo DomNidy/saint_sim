@@ -160,7 +160,13 @@ func TestAuthRequireRejectsMissingCredentials(t *testing.T) {
 func TestJWTVerifierValidatesClaimsAndSignature(t *testing.T) {
 	t.Parallel()
 
-	publicKeyJSON, signedToken := signedTestJWT(t, "test-kid", "https://auth.example.com", "saint-api", "user-42")
+	publicKeyJSON, signedToken := signedTestJWT(
+		t,
+		"test-kid",
+		"https://auth.example.com",
+		"saint-api",
+		"user-42",
+	)
 	verifier := NewJWTVerifier(
 		stubJWTKeyLookup{
 			get: func(_ context.Context, id string) (dbqueries.Jwk, error) {
@@ -193,7 +199,13 @@ func TestJWTVerifierValidatesClaimsAndSignature(t *testing.T) {
 func TestJWTVerifierRejectsWrongAudience(t *testing.T) {
 	t.Parallel()
 
-	publicKeyJSON, signedToken := signedTestJWT(t, "test-kid", "https://auth.example.com", "wrong-audience", "user-42")
+	publicKeyJSON, signedToken := signedTestJWT(
+		t,
+		"test-kid",
+		"https://auth.example.com",
+		"wrong-audience",
+		"user-42",
+	)
 	verifier := NewJWTVerifier(
 		stubJWTKeyLookup{
 			get: func(context.Context, string) (dbqueries.Jwk, error) {
@@ -216,7 +228,13 @@ func TestJWTVerifierRejectsWrongAudience(t *testing.T) {
 func TestJWTVerifierRejectsUnknownKeyID(t *testing.T) {
 	t.Parallel()
 
-	_, signedToken := signedTestJWT(t, "missing-kid", "https://auth.example.com", "saint-api", "user-42")
+	_, signedToken := signedTestJWT(
+		t,
+		"missing-kid",
+		"https://auth.example.com",
+		"saint-api",
+		"user-42",
+	)
 	verifier := NewJWTVerifier(
 		stubJWTKeyLookup{
 			get: func(context.Context, string) (dbqueries.Jwk, error) {
@@ -230,6 +248,54 @@ func TestJWTVerifierRejectsUnknownKeyID(t *testing.T) {
 	_, err := verifier.Verify(context.Background(), signedToken)
 	if !errors.Is(err, errInvalidBearerToken) {
 		t.Fatalf("expected invalid bearer token, got %v", err)
+	}
+}
+
+func TestSliceSecretFromApiKey(t *testing.T) {
+	t.Parallel()
+	type expectedResult struct {
+		input  string
+		secret string
+		ok     bool
+	}
+
+	// #nosec G101 -- test fixture
+	cases := []expectedResult{
+		{
+			input:  "sk_live_ae2313f129305104310",
+			secret: "ae2313f129305104310",
+			ok:     true,
+		},
+		{
+			input:  "sk_org_live_test_12345abc",
+			secret: "12345abc",
+			ok:     true,
+		},
+		{
+			input:  "sk_test_",
+			secret: "",
+			ok:     false,
+		},
+	}
+
+	for _, testCase := range cases {
+		secret, ok := sliceSecretFromAPIKey(testCase.input)
+		if secret != testCase.secret {
+			t.Fatalf(
+				"Extracted secret '%s' did not match expected '%s'. Input: '%s'",
+				secret,
+				testCase.secret,
+				testCase.input,
+			)
+		}
+		if ok != testCase.ok {
+			t.Fatalf(
+				"Expected %v, but got %v. Input: '%v'",
+				testCase.ok,
+				ok,
+				testCase.input,
+			)
+		}
 	}
 }
 
