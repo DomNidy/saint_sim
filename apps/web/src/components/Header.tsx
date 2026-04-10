@@ -17,14 +17,14 @@ export default function Header() {
 						Home
 					</Link>
 					<Link
-						to="/dashboard"
+						to="/simulate"
 						className="nav-link"
 						activeProps={{ className: "nav-link is-active" }}
 					>
-						Dashboard
+						Simulate
 					</Link>
 				</div>
 			</nav>
-		</header >
+		</header>
 	);
 }

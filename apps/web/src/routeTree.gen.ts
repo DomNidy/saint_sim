@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SimulateRouteImport } from './routes/simulate'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SimulationSimulationIdRouteImport } from './routes/simulation/$simulationId'
 import { Route as ProtectedAccountRouteImport } from './routes/_protected/account'
 import { Route as AuthSignUpIndexRouteImport } from './routes/auth/sign-up/index'
 import { Route as AuthSignInIndexRouteImport } from './routes/auth/sign-in/index'
@@ -29,6 +30,11 @@ const ProtectedRoute = ProtectedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SimulationSimulationIdRoute = SimulationSimulationIdRouteImport.update({
+  id: '/simulation/$simulationId',
+  path: '/simulation/$simulationId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectedAccountRoute = ProtectedAccountRouteImport.update({
@@ -56,6 +62,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/simulate': typeof SimulateRoute
   '/account': typeof ProtectedAccountRoute
+  '/simulation/$simulationId': typeof SimulationSimulationIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/auth/sign-in/': typeof AuthSignInIndexRoute
   '/auth/sign-up/': typeof AuthSignUpIndexRoute
@@ -64,6 +71,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/simulate': typeof SimulateRoute
   '/account': typeof ProtectedAccountRoute
+  '/simulation/$simulationId': typeof SimulationSimulationIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/auth/sign-in': typeof AuthSignInIndexRoute
   '/auth/sign-up': typeof AuthSignUpIndexRoute
@@ -74,6 +82,7 @@ export interface FileRoutesById {
   '/_protected': typeof ProtectedRouteWithChildren
   '/simulate': typeof SimulateRoute
   '/_protected/account': typeof ProtectedAccountRoute
+  '/simulation/$simulationId': typeof SimulationSimulationIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/auth/sign-in/': typeof AuthSignInIndexRoute
   '/auth/sign-up/': typeof AuthSignUpIndexRoute
@@ -84,6 +93,7 @@ export interface FileRouteTypes {
     | '/'
     | '/simulate'
     | '/account'
+    | '/simulation/$simulationId'
     | '/api/auth/$'
     | '/auth/sign-in/'
     | '/auth/sign-up/'
@@ -92,6 +102,7 @@ export interface FileRouteTypes {
     | '/'
     | '/simulate'
     | '/account'
+    | '/simulation/$simulationId'
     | '/api/auth/$'
     | '/auth/sign-in'
     | '/auth/sign-up'
@@ -101,6 +112,7 @@ export interface FileRouteTypes {
     | '/_protected'
     | '/simulate'
     | '/_protected/account'
+    | '/simulation/$simulationId'
     | '/api/auth/$'
     | '/auth/sign-in/'
     | '/auth/sign-up/'
@@ -110,6 +122,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProtectedRoute: typeof ProtectedRouteWithChildren
   SimulateRoute: typeof SimulateRoute
+  SimulationSimulationIdRoute: typeof SimulationSimulationIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   AuthSignInIndexRoute: typeof AuthSignInIndexRoute
   AuthSignUpIndexRoute: typeof AuthSignUpIndexRoute
@@ -136,6 +149,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/simulation/$simulationId': {
+      id: '/simulation/$simulationId'
+      path: '/simulation/$simulationId'
+      fullPath: '/simulation/$simulationId'
+      preLoaderRoute: typeof SimulationSimulationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_protected/account': {
@@ -185,6 +205,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProtectedRoute: ProtectedRouteWithChildren,
   SimulateRoute: SimulateRoute,
+  SimulationSimulationIdRoute: SimulationSimulationIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   AuthSignInIndexRoute: AuthSignInIndexRoute,
   AuthSignUpIndexRoute: AuthSignUpIndexRoute,

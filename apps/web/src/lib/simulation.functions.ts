@@ -6,10 +6,6 @@ import type { ErrorResponse } from "@/lib/saint-api/generated";
 import { getSimulation, simulate } from "@/lib/saint-api/generated";
 import { saintApiClient } from "./saint-api/saint-api-client";
 
-const simulationResultLookupSchema = z.object({
-	requestId: z.uuid(),
-});
-
 /**
  * Extract API message from response when present, otherwise use the
  * supplied fallback.
@@ -55,7 +51,6 @@ export const submitSimulationRequest = createServerFn({ method: "POST" })
 
 		const payload = response.data;
 
-
 		if (!payload.simulation_id) {
 			throw new Error("Saint API did not return a simulation id.");
 		}
@@ -65,20 +60,19 @@ export const submitSimulationRequest = createServerFn({ method: "POST" })
 		};
 	});
 
-export const getSimulationResultByRequestId = createServerFn()
-	.middleware([requireAuthMiddleware])
-	.inputValidator(simulationResultLookupSchema)
+export const getSimulationResult = createServerFn()
+	.inputValidator(z.object({ simulationId: z.uuid() }))
 	.handler(async ({ data }) => {
 		const response = await getSimulation({
 			client: saintApiClient,
-			path: { id: data.requestId },
+			path: { id: data.simulationId },
 		});
 
 		if (response.error || !response.data) {
 			throw new Error(
 				readSaintApiErrorMessage(
 					response.error,
-					`Unable to retrieve simulation status for ${data.requestId}.`,
+					`Unable to retrieve simulation status for sim ${data.simulationId}.`,
 				),
 			);
 		}

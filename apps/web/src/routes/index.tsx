@@ -20,7 +20,7 @@ function App() {
 				<CardContent>
 					<Link
 						to="/simulate"
-						className="text-sm font-medium text-[var(--sea-ink)] underline underline-offset-4 transition-opacity hover:opacity-80"
+						className="text-sm font-medium  underline underline-offset-4 transition-opacity hover:opacity-80"
 					>
 						Go to simulation
 					</Link>

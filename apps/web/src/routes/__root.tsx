@@ -1,21 +1,18 @@
+import { TanStackDevtools } from "@tanstack/react-devtools";
+import type { QueryClient } from "@tanstack/react-query";
 import {
+	createRootRouteWithContext,
 	HeadContent,
 	Scripts,
-	createRootRouteWithContext,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
-import { TanStackDevtools } from "@tanstack/react-devtools";
+import type { Auth } from "better-auth/types";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
-
-import TanStackQueryProvider from "../integrations/tanstack-query/root-provider";
-
+import { TooltipProvider } from "../components/ui/tooltip";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
-
+import TanStackQueryProvider from "../integrations/tanstack-query/root-provider";
 import appCss from "../styles.css?url";
-
-import type { QueryClient } from "@tanstack/react-query";
-import type { Auth } from "better-auth/types";
 
 /**
  * Context object to pass things along routes
@@ -55,27 +52,30 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en" suppressHydrationWarning>
 			<head>
+				{/** biome-ignore lint/security/noDangerouslySetInnerHtml: dark mode script */}
 				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
 				<HeadContent />
 			</head>
-			<body className="font-sans antialiased [overflow-wrap:anywhere] selection:bg-[rgba(79,184,178,0.24)]">
-				<TanStackQueryProvider>
-					<Header />
-					{children}
-					<Footer />
-					<TanStackDevtools
-						config={{
-							position: "bottom-right",
-						}}
-						plugins={[
-							{
-								name: "Tanstack Router",
-								render: <TanStackRouterDevtoolsPanel />,
-							},
-							TanStackQueryDevtools,
-						]}
-					/>
-				</TanStackQueryProvider>
+			<body className="font-sans antialiased wrap-anywhere">
+				<TooltipProvider>
+					<TanStackQueryProvider>
+						<Header />
+						{children}
+						<Footer />
+						<TanStackDevtools
+							config={{
+								position: "bottom-right",
+							}}
+							plugins={[
+								{
+									name: "Tanstack Router",
+									render: <TanStackRouterDevtoolsPanel />,
+								},
+								TanStackQueryDevtools,
+							]}
+						/>
+					</TanStackQueryProvider>
+				</TooltipProvider>
 				<Scripts />
 			</body>
 		</html>
