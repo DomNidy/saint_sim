@@ -8,6 +8,7 @@ package db
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -39,21 +40,35 @@ func (q *Queries) CreateSimulation(ctx context.Context, arg CreateSimulationPara
 }
 
 const getApiKey = `-- name: GetApiKey :one
-SELECT id, created_at, updated_at, last_used_at, visible_hint, secret_hash, principal_id FROM public.api_keys
+SELECT
+    api_keys.secret_hash,
+    principals.id AS principal_id,
+    principals.principal_type,
+    principals.user_id,
+    principals.service_id
+FROM
+    public.api_keys
+    INNER JOIN public.principals ON principals.id = api_keys.principal_id
 WHERE secret_hash = $1 LIMIT 1
 `
 
-func (q *Queries) GetApiKey(ctx context.Context, secretHash string) (ApiKey, error) {
+type GetApiKeyRow struct {
+	SecretHash    string
+	PrincipalID   uuid.UUID
+	PrincipalType PrincipalType
+	UserID        *string
+	ServiceID     *uuid.UUID
+}
+
+func (q *Queries) GetApiKey(ctx context.Context, secretHash string) (GetApiKeyRow, error) {
 	row := q.db.QueryRow(ctx, getApiKey, secretHash)
-	var i ApiKey
+	var i GetApiKeyRow
 	err := row.Scan(
-		&i.ID,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.LastUsedAt,
-		&i.VisibleHint,
 		&i.SecretHash,
 		&i.PrincipalID,
+		&i.PrincipalType,
+		&i.UserID,
+		&i.ServiceID,
 	)
 	return i, err
 }

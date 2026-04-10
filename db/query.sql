@@ -1,5 +1,13 @@
 -- name: GetApiKey :one
-SELECT * FROM public.api_keys
+SELECT
+    api_keys.secret_hash,
+    principals.id AS principal_id,
+    principals.principal_type,
+    principals.user_id,
+    principals.service_id
+FROM
+    public.api_keys
+    INNER JOIN public.principals ON principals.id = api_keys.principal_id
 WHERE secret_hash = $1 LIMIT 1;
 
 -- name: GetJwkByID :one

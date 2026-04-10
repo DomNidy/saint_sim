@@ -158,8 +158,8 @@ func createSimulationRequest(
 }
 
 func simulationOwnerID(ginContext *gin.Context) pgtype.Text {
-	principal, ok := middleware.GetAuthPrincipal(ginContext)
-	if !ok || principal.Scheme != middleware.AuthSchemeBearer || principal.UserID == "" {
+	userID, ok := middleware.GetEffectiveUserID(ginContext)
+	if !ok {
 		return pgtype.Text{
 			String: "",
 			Valid:  false,
@@ -167,7 +167,7 @@ func simulationOwnerID(ginContext *gin.Context) pgtype.Text {
 	}
 
 	return pgtype.Text{
-		String: principal.UserID,
+		String: userID,
 		Valid:  true,
 	}
 }

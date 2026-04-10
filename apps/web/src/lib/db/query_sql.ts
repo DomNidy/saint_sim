@@ -5,7 +5,15 @@ interface Client {
 }
 
 export const getApiKeyQuery = `-- name: GetApiKey :one
-SELECT id, created_at, updated_at, last_used_at, visible_hint, secret_hash, principal_id FROM public.api_keys
+SELECT
+    api_keys.secret_hash,
+    principals.id AS principal_id,
+    principals.principal_type,
+    principals.user_id,
+    principals.service_id
+FROM
+    public.api_keys
+    INNER JOIN public.principals ON principals.id = api_keys.principal_id
 WHERE secret_hash = $1 LIMIT 1`;
 
 export interface GetApiKeyArgs {
@@ -13,13 +21,11 @@ export interface GetApiKeyArgs {
 }
 
 export interface GetApiKeyRow {
-    id: number;
-    createdAt: Date;
-    updatedAt: Date;
-    lastUsedAt: Date | null;
-    visibleHint: string;
     secretHash: string;
     principalId: string;
+    principalType: string;
+    userId: string | null;
+    serviceId: string | null;
 }
 
 export async function getApiKey(client: Client, args: GetApiKeyArgs): Promise<GetApiKeyRow | null> {
@@ -33,13 +39,11 @@ export async function getApiKey(client: Client, args: GetApiKeyArgs): Promise<Ge
     }
     const row = result.rows[0];
     return {
-        id: row[0],
-        createdAt: row[1],
-        updatedAt: row[2],
-        lastUsedAt: row[3],
-        visibleHint: row[4],
-        secretHash: row[5],
-        principalId: row[6]
+        secretHash: row[0],
+        principalId: row[1],
+        principalType: row[2],
+        userId: row[3],
+        serviceId: row[4]
     };
 }
 
@@ -254,4 +258,3 @@ export async function listenNewSimulationData(client: Client): Promise<void> {
         rowMode: "array"
     });
 }
-

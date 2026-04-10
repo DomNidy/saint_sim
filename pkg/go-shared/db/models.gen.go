@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -76,7 +77,7 @@ type ApiKey struct {
 	LastUsedAt  pgtype.Timestamptz
 	VisibleHint string
 	SecretHash  string
-	PrincipalID pgtype.UUID
+	PrincipalID uuid.UUID
 }
 
 type Jwk struct {
@@ -88,9 +89,9 @@ type Jwk struct {
 }
 
 type Principal struct {
-	ID            pgtype.UUID
-	ServiceID     pgtype.UUID
-	UserID        pgtype.Text
+	ID            uuid.UUID
+	ServiceID     *uuid.UUID
+	UserID        *string
 	PrincipalType PrincipalType
 }
 

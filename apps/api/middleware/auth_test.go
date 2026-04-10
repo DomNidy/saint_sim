@@ -15,24 +15,28 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-jose/go-jose/v4"
 	gojwt "github.com/go-jose/go-jose/v4/jwt"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
 )
 
-type stubAPIKeyValidator struct {
-	validate func(context.Context, string) error
+type stubAPIKeyAuthenticator struct {
+	authenticate func(context.Context, string) (AuthContext, error)
 }
 
-func (stub stubAPIKeyValidator) Validate(ctx context.Context, rawAPIKey string) error {
-	return stub.validate(ctx, rawAPIKey)
+func (stub stubAPIKeyAuthenticator) Authenticate(
+	ctx context.Context,
+	rawAPIKey string,
+) (AuthContext, error) {
+	return stub.authenticate(ctx, rawAPIKey)
 }
 
 type stubJWTVerifier struct {
-	verify func(context.Context, string) (AuthPrincipal, error)
+	verify func(context.Context, string) (AuthContext, error)
 }
 
-func (stub stubJWTVerifier) Verify(ctx context.Context, rawToken string) (AuthPrincipal, error) {
+func (stub stubJWTVerifier) Verify(ctx context.Context, rawToken string) (AuthContext, error) {
 	return stub.verify(ctx, rawToken)
 }
 
@@ -50,29 +54,29 @@ func TestAuthRequireAcceptsBearerJWT(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(AuthRequire(
-		stubAPIKeyValidator{validate: func(context.Context, string) error {
+		stubAPIKeyAuthenticator{authenticate: func(context.Context, string) (AuthContext, error) {
 			t.Fatal("api key validator should not run when bearer auth succeeds")
 
-			return nil
+			return AuthContext{}, nil
 		}},
-		stubJWTVerifier{verify: func(_ context.Context, rawToken string) (AuthPrincipal, error) {
+		stubJWTVerifier{verify: func(_ context.Context, rawToken string) (AuthContext, error) {
 			if rawToken != "valid-token" {
 				t.Fatalf("unexpected token %q", rawToken)
 			}
 
-			return AuthPrincipal{
+			return AuthContext{
 				Scheme: AuthSchemeBearer,
 				UserID: "user_123",
 			}, nil
 		}},
 	))
 	router.POST("/", func(c *gin.Context) {
-		principal, ok := GetAuthPrincipal(c)
+		authContext, ok := GetAuthContext(c)
 		if !ok {
-			t.Fatal("auth principal missing")
+			t.Fatal("auth context missing")
 		}
-		if principal.UserID != "user_123" {
-			t.Fatalf("unexpected user id %q", principal.UserID)
+		if authContext.UserID != "user_123" {
+			t.Fatalf("unexpected user id %q", authContext.UserID)
 		}
 
 		c.Status(http.StatusNoContent)
@@ -95,24 +99,38 @@ func TestAuthRequireFallsBackToAPIKey(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(AuthRequire(
-		stubAPIKeyValidator{validate: func(_ context.Context, rawAPIKey string) error {
+		stubAPIKeyAuthenticator{authenticate: func(_ context.Context, rawAPIKey string) (AuthContext, error) {
 			if rawAPIKey != "good-api-key" {
 				t.Fatalf("unexpected api key %q", rawAPIKey)
 			}
 
-			return nil
+			userID := "user_123"
+
+			return AuthContext{
+				Scheme: AuthSchemeAPIKey,
+				APIKey: &dbqueries.GetApiKeyRow{
+					SecretHash:    "hashed-key",
+					PrincipalID:   uuid.MustParse("3ef10f0f-cd18-454d-8724-e0d9d3ac67bf"),
+					PrincipalType: dbqueries.PrincipalTypeUser,
+					UserID:        &userID,
+					ServiceID:     nil,
+				},
+			}, nil
 		}},
-		stubJWTVerifier{verify: func(context.Context, string) (AuthPrincipal, error) {
-			return AuthPrincipal{Scheme: "", UserID: ""}, errInvalidBearerToken
+		stubJWTVerifier{verify: func(context.Context, string) (AuthContext, error) {
+			return AuthContext{Scheme: "", UserID: "", APIKey: nil}, errInvalidBearerToken
 		}},
 	))
 	router.POST("/", func(c *gin.Context) {
-		principal, ok := GetAuthPrincipal(c)
+		authContext, ok := GetAuthContext(c)
 		if !ok {
-			t.Fatal("auth principal missing")
+			t.Fatal("auth context missing")
 		}
-		if principal.Scheme != AuthSchemeAPIKey {
-			t.Fatalf("unexpected auth scheme %q", principal.Scheme)
+		if authContext.Scheme != AuthSchemeAPIKey {
+			t.Fatalf("unexpected auth scheme %q", authContext.Scheme)
+		}
+		if authContext.APIKey == nil || authContext.APIKey.PrincipalType != dbqueries.PrincipalTypeUser {
+			t.Fatalf("expected user-owned api key auth context, got %#v", authContext.APIKey)
 		}
 
 		c.Status(http.StatusNoContent)
@@ -136,11 +154,11 @@ func TestAuthRequireRejectsMissingCredentials(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(AuthRequire(
-		stubAPIKeyValidator{validate: func(context.Context, string) error {
-			return nil
+		stubAPIKeyAuthenticator{authenticate: func(context.Context, string) (AuthContext, error) {
+			return AuthContext{}, nil
 		}},
-		stubJWTVerifier{verify: func(context.Context, string) (AuthPrincipal, error) {
-			return AuthPrincipal{Scheme: "", UserID: ""}, nil
+		stubJWTVerifier{verify: func(context.Context, string) (AuthContext, error) {
+			return AuthContext{Scheme: "", UserID: "", APIKey: nil}, nil
 		}},
 	))
 	router.POST("/", func(c *gin.Context) {
@@ -193,6 +211,57 @@ func TestJWTVerifierValidatesClaimsAndSignature(t *testing.T) {
 	}
 	if principal.UserID != "user-42" {
 		t.Fatalf("unexpected user id %q", principal.UserID)
+	}
+}
+
+func TestAuthRequireAcceptsServiceOwnedAPIKey(t *testing.T) {
+	t.Parallel()
+
+	serviceID := uuid.MustParse("0d8be06d-a5d2-45ed-b462-1b310813210f")
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(AuthRequire(
+		stubAPIKeyAuthenticator{authenticate: func(_ context.Context, rawAPIKey string) (AuthContext, error) {
+			if rawAPIKey != "service-api-key" {
+				t.Fatalf("unexpected api key %q", rawAPIKey)
+			}
+
+			return AuthContext{
+				Scheme: AuthSchemeAPIKey,
+				APIKey: &dbqueries.GetApiKeyRow{
+					SecretHash:    "hashed-key",
+					PrincipalID:   uuid.MustParse("4d3c35af-430f-45de-9d12-ec3b84db5042"),
+					PrincipalType: dbqueries.PrincipalTypeService,
+					UserID:        nil,
+					ServiceID:     &serviceID,
+				},
+			}, nil
+		}},
+		stubJWTVerifier{verify: func(context.Context, string) (AuthContext, error) {
+			return AuthContext{Scheme: "", UserID: "", APIKey: nil}, errInvalidBearerToken
+		}},
+	))
+	router.POST("/", func(c *gin.Context) {
+		authContext, ok := GetAuthContext(c)
+		if !ok {
+			t.Fatal("auth context missing")
+		}
+		if authContext.APIKey == nil || authContext.APIKey.PrincipalType != dbqueries.PrincipalTypeService {
+			t.Fatalf("expected service-owned api key auth context, got %#v", authContext.APIKey)
+		}
+
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	req.Header.Set("Api-Key", "service-api-key")
+	recorder := httptest.NewRecorder()
+
+	router.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusNoContent {
+		t.Fatalf("unexpected status %d", recorder.Code)
 	}
 }
 
@@ -296,6 +365,71 @@ func TestSliceSecretFromApiKey(t *testing.T) {
 				testCase.input,
 			)
 		}
+	}
+}
+
+func TestEffectiveUserID(t *testing.T) {
+	t.Parallel()
+
+	userID := "user-42"
+
+	cases := []struct {
+		name        string
+		authContext AuthContext
+		expectedID  string
+		expectedOK  bool
+	}{
+		{
+			name: "bearer auth",
+			authContext: AuthContext{
+				Scheme: AuthSchemeBearer,
+				UserID: userID,
+			},
+			expectedID: userID,
+			expectedOK: true,
+		},
+		{
+			name: "user-owned api key",
+			authContext: AuthContext{
+				Scheme: AuthSchemeAPIKey,
+				APIKey: &dbqueries.GetApiKeyRow{
+					PrincipalType: dbqueries.PrincipalTypeUser,
+					UserID:        &userID,
+				},
+			},
+			expectedID: userID,
+			expectedOK: true,
+		},
+		{
+			name: "service-owned api key",
+			authContext: AuthContext{
+				Scheme: AuthSchemeAPIKey,
+				APIKey: &dbqueries.GetApiKeyRow{
+					PrincipalType: dbqueries.PrincipalTypeService,
+				},
+			},
+			expectedID: "",
+			expectedOK: false,
+		},
+	}
+
+	for _, testCase := range cases {
+		testCase := testCase
+
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			actualID, actualOK := EffectiveUserID(testCase.authContext)
+			if actualID != testCase.expectedID || actualOK != testCase.expectedOK {
+				t.Fatalf(
+					"EffectiveUserID() = (%q, %v), want (%q, %v)",
+					actualID,
+					actualOK,
+					testCase.expectedID,
+					testCase.expectedOK,
+				)
+			}
+		})
 	}
 }
 

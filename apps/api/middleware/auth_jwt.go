@@ -38,14 +38,14 @@ func NewJWTVerifier(keyLookup JWTKeyLookup, issuer string, audience string) JWTV
 }
 
 //nolint:cyclop // JWT verification intentionally checks several independent failure modes.
-func (verifier *dbJWTVerifier) Verify(ctx context.Context, rawToken string) (AuthPrincipal, error) {
+func (verifier *dbJWTVerifier) Verify(ctx context.Context, rawToken string) (AuthContext, error) {
 	parsedToken, err := gojwt.ParseSigned(rawToken, supportedJWTAlgorithms())
 	if err != nil {
-		return AuthPrincipal{}, fmt.Errorf("%w: parse signed token: %w", errInvalidBearerToken, err)
+		return AuthContext{}, fmt.Errorf("%w: parse signed token: %w", errInvalidBearerToken, err)
 	}
 
 	if len(parsedToken.Headers) == 0 {
-		return AuthPrincipal{}, fmt.Errorf(
+		return AuthContext{}, fmt.Errorf(
 			"%w: token missing protected headers",
 			errInvalidBearerToken,
 		)
@@ -55,28 +55,28 @@ func (verifier *dbJWTVerifier) Verify(ctx context.Context, rawToken string) (Aut
 	// key ID header set.
 	keyID := strings.TrimSpace(parsedToken.Headers[0].KeyID)
 	if keyID == "" {
-		return AuthPrincipal{}, fmt.Errorf("%w: token missing key id", errInvalidBearerToken)
+		return AuthContext{}, fmt.Errorf("%w: token missing key id", errInvalidBearerToken)
 	}
 
 	jwkRecord, err := verifier.keyLookup.GetJwkByID(ctx, keyID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return AuthPrincipal{}, fmt.Errorf("%w: unknown signing key", errInvalidBearerToken)
+			return AuthContext{}, fmt.Errorf("%w: unknown signing key", errInvalidBearerToken)
 		}
 
-		return AuthPrincipal{}, fmt.Errorf("load jwk %q: %w", keyID, err)
+		return AuthContext{}, fmt.Errorf("load jwk %q: %w", keyID, err)
 	}
 
 	publicKey, err := parseStoredPublicJWK(jwkRecord.PublicKey)
 	if err != nil {
-		return AuthPrincipal{}, fmt.Errorf("parse jwk %q: %w", keyID, err)
+		return AuthContext{}, fmt.Errorf("parse jwk %q: %w", keyID, err)
 	}
 
 	var claims gojwt.Claims
 
 	err = parsedToken.Claims(publicKey.Key, &claims)
 	if err != nil {
-		return AuthPrincipal{}, fmt.Errorf(
+		return AuthContext{}, fmt.Errorf(
 			"%w: verify token signature: %w",
 			errInvalidBearerToken,
 			err,
@@ -93,7 +93,7 @@ func (verifier *dbJWTVerifier) Verify(ctx context.Context, rawToken string) (Aut
 
 	err = claims.ValidateWithLeeway(expectedClaims, 0)
 	if err != nil {
-		return AuthPrincipal{}, fmt.Errorf(
+		return AuthContext{}, fmt.Errorf(
 			"%w: validate standard claims: %w",
 			errInvalidBearerToken,
 			err,
@@ -101,14 +101,14 @@ func (verifier *dbJWTVerifier) Verify(ctx context.Context, rawToken string) (Aut
 	}
 
 	if !claims.Audience.Contains(verifier.audience) {
-		return AuthPrincipal{}, fmt.Errorf("%w: unexpected audience", errInvalidBearerToken)
+		return AuthContext{}, fmt.Errorf("%w: unexpected audience", errInvalidBearerToken)
 	}
 
 	if strings.TrimSpace(claims.Subject) == "" {
-		return AuthPrincipal{}, fmt.Errorf("%w: missing subject", errInvalidBearerToken)
+		return AuthContext{}, fmt.Errorf("%w: missing subject", errInvalidBearerToken)
 	}
 
-	return AuthPrincipal{
+	return AuthContext{
 		Scheme: AuthSchemeBearer,
 		UserID: claims.Subject,
 	}, nil

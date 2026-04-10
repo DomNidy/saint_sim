@@ -77,7 +77,7 @@ func SendSimulationRequest(
 	i *discordgo.InteractionCreate,
 	options *api_types.SimulationOptions,
 ) (*api_types.Simulation, error) {
-	url := constants.SaintApiUrl.Value() + "/simulate"
+	url := constants.SaintApiUrl.Value() + "/simulation"
 	jsonData, err := json.Marshal(options)
 	if err != nil {
 		return nil, err

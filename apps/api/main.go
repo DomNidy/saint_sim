@@ -69,9 +69,9 @@ func main() {
 	})
 
 	// Authorization group: https://gin-gonic.com/zh-tw/docs/examples/using-middleware/
-	apiKeyValidator := middleware.NewAPIKeyValidator(dbClient)
+	apiKeyAuthenticator := middleware.NewAPIKeyAuthenticator(dbClient)
 	jwtVerifier := middleware.NewJWTVerifier(dbClient, betterAuthURL, "saint-api")
-	authorized := router.Group("/", middleware.AuthRequire(apiKeyValidator, jwtVerifier))
+	authorized := router.Group("/", middleware.AuthRequire(apiKeyAuthenticator, jwtVerifier))
 
 	authorized.POST("/simulation", func(ginContext *gin.Context) {
 		handlers.Simulate(ginContext, dbClient, simulationQueue, httpClient)
