@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
-	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
+	api_types "github.com/DomNidy/saint_sim/pkg/api_types"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
 )
 
 type simulationStore struct {

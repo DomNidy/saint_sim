@@ -5,7 +5,7 @@ import (
 
 	resultlistener "github.com/DomNidy/saint_sim/apps/discord_bot/result_listener"
 	utils "github.com/DomNidy/saint_sim/apps/discord_bot/utils"
-	saintutils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
+	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
 
 	"github.com/bwmarrin/discordgo"
 )

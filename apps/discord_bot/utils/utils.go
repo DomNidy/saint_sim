@@ -12,8 +12,8 @@ import (
 	"github.com/bwmarrin/discordgo"
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
-	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
-	saintutils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
+	api_types "github.com/DomNidy/saint_sim/pkg/api_types"
+	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
 )
 
 // Pass the slice of interaction options received from discord command here

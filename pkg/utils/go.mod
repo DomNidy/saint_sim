@@ -1,15 +1,15 @@
-module github.com/DomNidy/saint_sim/pkg/go-shared/utils
+module github.com/DomNidy/saint_sim/pkg/utils
 
 go 1.21.6
 
 replace (
-	github.com/DomNidy/saint_sim/pkg/go-shared/api_types => ../api_types
-	github.com/DomNidy/saint_sim/pkg/go-shared/secrets => ../secrets
+	github.com/DomNidy/saint_sim/pkg/api_types => ../api_types
+	github.com/DomNidy/saint_sim/pkg/secrets => ../secrets
 )
 
 require (
-	github.com/DomNidy/saint_sim/pkg/go-shared/api_types v0.0.0-20260404192636-ff4dbb6469b9
-	github.com/DomNidy/saint_sim/pkg/go-shared/secrets v0.0.0-20260404192636-ff4dbb6469b9
+	github.com/DomNidy/saint_sim/pkg/api_types v0.0.0-20260404192636-ff4dbb6469b9
+	github.com/DomNidy/saint_sim/pkg/secrets v0.0.0-20260404192636-ff4dbb6469b9
 	github.com/jackc/pgx/v5 v5.7.1
 	github.com/rabbitmq/amqp091-go v1.10.0
 )

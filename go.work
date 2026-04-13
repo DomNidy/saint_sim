@@ -12,8 +12,8 @@ use (
 	./apps/api
 	./apps/discord_bot
 	./apps/simulation_worker
-	./pkg/go-shared/api_types
-	./pkg/go-shared/db
-	./pkg/go-shared/secrets
-	./pkg/go-shared/utils
+	./pkg/api_types
+	./pkg/db
+	./pkg/secrets
+	./pkg/utils
 )

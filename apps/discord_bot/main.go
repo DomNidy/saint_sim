@@ -11,7 +11,7 @@ import (
 	"github.com/DomNidy/saint_sim/apps/discord_bot/commands"
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
 	resultlistener "github.com/DomNidy/saint_sim/apps/discord_bot/result_listener"
-	saintutils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
+	saintutils "github.com/DomNidy/saint_sim/pkg/utils"
 
 	"github.com/bwmarrin/discordgo"
 )

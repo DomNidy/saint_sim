@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	secrets "github.com/DomNidy/saint_sim/pkg/go-shared/secrets"
+	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
 )
 
 // UUIDString converts a Postgres UUID to its string representation.

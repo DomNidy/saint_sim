@@ -16,9 +16,9 @@ import (
 
 	"github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/apps/api/middleware"
-	"github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
-	"github.com/DomNidy/saint_sim/pkg/go-shared/db"
-	"github.com/DomNidy/saint_sim/pkg/go-shared/utils"
+	"github.com/DomNidy/saint_sim/pkg/api_types"
+	"github.com/DomNidy/saint_sim/pkg/db"
+	"github.com/DomNidy/saint_sim/pkg/utils"
 )
 
 type wowCharacterValidationError struct {

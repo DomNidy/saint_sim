@@ -15,11 +15,10 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
 - `/justfile`: Root task runner for local development and maintenance commands
 - `/pkg`: Directory containing shared packages and generated contracts used throughout `/apps`
 
-  - `/pkg/go-shared`: Shared Go workspace modules
-  - `/pkg/go-shared/api_types`: Automatically generated Go types from the OpenAPI schema
-  - `/pkg/go-shared/db`: Generated Go database access code from `sqlc`
-  - `/pkg/go-shared/secrets`: Utility for reading secrets into memory
-  - `/pkg/go-shared/utils`: Miscellaneous shared utilities
+  - `/pkg/api_types`: Automatically generated Go types from the OpenAPI schema
+  - `/pkg/db`: Generated Go database access code from `sqlc`
+  - `/pkg/secrets`: Utility for reading secrets into memory
+  - `/pkg/utils`: Miscellaneous shared utilities
   - `/apps/web/src/lib/db`: `sqlc`-generated TypeScript query bindings for the web app
   - `/apps/web/src/lib/api/generated`: OpenAPI-derived TypeScript types, SDK functions, Fetch client, and Zod schemas for the web app
 

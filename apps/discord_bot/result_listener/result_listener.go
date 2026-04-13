@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/utils"
-	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
 )
 
 // stores discord user id and discord channel id of user who invoked a simrequest

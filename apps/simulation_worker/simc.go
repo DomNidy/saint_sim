@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"strings"
 
-	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
-	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
+	api_types "github.com/DomNidy/saint_sim/pkg/api_types"
+	utils "github.com/DomNidy/saint_sim/pkg/utils"
 )
 
 const simcNoArgumentsExitCode = 50

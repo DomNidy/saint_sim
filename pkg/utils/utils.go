@@ -1,4 +1,3 @@
-// Package utils contains shared helpers used across services.
 package utils
 
 import (

@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/DomNidy/saint_sim/apps/api/middleware"
-	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
 )
 
 func TestSimulationOwnerID(t *testing.T) {

@@ -12,9 +12,9 @@ import (
 
 	handlers "github.com/DomNidy/saint_sim/apps/api/handlers"
 	middleware "github.com/DomNidy/saint_sim/apps/api/middleware"
-	dbqueries "github.com/DomNidy/saint_sim/pkg/go-shared/db"
-	"github.com/DomNidy/saint_sim/pkg/go-shared/secrets"
-	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
+	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
+	"github.com/DomNidy/saint_sim/pkg/secrets"
+	utils "github.com/DomNidy/saint_sim/pkg/utils"
 )
 
 // Max number of idle HTTP connections our HTTP client

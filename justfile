@@ -221,15 +221,15 @@ codegen target="":
     set -euo pipefail
     generate_db() {
       # v1.30.0 of sqlc crashes in pgx/os-user lookup when sqlc analyzes database.uri.
-      mkdir -p ./pkg/go-shared/db ./apps/web/src/lib/db
+      mkdir -p ./pkg/db ./apps/web/src/lib/db
       just sqlc generate -f db/sqlc.yaml
       # Use import type {...} syntax
       perl -0pi -e 's|import { QueryArrayConfig, QueryArrayResult } from "pg";|import type { QueryArrayConfig, QueryArrayResult } from "pg";|' ./apps/web/src/lib/db/query_sql.ts 
     }
 
     generate_api() {
-      mkdir -p ./pkg/go-shared/api_types
-      go run github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.16.3 --generate types,skip-prune -o ./pkg/go-shared/api_types/api_types.gen.go -package api_types ./apps/api/openapi.yaml
+      mkdir -p ./pkg/api_types
+      go run github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.16.3 --generate types,skip-prune -o ./pkg/api_types/api_types.gen.go -package api_types ./apps/api/openapi.yaml
       (
         cd ./apps/web
         npm run codegen:api

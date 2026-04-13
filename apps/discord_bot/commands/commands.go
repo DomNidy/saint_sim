@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
-	"github.com/DomNidy/saint_sim/pkg/go-shared/utils"
+	"github.com/DomNidy/saint_sim/pkg/utils"
 
 	"github.com/bwmarrin/discordgo"
 )

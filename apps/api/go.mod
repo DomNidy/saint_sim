@@ -5,17 +5,17 @@ go 1.24.0
 toolchain go1.24.2
 
 replace (
-	github.com/DomNidy/saint_sim/pkg/go-shared/api_types => ../../pkg/go-shared/api_types
-	github.com/DomNidy/saint_sim/pkg/go-shared/db => ../../pkg/go-shared/db
-	github.com/DomNidy/saint_sim/pkg/go-shared/secrets => ../../pkg/go-shared/secrets
-	github.com/DomNidy/saint_sim/pkg/go-shared/utils => ../../pkg/go-shared/utils
+	github.com/DomNidy/saint_sim/pkg/api_types => ../../pkg/api_types
+	github.com/DomNidy/saint_sim/pkg/db => ../../pkg/db
+	github.com/DomNidy/saint_sim/pkg/secrets => ../../pkg/secrets
+	github.com/DomNidy/saint_sim/pkg/utils => ../../pkg/utils
 )
 
 require (
-	github.com/DomNidy/saint_sim/pkg/go-shared/api_types v0.0.0-20260404192636-ff4dbb6469b9
-	github.com/DomNidy/saint_sim/pkg/go-shared/db v0.0.0-00010101000000-000000000000
-	github.com/DomNidy/saint_sim/pkg/go-shared/secrets v0.0.0-20260404192636-ff4dbb6469b9
-	github.com/DomNidy/saint_sim/pkg/go-shared/utils v0.0.0-00010101000000-000000000000
+	github.com/DomNidy/saint_sim/pkg/api_types v0.0.0-20260404192636-ff4dbb6469b9
+	github.com/DomNidy/saint_sim/pkg/db v0.0.0-00010101000000-000000000000
+	github.com/DomNidy/saint_sim/pkg/secrets v0.0.0-20260404192636-ff4dbb6469b9
+	github.com/DomNidy/saint_sim/pkg/utils v0.0.0-00010101000000-000000000000
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/google/uuid v1.6.0

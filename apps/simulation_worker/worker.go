@@ -11,7 +11,7 @@ import (
 	pgx "github.com/jackc/pgx/v5"
 	amqp091 "github.com/rabbitmq/amqp091-go"
 
-	utils "github.com/DomNidy/saint_sim/pkg/go-shared/utils"
+	utils "github.com/DomNidy/saint_sim/pkg/utils"
 )
 
 type simulationWorker struct {

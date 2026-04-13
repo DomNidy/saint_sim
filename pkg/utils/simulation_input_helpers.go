@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"regexp"
 
-	api_types "github.com/DomNidy/saint_sim/pkg/go-shared/api_types"
+	api_types "github.com/DomNidy/saint_sim/pkg/api_types"
 )
 
 type simulationValidationError string
