@@ -12,7 +12,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/DomNidy/saint_sim/apps/api/middleware"
 	"github.com/DomNidy/saint_sim/pkg/api_types"
@@ -130,19 +129,13 @@ func createSimulationRequest(
 	return simEntry.ID.String(), nil
 }
 
-func simulationOwnerID(ginContext *gin.Context) pgtype.Text {
+func simulationOwnerID(ginContext *gin.Context) *string {
 	userID, ok := middleware.GetEffectiveUserID(ginContext)
 	if !ok {
-		return pgtype.Text{
-			String: "",
-			Valid:  false,
-		}
+		return nil
 	}
 
-	return pgtype.Text{
-		String: userID,
-		Valid:  true,
-	}
+	return &userID
 }
 
 // GetSimulation returns the current state or completed result for a simulation.
@@ -188,19 +181,19 @@ func simulationResponseFromRecord(simulation db.Simulation) api_types.Simulation
 	response.Id = &simulationID
 	response.SimulationStatus = &status
 
-	if simulation.SimResult.Valid {
-		response.SimResult = &simulation.SimResult.String
+	if simulation.SimResult != nil {
+		response.SimResult = simulation.SimResult
 	}
 
-	if simulation.ErrorText.Valid {
-		response.ErrorText = &simulation.ErrorText.String
+	if simulation.ErrorText != nil {
+		response.ErrorText = simulation.ErrorText
 	}
 
 	return response
 }
 
 func simulationStatusFromRecord(simulation db.Simulation) api_types.SimulationStatus {
-	if simulation.ErrorText.Valid {
+	if simulation.ErrorText != nil {
 		return api_types.Error
 	}
 

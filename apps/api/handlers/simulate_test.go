@@ -68,12 +68,20 @@ func TestSimulationOwnerID(t *testing.T) {
 			ginContext.Set("auth.context", testCase.authContext)
 
 			ownerID := simulationOwnerID(ginContext)
-			if ownerID.Valid != testCase.expectedOK {
-				t.Fatalf("ownerID.Valid = %v, want %v", ownerID.Valid, testCase.expectedOK)
+			if (ownerID != nil) != testCase.expectedOK {
+				t.Fatalf("ownerID != nil = %v, want %v", ownerID != nil, testCase.expectedOK)
 			}
 
-			if ownerID.String != testCase.expectedID {
-				t.Fatalf("ownerID.String = %q, want %q", ownerID.String, testCase.expectedID)
+			if ownerID == nil {
+				if testCase.expectedID != "" {
+					t.Fatalf("ownerID = nil, want %q", testCase.expectedID)
+				}
+
+				return
+			}
+
+			if *ownerID != testCase.expectedID {
+				t.Fatalf("*ownerID = %q, want %q", *ownerID, testCase.expectedID)
 			}
 		})
 	}

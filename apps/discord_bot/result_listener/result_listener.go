@@ -67,7 +67,7 @@ func ListenForSimResults(ctx context.Context, conn *pgxpool.Conn, s *discordgo.S
 		// TODO: we should not need to truncate it to 2000 chars, but this is the discord bot limit
 		// TODO: Also, prob should remove the mapping from the map after it gets consumed here
 		messageContent := utils.ParseSimcReport(
-			simRes.SimResult.String,
+			*simRes.SimResult,
 			fmt.Sprintf(
 				"<@%v>, your sim request %v has been processed:\n",
 				requestOrigin.DiscordUserId,

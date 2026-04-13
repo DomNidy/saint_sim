@@ -20,7 +20,7 @@ RETURNING id, sim_config, sim_result, error_text, created_at, started_at, comple
 
 type CreateSimulationParams struct {
 	SimConfig []byte
-	OwnerID   pgtype.Text
+	OwnerID   *string
 }
 
 func (q *Queries) CreateSimulation(ctx context.Context, arg CreateSimulationParams) (Simulation, error) {
@@ -149,8 +149,8 @@ RETURNING id, sim_config, sim_result, error_text, created_at, started_at, comple
 `
 
 type UpdateSimulationParams struct {
-	SimResult   pgtype.Text
-	ErrorText   pgtype.Text
+	SimResult   *string
+	ErrorText   *string
 	StartedAt   pgtype.Timestamptz
 	CompletedAt pgtype.Timestamptz
 	ID          uuid.UUID
