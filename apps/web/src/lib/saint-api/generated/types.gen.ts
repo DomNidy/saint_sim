@@ -5,53 +5,15 @@ export type ClientOptions = {
 };
 
 /**
- * Identifies the region in which the characters realm is located
+ * Raw SimulationCraft addon export string supplied by the caller.
  */
-export const WowRegion = {
-    US: 'us',
-    EU: 'eu',
-    KR: 'kr',
-    TW: 'tw',
-    CN: 'cn'
-} as const;
+export type SimcAddonExport = string;
 
 /**
- * Identifies the region in which the characters realm is located
- */
-export type WowRegion = typeof WowRegion[keyof typeof WowRegion];
-
-/**
- * The realm which the character is located on
- */
-export const WowRealm = {
-    THRALL: 'thrall',
-    HYDRAXIS: 'hydraxis',
-    SILVERMOON: 'silvermoon',
-    DRAENOR: 'draenor'
-} as const;
-
-/**
- * The realm which the character is located on
- */
-export type WowRealm = typeof WowRealm[keyof typeof WowRealm];
-
-/**
- * Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
- */
-export type WowCharacter = {
-    region: WowRegion;
-    realm: WowRealm;
-    /**
-     * The name of the WoW character
-     */
-    character_name: string;
-};
-
-/**
- * Specifices sim options, and the character of interest to sim, send this to the api
+ * Specifies simulation options to send to the API.
  */
 export type SimulationOptions = {
-    wow_character: WowCharacter;
+    simc_addon_export: SimcAddonExport;
 };
 
 /**
@@ -128,7 +90,7 @@ export type GetSimulationResponse = GetSimulationResponses[keyof GetSimulationRe
 
 export type SimulateData = {
     /**
-     * Specify simulation options and wow characters here.
+     * Specify simulation options here.
      */
     body: SimulationOptions;
     path?: never;
@@ -138,7 +100,7 @@ export type SimulateData = {
 
 export type SimulateErrors = {
     /**
-     * When one or more of the simulation options were invalid. For example, passing an invalid region or realm for the wow character may cause this.
+     * Returned when the request is malformed or contains invalid simulation options.
      */
     400: ErrorResponse;
     /**

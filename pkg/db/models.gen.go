@@ -59,13 +59,13 @@ type Account struct {
 	AccountId             string
 	ProviderId            string
 	UserId                string
-	AccessToken           pgtype.Text
-	RefreshToken          pgtype.Text
-	IdToken               pgtype.Text
+	AccessToken           *string
+	RefreshToken          *string
+	IdToken               *string
 	AccessTokenExpiresAt  pgtype.Timestamptz
 	RefreshTokenExpiresAt pgtype.Timestamptz
-	Scope                 pgtype.Text
-	Password              pgtype.Text
+	Scope                 *string
+	Password              *string
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 }
@@ -107,20 +107,20 @@ type Session struct {
 	Token     string
 	CreatedAt pgtype.Timestamptz
 	UpdatedAt pgtype.Timestamptz
-	IpAddress pgtype.Text
-	UserAgent pgtype.Text
+	IpAddress *string
+	UserAgent *string
 	UserId    string
 }
 
 type Simulation struct {
 	ID          uuid.UUID
 	SimConfig   []byte
-	SimResult   pgtype.Text
-	ErrorText   pgtype.Text
+	SimResult   *string
+	ErrorText   *string
 	CreatedAt   pgtype.Timestamptz
 	StartedAt   pgtype.Timestamptz
 	CompletedAt pgtype.Timestamptz
-	OwnerID     pgtype.Text
+	OwnerID     *string
 }
 
 type User struct {
@@ -128,7 +128,7 @@ type User struct {
 	Name          string
 	Email         string
 	EmailVerified bool
-	Image         pgtype.Text
+	Image         *string
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 }

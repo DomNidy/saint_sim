@@ -12,21 +12,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 
-	"github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/apps/api/middleware"
 	"github.com/DomNidy/saint_sim/pkg/api_types"
 	"github.com/DomNidy/saint_sim/pkg/db"
 	"github.com/DomNidy/saint_sim/pkg/utils"
 )
 
-type wowCharacterValidationError struct {
+type simulationValidationError struct {
 	statusCode int
 	response   api_types.ErrorResponse
 }
 
-func (failure *wowCharacterValidationError) Error() string {
+func (failure *simulationValidationError) Error() string {
 	if failure == nil || failure.response.Message == nil {
 		return "simulation validation failed"
 	}
@@ -39,7 +37,6 @@ func Simulate(
 	ginContext *gin.Context,
 	dbClient *db.Queries,
 	simQueue *utils.SimulationQueueClient,
-	httpClient *http.Client,
 ) {
 	var simOptions api_types.SimulationOptions
 
@@ -52,7 +49,7 @@ func Simulate(
 		return
 	}
 
-	errValidate := validateSimulationRequest(ginContext, httpClient, simOptions)
+	errValidate := validateSimulationRequest(ginContext, simOptions)
 	if errValidate != nil {
 		ginContext.JSON(errValidate.statusCode, errValidate.response)
 
@@ -91,38 +88,17 @@ func Simulate(
 
 func validateSimulationRequest(
 	ctx context.Context,
-	httpClient *http.Client,
 	simOptions api_types.SimulationOptions,
-) *wowCharacterValidationError {
-	if !utils.IsValidSimOptions(&simOptions) {
-		return &wowCharacterValidationError{
+) *simulationValidationError {
+	_ = ctx
+
+	err := utils.ValidateSimOptions(&simOptions)
+	if err != nil {
+		return &simulationValidationError{
 			statusCode: http.StatusBadRequest,
 			response: api_types.ErrorResponse{
 				Message: utils.StrPtr("Bad request"),
 			},
-		}
-	}
-
-	err := api_utils.CheckWowCharacterExists(ctx, httpClient, &simOptions.WowCharacter)
-	if err != nil {
-		log.Printf("%v", err)
-
-		if errors.Is(err, api_utils.ErrCharacterNotExistsOnArmory) {
-			return &wowCharacterValidationError{
-				statusCode: http.StatusNotFound,
-				response: api_types.ErrorResponse{
-					Message: utils.StrPtr("Character not found"),
-				},
-			}
-		}
-
-		if errors.Is(err, api_utils.ErrUnexpectedStatusCodeReceivedFromArmory) {
-			return &wowCharacterValidationError{
-				statusCode: http.StatusInternalServerError,
-				response: api_types.ErrorResponse{
-					Message: utils.StrPtr("Internal server error"),
-				},
-			}
 		}
 	}
 
@@ -153,19 +129,13 @@ func createSimulationRequest(
 	return simEntry.ID.String(), nil
 }
 
-func simulationOwnerID(ginContext *gin.Context) pgtype.Text {
+func simulationOwnerID(ginContext *gin.Context) *string {
 	userID, ok := middleware.GetEffectiveUserID(ginContext)
 	if !ok {
-		return pgtype.Text{
-			String: "",
-			Valid:  false,
-		}
+		return nil
 	}
 
-	return pgtype.Text{
-		String: userID,
-		Valid:  true,
-	}
+	return &userID
 }
 
 // GetSimulation returns the current state or completed result for a simulation.
@@ -197,20 +167,12 @@ func GetSimulation(ginContext *gin.Context, dbClient *db.Queries) {
 		return
 	}
 
-	response, err := simulationResponseFromRecord(simulation)
-	if err != nil {
-		log.Printf("Error serializing simulation %s: %v", ginContext.Param("id"), err)
-		ginContext.JSON(http.StatusInternalServerError, api_types.ErrorResponse{
-			Message: utils.StrPtr("Internal server error"),
-		})
-
-		return
-	}
+	response := simulationResponseFromRecord(simulation)
 
 	ginContext.JSON(http.StatusOK, response)
 }
 
-func simulationResponseFromRecord(simulation db.Simulation) (api_types.Simulation, error) {
+func simulationResponseFromRecord(simulation db.Simulation) api_types.Simulation {
 	var response api_types.Simulation
 
 	status := simulationStatusFromRecord(simulation)
@@ -219,19 +181,19 @@ func simulationResponseFromRecord(simulation db.Simulation) (api_types.Simulatio
 	response.Id = &simulationID
 	response.SimulationStatus = &status
 
-	if simulation.SimResult.Valid {
-		response.SimResult = &simulation.SimResult.String
+	if simulation.SimResult != nil {
+		response.SimResult = simulation.SimResult
 	}
 
-	if simulation.ErrorText.Valid {
-		response.ErrorText = &simulation.ErrorText.String
+	if simulation.ErrorText != nil {
+		response.ErrorText = simulation.ErrorText
 	}
 
-	return response, nil
+	return response
 }
 
 func simulationStatusFromRecord(simulation db.Simulation) api_types.SimulationStatus {
-	if simulation.ErrorText.Valid {
+	if simulation.ErrorText != nil {
 		return api_types.Error
 	}
 

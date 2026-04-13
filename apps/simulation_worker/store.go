@@ -51,8 +51,8 @@ func (store simulationStore) MarkStarted(ctx context.Context, requestID uuid.UUI
 	_, err := store.queries.UpdateSimulation(
 		ctx,
 		dbqueries.UpdateSimulationParams{
-			SimResult:   invalidText(),
-			ErrorText:   invalidText(),
+			SimResult:   nil,
+			ErrorText:   nil,
 			StartedAt:   timestampValue(time.Now()),
 			CompletedAt: invalidTimestamp(),
 			ID:          requestID,
@@ -70,16 +70,13 @@ func (store simulationStore) MarkCompleted(
 	requestID uuid.UUID,
 	simulationResult []byte,
 ) error {
-	simResult := pgtype.Text{
-		String: string(simulationResult),
-		Valid:  true,
-	}
+	simResult := string(simulationResult)
 
 	_, err := store.queries.UpdateSimulation(
 		ctx,
 		dbqueries.UpdateSimulationParams{
-			SimResult:   simResult,
-			ErrorText:   invalidText(),
+			SimResult:   &simResult,
+			ErrorText:   nil,
 			StartedAt:   invalidTimestamp(),
 			CompletedAt: timestampValue(time.Now()),
 			ID:          requestID,
@@ -97,14 +94,13 @@ func (store simulationStore) MarkFailed(
 	requestID uuid.UUID,
 	cause error,
 ) error {
+	errorText := cause.Error()
+
 	_, err := store.queries.UpdateSimulation(
 		ctx,
 		dbqueries.UpdateSimulationParams{
-			SimResult: invalidText(),
-			ErrorText: pgtype.Text{
-				String: cause.Error(),
-				Valid:  true,
-			},
+			SimResult:   nil,
+			ErrorText:   &errorText,
 			StartedAt:   invalidTimestamp(),
 			CompletedAt: timestampValue(time.Now()),
 			ID:          requestID,
@@ -122,13 +118,6 @@ func timestampValue(value time.Time) pgtype.Timestamptz {
 		Time:             value,
 		InfinityModifier: pgtype.Finite,
 		Valid:            true,
-	}
-}
-
-func invalidText() pgtype.Text {
-	return pgtype.Text{
-		String: "",
-		Valid:  false,
 	}
 }
 

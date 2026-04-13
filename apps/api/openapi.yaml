@@ -36,7 +36,7 @@ paths:
       description: Request a simulation, powered by SimC.
       requestBody:
         required: true
-        description: "Specify simulation options and wow characters here."
+        description: "Specify simulation options here."
         content:
           application/json:
             schema:
@@ -56,7 +56,7 @@ paths:
                     type: string
                     description: ID of the simulation that was created
         "400":
-          description: When one or more of the simulation options were invalid. For example, passing an invalid region or realm for the wow character may cause this.
+          description: Returned when the request is malformed or contains invalid simulation options.
           content:
             application/json:
               schema:
@@ -108,54 +108,23 @@ components:
       in: header
       name: Api-Key
   schemas:
-    wow_region:
+    simc_addon_export:
       type: string
-      description: Identifies the region in which the characters realm is located
-      example: us
-      enum:
-        - us
-        - eu
-        - kr
-        - tw
-        - cn
-
-    wow_realm:
-      type: string
-      description: The realm which the character is located on
-      example: hydraxis
-      enum:
-        - thrall
-        - hydraxis
-        - silvermoon
-        - draenor
-
-    wow_character:
-      type: object
-      description: Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
-      required:
-        - region
-        - realm
-        - character_name
-      properties:
-        region:
-          $ref: "#/components/schemas/wow_region"
-        realm:
-          $ref: "#/components/schemas/wow_realm"
-        character_name:
-          type: string
-          description: The name of the WoW character
-          example: John
-          minLength: 2
-          maxLength: 12
+      description: Raw SimulationCraft addon export string supplied by the caller.
+      example: |
+        priest="Example"
+        level=80
+        spec=shadow
+      minLength: 1
 
     simulation_options:
       type: object
-      description: Specifices sim options, and the character of interest to sim, send this to the api
+      description: Specifies simulation options to send to the API.
       required:
-        - wow_character
+        - simc_addon_export
       properties:
-        wow_character:
-          $ref: "#/components/schemas/wow_character"
+        simc_addon_export:
+          $ref: "#/components/schemas/simc_addon_export"
 
     simulation:
       type: object
