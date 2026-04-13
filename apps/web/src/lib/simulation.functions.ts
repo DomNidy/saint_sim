@@ -35,9 +35,7 @@ export const submitSimulationRequest = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const response = await simulate({
 			client: saintApiClient,
-			body: {
-				wow_character: data,
-			},
+			body: data,
 		});
 
 		if (response.error || !response.data) {

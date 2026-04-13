@@ -17,27 +17,6 @@ import (
 	utils "github.com/DomNidy/saint_sim/pkg/utils"
 )
 
-// Max number of idle HTTP connections our HTTP client
-// will hold to any one host
-//
-// A HTTP/1.1 connection can only handle one
-// request at a time, and we may need to issue
-// multiple concurrent requests to blizzard armory;
-// tune as needed.
-const httpClientMaxIdleConnectionsPerHost = 10
-
-// Timeout on requests issued through our HTTP client.
-const httpClientTimeout = 5 * time.Second
-
-func newHTTPClient() *http.Client {
-	return &http.Client{ //nolint:exhaustruct
-		Timeout: httpClientTimeout,
-		Transport: &http.Transport{ //nolint:exhaustruct
-			MaxIdleConnsPerHost: httpClientMaxIdleConnectionsPerHost,
-		},
-	}
-}
-
 func newJWTAuthenticator(
 	dbClient *dbqueries.Queries,
 	betterAuthURL string,
@@ -80,9 +59,6 @@ func main() {
 	if dbClient == nil {
 		log.Panicf("API failed to acquire a dbClient, cannot run.")
 	}
-
-	httpClient := newHTTPClient()
-
 	// Setup api server
 	router := gin.Default()
 	router.GET("/health", func(ginContext *gin.Context) {
@@ -101,7 +77,7 @@ func main() {
 	authorized := router.Group("/", middleware.AuthRequire(jwtAuthenticator, apiKeyAuthenticator))
 
 	authorized.POST("/simulation", func(ginContext *gin.Context) {
-		handlers.Simulate(ginContext, dbClient, simulationQueue, httpClient)
+		handlers.Simulate(ginContext, dbClient, simulationQueue)
 	})
 
 	err = router.Run("0.0.0.0:8080")

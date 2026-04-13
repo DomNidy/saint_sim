@@ -97,7 +97,7 @@ func (worker simulationWorker) processRequest(
 	ctx context.Context,
 	request simulationRequest,
 ) error {
-	target, err := simulationTargetFromOptions(request.options)
+	input, err := simulationInputFromOptions(request.options)
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (worker simulationWorker) processRequest(
 		log.Printf("unable to mark simulation %s as started: %v", request.idText, err)
 	}
 
-	result, err := worker.runner.Run(ctx, target)
+	result, err := worker.runner.Run(ctx, input)
 	if err != nil {
 		return fmt.Errorf("run simulation: %w", err)
 	}

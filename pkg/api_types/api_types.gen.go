@@ -16,28 +16,14 @@ const (
 	InQueue    SimulationStatus = "in_queue"
 )
 
-// Defines values for WowRealm.
-const (
-	Draenor    WowRealm = "draenor"
-	Hydraxis   WowRealm = "hydraxis"
-	Silvermoon WowRealm = "silvermoon"
-	Thrall     WowRealm = "thrall"
-)
-
-// Defines values for WowRegion.
-const (
-	Cn WowRegion = "cn"
-	Eu WowRegion = "eu"
-	Kr WowRegion = "kr"
-	Tw WowRegion = "tw"
-	Us WowRegion = "us"
-)
-
 // ErrorResponse Error response returned by API when something goes wrong
 type ErrorResponse struct {
 	// Message Message explaining the error
 	Message *string `json:"message,omitempty"`
 }
+
+// SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
+type SimcAddonExport = string
 
 // Simulation All details & data about a simulation.
 type Simulation struct {
@@ -52,32 +38,14 @@ type Simulation struct {
 	SimulationStatus *SimulationStatus `json:"simulation_status,omitempty"`
 }
 
-// SimulationOptions Specifices sim options, and the character of interest to sim, send this to the api
+// SimulationOptions Specifies simulation options to send to the API.
 type SimulationOptions struct {
-	// WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
-	WowCharacter WowCharacter `json:"wow_character"`
+	// SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
+	SimcAddonExport SimcAddonExport `json:"simc_addon_export"`
 }
 
 // SimulationStatus defines model for simulation_status.
 type SimulationStatus string
-
-// WowCharacter Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
-type WowCharacter struct {
-	// CharacterName The name of the WoW character
-	CharacterName string `json:"character_name"`
-
-	// Realm The realm which the character is located on
-	Realm WowRealm `json:"realm"`
-
-	// Region Identifies the region in which the characters realm is located
-	Region WowRegion `json:"region"`
-}
-
-// WowRealm The realm which the character is located on
-type WowRealm string
-
-// WowRegion Identifies the region in which the characters realm is located
-type WowRegion string
 
 // BadRequestError Error response returned by API when something goes wrong
 type BadRequestError = ErrorResponse

@@ -3,40 +3,15 @@
 import * as z from 'zod';
 
 /**
- * Identifies the region in which the characters realm is located
+ * Raw SimulationCraft addon export string supplied by the caller.
  */
-export const zWowRegion = z.enum([
-    'us',
-    'eu',
-    'kr',
-    'tw',
-    'cn'
-]);
+export const zSimcAddonExport = z.string().min(1);
 
 /**
- * The realm which the character is located on
- */
-export const zWowRealm = z.enum([
-    'thrall',
-    'hydraxis',
-    'silvermoon',
-    'draenor'
-]);
-
-/**
- * Object containing all data needed to identify a WoW character, used to retrieve their gear and talents, etc. (Realm list here https://worldofwarcraft.blizzard.com/en-us/game/status/us)
- */
-export const zWowCharacter = z.object({
-    region: zWowRegion,
-    realm: zWowRealm,
-    character_name: z.string().min(2).max(12)
-});
-
-/**
- * Specifices sim options, and the character of interest to sim, send this to the api
+ * Specifies simulation options to send to the API.
  */
 export const zSimulationOptions = z.object({
-    wow_character: zWowCharacter
+    simc_addon_export: zSimcAddonExport
 });
 
 export const zSimulationStatus = z.enum([
@@ -73,7 +48,7 @@ export const zGetSimulationPath = z.object({
 export const zGetSimulationResponse = zSimulation;
 
 /**
- * Specify simulation options and wow characters here.
+ * Specify simulation options here.
  */
 export const zSimulateBody = zSimulationOptions;
 

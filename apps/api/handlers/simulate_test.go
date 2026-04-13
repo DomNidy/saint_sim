@@ -58,8 +58,8 @@ func TestSimulationOwnerID(t *testing.T) {
 		},
 	}
 
-	for _, testCase := range cases {
-		testCase := testCase
+	for idx := range cases {
+		testCase := cases[idx]
 
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
@@ -71,6 +71,7 @@ func TestSimulationOwnerID(t *testing.T) {
 			if ownerID.Valid != testCase.expectedOK {
 				t.Fatalf("ownerID.Valid = %v, want %v", ownerID.Valid, testCase.expectedOK)
 			}
+
 			if ownerID.String != testCase.expectedID {
 				t.Fatalf("ownerID.String = %q, want %q", ownerID.String, testCase.expectedID)
 			}

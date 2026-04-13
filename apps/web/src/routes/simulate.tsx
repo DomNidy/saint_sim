@@ -21,19 +21,10 @@ import {
 	FormLabel,
 	FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import {
-	type WowCharacter as SimulationRequestInput,
-	simulationRealms,
-	simulationRegions,
 	simulationRequestSchema,
+	type SimulationRequestInput,
 } from "@/lib/saint-api/contracts";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
 
@@ -45,9 +36,7 @@ function SimulationForm() {
 	const form = useForm<SimulationRequestInput>({
 		resolver: zodResolver(simulationRequestSchema),
 		defaultValues: {
-			region: "us",
-			realm: "hydraxis",
-			character_name: "",
+			simc_addon_export: "",
 		},
 	});
 
@@ -63,7 +52,7 @@ function SimulationForm() {
 				<CardHeader className="gap-2">
 					<CardTitle>Submit a Saint simulation</CardTitle>
 					<CardDescription>
-						Submit a simulation request for your WoW Character.
+						Paste your SimulationCraft addon export to submit a simulation.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="flex flex-col gap-6">
@@ -74,86 +63,25 @@ function SimulationForm() {
 								void submitMutation.mutateAsync({ data: values });
 							})}
 						>
-							<div className="grid gap-5 md:grid-cols-2">
-								<FormField
-									control={form.control}
-									name="region"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Region</FormLabel>
-											<FormControl>
-												<Select
-													onValueChange={field.onChange}
-													value={field.value}
-												>
-													<SelectTrigger>
-														<SelectValue placeholder="Select a region" />
-													</SelectTrigger>
-													<SelectContent>
-														{simulationRegions.map((region) => (
-															<SelectItem key={region} value={region}>
-																{region.toUpperCase()}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</FormControl>
-											<FormDescription>
-												The Blizzard region for the character&apos;s realm.
-											</FormDescription>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
-
-								<FormField
-									control={form.control}
-									name="realm"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Realm</FormLabel>
-											<FormControl>
-												<Select
-													onValueChange={field.onChange}
-													value={field.value}
-												>
-													<SelectTrigger>
-														<SelectValue placeholder="Select a realm" />
-													</SelectTrigger>
-													<SelectContent>
-														{simulationRealms.map((realm) => (
-															<SelectItem key={realm} value={realm}>
-																{formatRealmLabel(realm)}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</FormControl>
-											<FormDescription>
-												Realms are limited to the current API contract.
-											</FormDescription>
-											<FormMessage />
-										</FormItem>
-									)}
-								/>
-							</div>
-
 							<FormField
 								control={form.control}
-								name="character_name"
+								name="simc_addon_export"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Character name</FormLabel>
+										<FormLabel>SimC addon export</FormLabel>
 										<FormControl>
-											<Input
-												placeholder="Thrallslayer"
+											<Textarea
+												placeholder={
+													'priest="Example"\nlevel=80\nspec=shadow'
+												}
 												autoComplete="off"
+												rows={14}
 												{...field}
 											/>
 										</FormControl>
 										<FormDescription>
-											Use the exact in-game character name for the selected
-											realm.
+											Paste the raw output from the SimulationCraft in-game
+											addon. Saint will submit it to the backend verbatim.
 										</FormDescription>
 										<FormMessage />
 									</FormItem>
@@ -192,11 +120,5 @@ function SimulationForm() {
 				</CardContent>
 			</Card>
 		</main>
-	);
-}
-
-function formatRealmLabel(realm: string) {
-	return realm.replace(/(^\w|-\w)/g, (match) =>
-		match.replace("-", "").toUpperCase(),
 	);
 }
