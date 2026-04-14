@@ -74,11 +74,11 @@ func Simulate(
 		return
 	}
 
-	SimulationJobMessageBody := utils.SimulationJobMessage{
+	simulationJobMessage := utils.SimulationJobMessage{
 		SimulationID: simulationID,
 	}
 
-	err = simQueue.Publish(SimulationJobMessageBody)
+	err = simQueue.Publish(simulationJobMessage)
 	if err != nil {
 		log.Printf("ERROR: Failed to publish simulation message to queue: %v", err)
 		ginContext.JSON(http.StatusInternalServerError, api_types.ErrorResponse{
@@ -88,9 +88,9 @@ func Simulate(
 		return
 	}
 
-	log.Printf(" [x] Sent %v\n", SimulationJobMessageBody)
+	log.Printf(" [x] Sent %v\n", simulationJobMessage)
 	ginContext.JSON(http.StatusAccepted, gin.H{
-		"simulation_id": SimulationJobMessageBody.SimulationID,
+		"simulation_id": simulationJobMessage.SimulationID,
 	})
 }
 
