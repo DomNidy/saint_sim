@@ -82,7 +82,7 @@ start:
     docker compose -f docker-compose.yml up --build --detach
 
 dev:
-  docker compose up --build
+    docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
   
 # Start the web app in dev mode
 web:

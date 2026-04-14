@@ -1,4 +1,4 @@
-# Compose file override. Run each service in a container w/ Air installed.
+# Dev Compose file. Run each service in a container w/ Air installed.
 # Bind mount repo root into the container so air can watch for changes &
 # rebuild.
 x-go-dev: &go-dev
