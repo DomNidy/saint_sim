@@ -2,7 +2,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"testing"
 
@@ -45,7 +44,7 @@ func TestValidateSimulationRequest(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := validateSimulationRequest(context.Background(), testCase.options)
+			result := validateSimulationRequest(t.Context(), testCase.options)
 			if testCase.wantOK {
 				if result != nil {
 					t.Fatalf("validateSimulationRequest() = %#v, want nil", result)

@@ -32,11 +32,19 @@ func (failure *simulationValidationError) Error() string {
 	return *failure.response.Message
 }
 
+type simulationQueue interface {
+	Publish(simJob utils.SimulationJobMessage) error
+}
+
+type simulationStore interface {
+	CreateSimulation(ctx context.Context, arg db.CreateSimulationParams) (db.Simulation, error)
+}
+
 // Simulate validates a simulation request, persists it, and enqueues it for processing.
 func Simulate(
 	ginContext *gin.Context,
-	dbClient *db.Queries,
-	simQueue *utils.SimulationQueueClient,
+	dbClient simulationStore,
+	simQueue simulationQueue,
 ) {
 	var simOptions api_types.SimulationOptions
 
@@ -66,11 +74,11 @@ func Simulate(
 		return
 	}
 
-	simulationMessageBody := utils.SimulationMessage{
+	SimulationJobMessageBody := utils.SimulationJobMessage{
 		SimulationID: simulationID,
 	}
 
-	err = simQueue.Publish(simulationMessageBody)
+	err = simQueue.Publish(SimulationJobMessageBody)
 	if err != nil {
 		log.Printf("ERROR: Failed to publish simulation message to queue: %v", err)
 		ginContext.JSON(http.StatusInternalServerError, api_types.ErrorResponse{
@@ -80,9 +88,9 @@ func Simulate(
 		return
 	}
 
-	log.Printf(" [x] Sent %v\n", simulationMessageBody)
+	log.Printf(" [x] Sent %v\n", SimulationJobMessageBody)
 	ginContext.JSON(http.StatusAccepted, gin.H{
-		"simulation_id": simulationMessageBody.SimulationID,
+		"simulation_id": SimulationJobMessageBody.SimulationID,
 	})
 }
 
@@ -107,7 +115,7 @@ func validateSimulationRequest(
 
 func createSimulationRequest(
 	ginContext *gin.Context,
-	dbClient *db.Queries,
+	dbClient simulationStore,
 	simOptions api_types.SimulationOptions,
 ) (string, error) {
 	simOptionsJSON, err := json.Marshal(simOptions)

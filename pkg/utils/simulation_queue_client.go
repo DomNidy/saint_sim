@@ -19,8 +19,8 @@ type SimulationQueueClient struct {
 	appID   string
 }
 
-// SimulationMessage is sent to the simulation queue.
-type SimulationMessage struct {
+// SimulationJobMessage is sent to the simulation queue.
+type SimulationJobMessage struct {
 	SimulationID string `json:"simulation_id"` //nolint:tagliatelle // external wire format uses snake_case.
 }
 
@@ -47,7 +47,7 @@ func NewSimulationQueueClient(
 }
 
 // Publish writes a simulation message to the queue.
-func (s *SimulationQueueClient) Publish(simMsg SimulationMessage) error {
+func (s *SimulationQueueClient) Publish(simMsg SimulationJobMessage) error {
 	const (
 		mandatory = true
 		immediate = false
@@ -112,8 +112,8 @@ func (s *SimulationQueueClient) Consume(
 	return deliveryChannel, nil
 }
 
-// ConsumeSimulationMessages consumes using the worker defaults.
-func (s *SimulationQueueClient) ConsumeSimulationMessages() (<-chan amqp.Delivery, error) {
+// ConsumeSimulationJobMessages consumes using the worker defaults.
+func (s *SimulationQueueClient) ConsumeSimulationJobMessages() (<-chan amqp.Delivery, error) {
 	return s.Consume(
 		"",
 		true,

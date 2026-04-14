@@ -23,7 +23,7 @@ func (worker simulationWorker) Start(
 	ctx context.Context,
 	queue *utils.SimulationQueueClient,
 ) error {
-	msgChan, err := queue.ConsumeSimulationMessages()
+	msgChan, err := queue.ConsumeSimulationJobMessages()
 	if err != nil {
 		return fmt.Errorf("register as simulation consumer: %w", err)
 	}
@@ -121,7 +121,7 @@ func (worker simulationWorker) processRequest(
 }
 
 func parseSimulationRequestID(msg amqp091.Delivery) (string, uuid.UUID, error) {
-	var simRequestMsg utils.SimulationMessage
+	var simRequestMsg utils.SimulationJobMessage
 
 	err := json.Unmarshal(msg.Body, &simRequestMsg)
 	if err != nil {
