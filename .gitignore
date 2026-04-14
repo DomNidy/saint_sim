@@ -29,3 +29,5 @@ secrets/*.txt
 .plans/
 .gocache
 .codex
+apps/*/tmp/
+tmp/

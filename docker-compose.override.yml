@@ -1,0 +1,35 @@
+# Compose file override. Run each service in a container w/ Air installed.
+# Bind mount repo root into the container so air can watch for changes &
+# rebuild.
+x-go-dev: &go-dev
+  build:
+    context: .
+    dockerfile: dev.Dockerfile
+  working_dir: /src
+  volumes:
+    - .:/src
+    - go_modcache:/go/pkg/mod
+    - go_buildcache:/root/.cache/go-build
+
+services:
+  api:
+    <<: *go-dev
+    command: air -c apps/api/.air.toml
+
+  discord_bot:
+    <<: *go-dev
+    command: air -c apps/discord_bot/.air.toml
+
+  simulation_worker:
+    <<: *go-dev
+    build:
+      context: .
+      dockerfile: apps/simulation_worker/dev.Dockerfile
+      args:
+        SIMC_IMAGE: ${SIMC_IMAGE}
+    entrypoint: [] # override entrypoint so we use the command to start (simc base image uses entrypoint)
+    command: air -c apps/simulation_worker/.air.toml
+
+volumes:
+  go_modcache:
+  go_buildcache:

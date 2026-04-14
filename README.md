@@ -58,6 +58,14 @@ just db-migrate
 
 Goose migrations in `/db/migrations` are the authoritative schema history for this repository.
 
+### Go dev mode with hot reload
+
+Use `just dev` to start the Docker Compose stack in development mode for the Go services.
+
+- `api`, `discord_bot`, and `simulation_worker` run under [`air`](https://github.com/air-verse/air) inside their containers.
+- Source is bind-mounted into the containers, so editing Go files under `apps/*` or shared code under `/pkg` triggers a rebuild and restart for the affected service.
+- The web app is not part of `just dev`; run it separately with `just web`.
+
 ### Getting started
 
 ```sh

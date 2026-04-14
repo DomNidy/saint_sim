@@ -52,6 +52,4 @@ COPY --from=builder /app/SimulationCraft/ .
 COPY --from=builder /build/apps/simulation_worker/simulation_worker .
 RUN chmod +x simulation_worker
 
-
- 
 ENTRYPOINT ["./simulation_worker"]

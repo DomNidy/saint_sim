@@ -22,6 +22,7 @@ help:
       just help                     Show this help
       just setup                    Create .env from .env.example if needed
       just start                    Build and start the full local stack (except web)
+      just dev                      Dev mode with hot reload
       just web                      Start the web app in dev mode.
       just stop                     Stop the full local stack
 
@@ -78,8 +79,10 @@ start:
     #!/usr/bin/env bash
     set -euo pipefail
     echo "Building and starting the local stack..."
-    docker compose build
-    docker compose up --detach
+    docker compose -f docker-compose.yml up --build --detach
+
+dev:
+  docker compose up --build
   
 # Start the web app in dev mode
 web:
