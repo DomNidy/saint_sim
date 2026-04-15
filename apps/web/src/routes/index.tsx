@@ -11,7 +11,7 @@ export const Route = createFileRoute("/")({ component: App });
 
 function App() {
 	return (
-		<main className="page-wrap px-4 pb-8 pt-14">
+		<section className="w-full pb-8 pt-14">
 			<Card>
 				<CardHeader>
 					<CardTitle>Simulate</CardTitle>
@@ -26,6 +26,6 @@ function App() {
 					</Link>
 				</CardContent>
 			</Card>
-		</main>
+		</section>
 	);
 }

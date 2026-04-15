@@ -47,7 +47,7 @@ function SimulationForm() {
 	});
 
 	return (
-		<main className="page-wrap px-4 pb-10 pt-12">
+		<section className="w-full pb-10 pt-12">
 			<Card className="relative overflow-hidden">
 				<CardHeader className="gap-2">
 					<CardTitle>Submit a Saint simulation</CardTitle>
@@ -117,6 +117,6 @@ function SimulationForm() {
 					</Form>
 				</CardContent>
 			</Card>
-		</main>
+		</section>
 	);
 }

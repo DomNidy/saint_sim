@@ -60,7 +60,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<TooltipProvider>
 					<TanStackQueryProvider>
 						<Header />
-						{children}
+						<main className="mx-auto flex w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
+							{children}
+						</main>
 						<Footer />
 						<TanStackDevtools
 							config={{
