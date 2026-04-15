@@ -16,4 +16,5 @@ use (
 	./pkg/db
 	./pkg/secrets
 	./pkg/utils
+	./pkg/simc
 )

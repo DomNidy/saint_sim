@@ -10,7 +10,6 @@ replace (
 )
 
 require (
-	github.com/DomNidy/saint_sim/pkg/api_types v0.0.0
 	github.com/DomNidy/saint_sim/pkg/db v0.0.0
 	github.com/DomNidy/saint_sim/pkg/secrets v0.0.0
 	github.com/DomNidy/saint_sim/pkg/utils v0.0.0
@@ -20,6 +19,7 @@ require (
 )
 
 require (
+	github.com/DomNidy/saint_sim/pkg/api_types v0.0.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect

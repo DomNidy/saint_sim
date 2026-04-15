@@ -22,7 +22,8 @@ const SimulationLogViewer = ({ sim }: { sim: GetSimulationResponse }) => {
 	return (
 		<div>
 			<p>Status: {sim?.simulation_status ?? "unknown"}</p>
-			<code>{sim?.sim_result}</code>
+			{sim?.simulation_status === "error" && <code>{sim?.error_text}</code>}
+			{sim?.simulation_status === "complete" && <code>{sim?.sim_result}</code>}
 		</div>
 	);
 };

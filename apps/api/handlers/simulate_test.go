@@ -4,6 +4,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -128,25 +129,40 @@ func TestPublishSimulationJob(t *testing.T) {
 	ctx.Request = httptest.NewRequest(
 		http.MethodPost,
 		"/simulation",
-		bytes.NewBufferString(`{"simc_addon_export":"priest=\"Example\"\nlevel=80\nspec=shadow"}`),
+		bytes.NewBufferString("{\"simc_addon_export\":\"priest=\\\"Example\\\"\\r\\nlevel=80\\rspec=shadow\"}"),
 	)
 	ctx.Request.Header.Set("Content-Type", "application/json")
 
 	didWriteToStore := false
 	didPublishToQueue := false
 	simulationID := uuid.New()
+	expectedExport := "priest=\"Example\"\nlevel=80\nspec=shadow"
 
 	Simulate(
 		ctx,
 		&stubSimulationStore{
 			createSimulation: func(
 				_ context.Context,
-				_ db.CreateSimulationParams,
+				arg db.CreateSimulationParams,
 			) (db.Simulation, error) {
 				if didPublishToQueue {
 					t.Fatal(
 						"created simulation after published to queue. " +
 							"this is incorrect order, want: create simulation, then publish to queue",
+					)
+				}
+
+				var simOptions struct {
+					SimcAddonExport string `json:"simc_addon_export"`
+				}
+				if err := json.Unmarshal(arg.SimConfig, &simOptions); err != nil {
+					t.Fatalf("unmarshal sim config: %v", err)
+				}
+				if simOptions.SimcAddonExport != expectedExport {
+					t.Fatalf(
+						"simc_addon_export = %q, want %q",
+						simOptions.SimcAddonExport,
+						expectedExport,
 					)
 				}
 

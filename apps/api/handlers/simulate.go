@@ -16,6 +16,7 @@ import (
 	"github.com/DomNidy/saint_sim/apps/api/middleware"
 	"github.com/DomNidy/saint_sim/pkg/api_types"
 	"github.com/DomNidy/saint_sim/pkg/db"
+	"github.com/DomNidy/saint_sim/pkg/simc"
 	"github.com/DomNidy/saint_sim/pkg/utils"
 )
 
@@ -56,6 +57,8 @@ func Simulate(
 
 		return
 	}
+
+	simOptions.SimcAddonExport = simc.NormalizeLineEndings(simOptions.SimcAddonExport)
 
 	errValidate := validateSimulationRequest(ginContext, simOptions)
 	if errValidate != nil {
