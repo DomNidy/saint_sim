@@ -1,5 +1,6 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import type { GetSimulationResponse } from "@/lib/saint-api/generated";
 import { getSimulationResult } from "@/lib/simulation.functions";
 
 const simulationQueryOptions = (simulationId: string) =>
@@ -17,6 +18,15 @@ export const Route = createFileRoute("/simulation/$simulationId")({
 		),
 });
 
+const SimulationLogViewer = ({ sim }: { sim: GetSimulationResponse }) => {
+	return (
+		<div>
+			<p>Status: {sim?.simulation_status ?? "unknown"}</p>
+			<code>{sim?.sim_result}</code>
+		</div>
+	);
+};
+
 function RouteComponent() {
 	const { simulationId } = Route.useParams();
 	const initialSimulation = Route.useLoaderData();
@@ -24,13 +34,15 @@ function RouteComponent() {
 		...simulationQueryOptions(simulationId),
 		initialData: initialSimulation,
 		refetchInterval: (query) =>
-			query.state.data?.status === "pending" ? 2_000 : false,
+			query.state.data?.simulation_status === "in_queue" ||
+			query.state.data?.simulation_status === "in_progress"
+				? 2_000
+				: false,
 	});
 
 	return (
 		<div>
-			<p>Simulation status: {simulation.data.status}</p>
-			<code>{JSON.stringify(simulation.data.result)}</code>
+			<SimulationLogViewer sim={simulation.data} />
 		</div>
 	);
 }

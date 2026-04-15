@@ -75,26 +75,5 @@ export const getSimulationResult = createServerFn()
 			);
 		}
 
-		const payload = response.data;
-
-		switch (payload.simulation_status) {
-			case "complete":
-				return {
-					status: "complete" as const,
-					result: payload,
-				};
-			case "error":
-				return {
-					status: "error" as const,
-					result: payload,
-				};
-			case "in_progress":
-			case "in_queue":
-				return {
-					status: "pending" as const,
-					result: payload,
-				};
-			default:
-				throw new Error("Saint API returned an unknown simulation status.");
-		}
+		return response.data;
 	});

@@ -108,7 +108,10 @@ function SimulationForm() {
 											<Textarea
 												placeholder={'priest="Example"\nlevel=80\nspec=shadow'}
 												autoComplete="off"
-												rows={14}
+												autoCapitalize="none"
+												autoCorrect="off"
+												className="h-32"
+												spellCheck={false}
 												{...field}
 											/>
 										</FormControl>
