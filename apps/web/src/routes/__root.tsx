@@ -1,5 +1,6 @@
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
+import { ReactQueryDevtoolsPanel } from "@tanstack/react-query-devtools";
 import {
 	createRootRouteWithContext,
 	HeadContent,
@@ -7,11 +8,10 @@ import {
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import type { Auth } from "better-auth/types";
-import Footer from "../components/Footer";
-import Header from "../components/Header";
+import TanStackQueryProvider from "@/providers/tanstack-query-provider";
+import Footer from "../components/footer";
+import Header from "../components/header";
 import { TooltipProvider } from "../components/ui/tooltip";
-import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
-import TanStackQueryProvider from "../integrations/tanstack-query/root-provider";
 import appCss from "../styles.css?url";
 
 /**
@@ -71,7 +71,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 									name: "Tanstack Router",
 									render: <TanStackRouterDevtoolsPanel />,
 								},
-								TanStackQueryDevtools,
+								{
+									name: "Tanstack Query",
+									render: <ReactQueryDevtoolsPanel />,
+								},
 							]}
 						/>
 					</TanStackQueryProvider>

@@ -23,8 +23,8 @@ import {
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import {
-	simulationRequestSchema,
 	type SimulationRequestInput,
+	simulationRequestSchema,
 } from "@/lib/saint-api/contracts";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
 
@@ -71,9 +71,7 @@ function SimulationForm() {
 										<FormLabel>SimC addon export</FormLabel>
 										<FormControl>
 											<Textarea
-												placeholder={
-													'priest="Example"\nlevel=80\nspec=shadow'
-												}
+												placeholder={'priest="Example"\nlevel=80\nspec=shadow'}
 												autoComplete="off"
 												rows={14}
 												{...field}
