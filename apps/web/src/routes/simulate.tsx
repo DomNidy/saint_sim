@@ -1,9 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	useHydrated,
+	useNavigate,
+} from "@tanstack/react-router";
 import { LoaderCircle, Sparkles } from "lucide-react";
-import { useForm } from "react-hook-form";
-
+import { useEffect } from "react";
+import { type SubmitHandler, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -23,6 +27,11 @@ import {
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
 import {
+	localStorageGet,
+	localStorageSet,
+	PREV_SIMC_PROFILE_KEY,
+} from "@/lib/local-storage";
+import {
 	type SimulationRequestInput,
 	simulationRequestSchema,
 } from "@/lib/saint-api/contracts";
@@ -33,6 +42,9 @@ export const Route = createFileRoute("/simulate")({
 });
 
 function SimulationForm() {
+	const hydrated = useHydrated();
+	const navigate = useNavigate();
+
 	const form = useForm<SimulationRequestInput>({
 		resolver: zodResolver(simulationRequestSchema),
 		defaultValues: {
@@ -40,11 +52,36 @@ function SimulationForm() {
 		},
 	});
 
+	// Use previous simc export as default value
+	useEffect(() => {
+		if (hydrated) {
+			const prevProfile = localStorageGet(PREV_SIMC_PROFILE_KEY);
+			if (prevProfile !== null) {
+				form.reset({ simc_addon_export: prevProfile });
+			}
+		}
+	}, [hydrated, form]);
+
 	const submitMutation = useMutation({
 		mutationFn: submitSimulationRequest,
-		// TODO: maybe redirect to sim page here /simulation/$id page
-		// onSuccess: ({ simulationRequestId }, variables) => {},
+		onSuccess: ({ simulationRequestId }) => {
+			// On submit, redirect to the status page for the sim
+			navigate({
+				from: "/simulate",
+				to: "/simulation/$simulationId",
+				params: {
+					simulationId: simulationRequestId,
+				},
+			});
+		},
 	});
+
+	const submitHandler: SubmitHandler<SimulationRequestInput> = (values) => {
+		void submitMutation.mutateAsync({ data: values });
+		if (hydrated) {
+			localStorageSet(PREV_SIMC_PROFILE_KEY, values.simc_addon_export);
+		}
+	};
 
 	return (
 		<section className="w-full pb-10 pt-12">
@@ -59,9 +96,7 @@ function SimulationForm() {
 					<Form {...form}>
 						<form
 							className="flex flex-col gap-5"
-							onSubmit={form.handleSubmit((values) => {
-								void submitMutation.mutateAsync({ data: values });
-							})}
+							onSubmit={form.handleSubmit(submitHandler)}
 						>
 							<FormField
 								control={form.control}
@@ -107,10 +142,12 @@ function SimulationForm() {
 									type="button"
 									variant="secondary"
 									onClick={() => {
-										form.reset();
+										form.reset({
+											simc_addon_export: "",
+										});
 									}}
 								>
-									Reset form
+									Clear
 								</Button>
 							</div>
 						</form>
