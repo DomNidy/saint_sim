@@ -1,157 +1,106 @@
 package simc
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
-func TestNormalizeLineEndings(t *testing.T) {
+func TestParse(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{
-			name:  "already normalized",
-			input: "line1\nline2\nline3",
-			want:  "line1\nline2\nline3",
+	const input = `# Gubulgi - Unholy - 2026-03-28 12:47 - US/Hydraxis
+# SimC Addon 12.0.0-02
+# WoW 12.0.1.66709, TOC 120001
+# Requires SimulationCraft 1000-01 or newer
+
+deathknight="Gubulgi"
+level=90
+race=maghar_orc
+region=us
+server=hydraxis
+role=attack
+professions=mining=34/
+spec=unholy
+# loot_spec=unholy
+
+talents=ACTIVE_TALENTS
+
+# Saved Loadout: M+
+# talents=MPLUS_TALENTS
+# Saved Loadout: RAID
+# talents=RAID_TALENTS
+
+# Host Commander's Casque (253)
+head=,id=250458,bonus_id=6652/12667/13577/13333/12787
+# Gnarlroot Spinecleaver (250)
+main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652
+
+### Gear from Bags
+#
+# Frayed Guise (201)
+# head=,id=258876,bonus_id=13611,drop_level=90
+#
+# Silvermoon Suncrest (246)
+# head=,id=266432,bonus_id=13577/12785
+
+### Additional Character Info
+#
+	# catalyst_currencies=3269:8/2813:8/3116:8
+
+# Checksum: 6dda4018`
+
+	got := Parse(input)
+
+	want := AddonExport{
+		class:         DeathKnight,
+		level:         "90",
+		race:          "maghar_orc",
+		region:        "us",
+		server:        "hydraxis",
+		role:          "attack",
+		professions:   "mining=34/",
+		spec:          "unholy",
+		activeTalents: "ACTIVE_TALENTS",
+		alternateTalentLoadout: []alternateTalentLoadout{
+			{name: "M+", talents: "MPLUS_TALENTS"},
+			{name: "RAID", talents: "RAID_TALENTS"},
 		},
-		{
-			name:  "windows line endings",
-			input: "line1\r\nline2\r\nline3",
-			want:  "line1\nline2\nline3",
+		equipmentItems: []equipmentItem{
+			{
+				name:      "Host Commander's Casque (253)",
+				equipment: "head=,id=250458,bonus_id=6652/12667/13577/13333/12787",
+				bagItem:   false,
+			},
+			{
+				name:      "Gnarlroot Spinecleaver (250)",
+				equipment: "main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652",
+				bagItem:   false,
+			},
+			{
+				name:      "Frayed Guise (201)",
+				equipment: "head=,id=258876,bonus_id=13611,drop_level=90",
+				bagItem:   true,
+			},
+			{
+				name:      "Silvermoon Suncrest (246)",
+				equipment: "head=,id=266432,bonus_id=13577/12785",
+				bagItem:   true,
+			},
 		},
-		{
-			name:  "classic mac line endings",
-			input: "line1\rline2\rline3",
-			want:  "line1\nline2\nline3",
-		},
-		{
-			name:  "mixed line endings",
-			input: "line1\r\nline2\rline3\nline4",
-			want:  "line1\nline2\nline3\nline4",
-		},
-		{
-			name:  "empty string",
-			input: "",
-			want:  "",
-		},
-		{
-			name:  "single trailing carriage return",
-			input: "line1\r",
-			want:  "line1\n",
-		},
+		checksum: "6dda4018",
 	}
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := NormalizeLineEndings(tt.input)
-			if got != tt.want {
-				t.Fatalf("NormalizeLineEndings(%q) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Parse() mismatch:\n got: %#v\nwant: %#v", got, want)
 	}
 }
 
-func TestStripAllComments(t *testing.T) {
+func TestParseDoesNotAcceptUnderscoreClassAliases(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{
-			name:  "Removes only commented lines",
-			input: "# Simc version 1.23\nwarrior=John\nlevel=90\n",
-			want:  "warrior=John\nlevel=90\n",
-		},
-		{
-			name:  "Only commented input returns empty str",
-			input: "# This is a comment line1.\n#Comment line 2\n#asd\n",
-			want:  "",
-		},
-		{
-			name:  "Multiple consecutive #'s",
-			input: "##Comment #Two\n## Hey\nwarrior=John\n###123",
-			want:  "warrior=John",
-		},
-		{
-			name:  "Preserves blank lines between non-comment lines",
-			input: "# Simc version 1.23\n\nwarrior=John\n\nlevel=90\n# trailing comment",
-			want:  "\nwarrior=John\n\nlevel=90",
-		},
-		{
-			name:  "Preserves spacing on non-comment lines",
-			input: "# comment\n  warrior=John  \n\tlevel=90\t\n",
-			want:  "  warrior=John  \n\tlevel=90\t\n",
-		},
-	}
+	got := Parse("death_knight=\"Example\"\nspec=unholy\n")
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := StripAllComments(tt.input)
-			if got != tt.want {
-				t.Fatalf("StripAllComments(%q) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestTrimLineWhitespace(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name  string
-		input string
-		want  string
-	}{
-		{
-			name:  "Trims leading and trailing spaces on each line",
-			input: "  warrior=John  \n  level=90  ",
-			want:  "warrior=John\nlevel=90",
-		},
-		{
-			name:  "Preserves blank lines while trimming spaces",
-			input: "  warrior=John  \n   \n  level=90  ",
-			want:  "warrior=John\n\nlevel=90",
-		},
-		{
-			name:  "Normalizes line endings before trimming",
-			input: "  warrior=John  \r\n  level=90  \r",
-			want:  "warrior=John\nlevel=90\n",
-		},
-		{
-			name:  "Trims tabs at the start and end of each line",
-			input: "\twarrior=John\t\n \tlevel=90\t ",
-			want:  "warrior=John\nlevel=90",
-		},
-		{
-			name:  "Preserves internal tabs",
-			input: "value\t=\t42\n\tname\t=\tvalue\t",
-			want:  "value\t=\t42\nname\t=\tvalue",
-		},
-		{
-			name:  "Empty string",
-			input: "",
-			want:  "",
-		},
-	}
-
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			got := TrimLineWhitespace(tt.input)
-			if got != tt.want {
-				t.Fatalf("TrimLineWhitespace(%q) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
+	if got.class != "" {
+		t.Fatalf("class = %q, want empty class identifier", got.class)
 	}
 }
