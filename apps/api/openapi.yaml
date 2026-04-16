@@ -71,6 +71,36 @@ paths:
           $ref: "#/components/responses/not_found_error"
         "500":
           $ref: "#/components/responses/internal_error"
+  /simc/gear-preview:
+    post:
+      operationId: simcGearPreview
+      description: Parse a SimC addon export and return grouped gear preview data.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/gear_preview_request"
+      security:
+        - BearerAuth: []
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Grouped preview data for parsed gear.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/gear_preview_response"
+        "400":
+          $ref: "#/components/responses/bad_request_error"
+        "401":
+          description: Returned when the request does not include valid authentication credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/error_response"
+        "500":
+          $ref: "#/components/responses/internal_error"
 components:
   responses:
     bad_request_error:
@@ -125,6 +155,84 @@ components:
       properties:
         simc_addon_export:
           $ref: "#/components/schemas/simc_addon_export"
+
+    gear_preview_request:
+      type: object
+      required:
+        - simc_addon_export
+      properties:
+        simc_addon_export:
+          $ref: "#/components/schemas/simc_addon_export"
+
+    gear_preview_item_source:
+      type: string
+      enum:
+        - equipped
+        - bag
+
+    gear_preview_item:
+      type: object
+      required:
+        - fingerprint
+        - slot
+        - name
+        - display_name
+        - item_id
+        - wowhead_url
+        - wowhead_data
+        - source
+        - raw_line
+      properties:
+        fingerprint:
+          type: string
+        slot:
+          type: string
+        name:
+          type: string
+        display_name:
+          type: string
+        item_id:
+          type: integer
+        item_level:
+          type: integer
+          nullable: true
+        icon_url:
+          type: string
+          nullable: true
+        wowhead_url:
+          type: string
+        wowhead_data:
+          type: string
+        source:
+          $ref: "#/components/schemas/gear_preview_item_source"
+        raw_line:
+          type: string
+
+    gear_preview_group:
+      type: object
+      required:
+        - slot
+        - label
+        - items
+      properties:
+        slot:
+          type: string
+        label:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/gear_preview_item"
+
+    gear_preview_response:
+      type: object
+      required:
+        - groups
+      properties:
+        groups:
+          type: array
+          items:
+            $ref: "#/components/schemas/gear_preview_group"
 
     simulation:
       type: object

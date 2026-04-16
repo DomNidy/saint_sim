@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAuthMiddleware } from "@/lib/auth/auth.middleware";
-import { simulationRequestSchema } from "@/lib/saint-api/contracts";
+import {
+	gearPreviewResponseSchema,
+	simulationRequestSchema,
+} from "@/lib/saint-api/contracts";
 import type { ErrorResponse } from "@/lib/saint-api/generated";
 import { getSimulation, simulate } from "@/lib/saint-api/generated";
 import { saintApiClient } from "./saint-api/saint-api-client";
@@ -76,4 +79,30 @@ export const getSimulationResult = createServerFn()
 		}
 
 		return response.data;
+	});
+
+export const getGearPreview = createServerFn({ method: "POST" })
+	.middleware([requireAuthMiddleware])
+	.inputValidator(
+		z.object({
+			simc_addon_export: z.string().min(1),
+		}),
+	)
+	.handler(async ({ data }) => {
+		const response = await saintApiClient.request({
+			method: "POST",
+			url: "/simc/gear-preview",
+			body: data,
+		});
+
+		if (response.error || !response.data) {
+			throw new Error(
+				readSaintApiErrorMessage(
+					response.error as string | ErrorResponse | undefined,
+					"Unable to preview SimC gear.",
+				),
+			);
+		}
+
+		return gearPreviewResponseSchema.parse(response.data);
 	});
