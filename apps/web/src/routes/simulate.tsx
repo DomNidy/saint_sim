@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	useHydrated,
@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { LoaderCircle, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { type SubmitHandler, useForm } from "react-hook-form";
+import { type SubmitHandler, useForm, useWatch } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
+import { useParseAddonExport } from "@/hooks/use-parse-addon-export";
 import {
 	localStorageGet,
 	localStorageSet,
@@ -36,22 +37,42 @@ import {
 	type SimulationRequestInput,
 	simulationRequestSchema,
 } from "@/lib/saint-api/contracts";
-import {
-	getGearPreview,
-	submitSimulationRequest,
-} from "@/lib/simulation.functions";
+import type { AddonExportEquipmentItem } from "@/lib/saint-api/generated";
+import { submitSimulationRequest } from "@/lib/simulation.functions";
 import { cn } from "@/lib/utils";
 
 declare global {
 	interface Window {
+		// Added by the Wowhead tooltip script loaded in the route head.
 		$WowheadPower?: {
 			refreshLinks?: () => void;
 		};
 	}
 }
 
+// Configure the global Wowhead tooltip script before it loads:
+// - `colorLinks: true` colors item links by quality.
+// - `iconizeLinks: false` keeps Wowhead from prepending icons to links.
+// - `renameLinks: false` keeps Wowhead from rewriting the link text.
 const WOWHEAD_CONFIG_SCRIPT =
 	"window.whTooltips={colorLinks:true,iconizeLinks:false,renameLinks:false};";
+
+const orderedSlots = [
+	"head",
+	"neck",
+	"shoulder",
+	"back",
+	"chest",
+	"wrist",
+	"hands",
+	"waist",
+	"legs",
+	"feet",
+	"finger",
+	"trinket",
+	"main_hand",
+	"off_hand",
+] as const;
 
 export const Route = createFileRoute("/simulate")({
 	head: () => ({
@@ -71,7 +92,6 @@ function SimulationForm() {
 	const hydrated = useHydrated();
 	const navigate = useNavigate();
 	const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
-	const [debouncedProfile, setDebouncedProfile] = useState("");
 
 	const form = useForm<SimulationRequestInput>({
 		resolver: zodResolver(simulationRequestSchema),
@@ -80,17 +100,16 @@ function SimulationForm() {
 		},
 	});
 
-	const simcExport = form.watch("simc_addon_export");
+	const simcExport = useWatch({
+		control: form.control,
+		name: "simc_addon_export",
+		defaultValue: "",
+	});
 
 	useEffect(() => {
-		const timeoutID = setTimeout(() => {
-			setDebouncedProfile(simcExport.trim());
+		if (simcExport !== undefined) {
 			setSelectedItems(new Set());
-		}, 450);
-
-		return () => {
-			clearTimeout(timeoutID);
-		};
+		}
 	}, [simcExport]);
 
 	// Use previous simc export as default value
@@ -106,7 +125,6 @@ function SimulationForm() {
 	const submitMutation = useMutation({
 		mutationFn: submitSimulationRequest,
 		onSuccess: ({ simulationRequestId }) => {
-			// On submit, redirect to the status page for the sim
 			navigate({
 				from: "/simulate",
 				to: "/simulation/$simulationId",
@@ -117,21 +135,19 @@ function SimulationForm() {
 		},
 	});
 
-	const previewQuery = useQuery({
-		queryKey: ["simc-gear-preview", debouncedProfile],
-		queryFn: () =>
-			getGearPreview({ data: { simc_addon_export: debouncedProfile } }),
-		enabled: debouncedProfile.length > 0,
-		retry: false,
-	});
+	const parseQuery = useParseAddonExport(simcExport, true);
+	const previewGroups = useMemo(
+		() => groupEquipment(parseQuery.data?.addon_export.equipment ?? []),
+		[parseQuery.data?.addon_export.equipment],
+	);
 
 	useEffect(() => {
-		if (!previewQuery.data || !hydrated) {
+		if (previewGroups.length === 0 || !hydrated) {
 			return;
 		}
 
 		window.$WowheadPower?.refreshLinks?.();
-	}, [previewQuery.data, hydrated]);
+	}, [previewGroups, hydrated]);
 
 	const submitHandler: SubmitHandler<SimulationRequestInput> = (values) => {
 		void submitMutation.mutateAsync({ data: values });
@@ -226,28 +242,32 @@ function SimulationForm() {
 							<Badge variant="secondary">Selected: {selectedCount}</Badge>
 						</div>
 
-						{debouncedProfile.length === 0 ? (
+						{simcExport.trim().length === 0 ? (
 							<p className="text-muted-foreground text-sm">
 								Paste a SimC addon export to preview parsed gear.
 							</p>
 						) : null}
 
-						{previewQuery.isLoading ? (
+						{parseQuery.isLoading ? (
 							<div className="flex items-center gap-2 text-muted-foreground text-sm">
 								<LoaderCircle className="size-4 animate-spin" />
-								Building gear preview...
+								Parsing addon export...
 							</div>
 						) : null}
 
-						{previewQuery.isError && <p className="text-destructive text-sm"> {previewQuery.error.message} </p>}
+						{parseQuery.isError ? (
+							<p className="text-destructive text-sm">
+								{parseQuery.error.message}
+							</p>
+						) : null}
 
-						{previewQuery.data?.groups.length === 0 ? (
+						{parseQuery.data && previewGroups.length === 0 ? (
 							<p className="text-muted-foreground text-sm">
 								No gear lines were found in this export.
 							</p>
 						) : null}
 
-						{previewQuery.data?.groups.map((group) => (
+						{previewGroups.map((group) => (
 							<div key={group.slot} className="space-y-2">
 								<h4 className="font-medium text-sm uppercase tracking-wide">
 									{group.label}
@@ -273,36 +293,34 @@ function SimulationForm() {
 													});
 												}}
 												className={cn(
-													"flex items-center gap-3 rounded-md border bg-card p-3 text-left transition-colors",
+													"rounded-md border bg-card p-3 text-left transition-colors",
 													isSelected
 														? "border-primary ring-1 ring-primary"
 														: "hover:border-muted-foreground/40",
 												)}
 											>
-												<a
-													href={item.wowhead_url}
-													data-wowhead={item.wowhead_data}
-													target="_blank"
-													rel="noreferrer"
-													onClick={(event) => {
-														event.stopPropagation();
-													}}
-													className="shrink-0"
-												>
-													<img
-														src={item.icon_url ?? ""}
-														alt={item.display_name}
-														className="size-12 rounded border"
-													/>
-												</a>
-												<div className="min-w-0 space-y-1">
-													<p className="truncate font-medium text-sm">
-														{item.display_name}
-													</p>
-													<p className="text-muted-foreground text-xs">
-														ilvl {item.item_level ?? "?"} ·{" "}
-														{item.source === "bag" ? "Bag" : "Equipped"}
-													</p>
+												<div className="flex items-start justify-between gap-3">
+													<div className="min-w-0 space-y-1">
+														<p className="truncate font-medium text-sm">
+															{item.display_name}
+														</p>
+														<p className="text-muted-foreground text-xs">
+															ilvl {item.item_level ?? "?"} ·{" "}
+															{item.source === "bag" ? "Bag" : "Equipped"}
+														</p>
+													</div>
+													<a
+														href={buildWowheadUrl(item.item_id)}
+														data-wowhead={buildWowheadData(item)}
+														target="_blank"
+														rel="noreferrer"
+														onClick={(event) => {
+															event.stopPropagation();
+														}}
+														className="shrink-0 text-xs underline underline-offset-2"
+													>
+														Wowhead
+													</a>
 												</div>
 											</button>
 										);
@@ -315,4 +333,73 @@ function SimulationForm() {
 			</Card>
 		</section>
 	);
+}
+
+function groupEquipment(items: AddonExportEquipmentItem[]) {
+	const groupsBySlot = new Map<string, AddonExportEquipmentItem[]>();
+
+	for (const item of items) {
+		const group = groupsBySlot.get(item.slot) ?? [];
+		group.push(item);
+		groupsBySlot.set(item.slot, group);
+	}
+
+	const groups = Array.from(groupsBySlot.entries()).map(
+		([slot, groupedItems]) => ({
+			slot,
+			label: slotLabel(slot),
+			items: groupedItems,
+		}),
+	);
+
+	return groups.sort((left, right) => {
+		const leftIndex = orderedSlots.indexOf(
+			left.slot as (typeof orderedSlots)[number],
+		);
+		const rightIndex = orderedSlots.indexOf(
+			right.slot as (typeof orderedSlots)[number],
+		);
+
+		if (leftIndex === -1 && rightIndex === -1) {
+			return left.slot.localeCompare(right.slot);
+		}
+		if (leftIndex === -1) {
+			return 1;
+		}
+		if (rightIndex === -1) {
+			return -1;
+		}
+
+		return leftIndex - rightIndex;
+	});
+}
+
+function slotLabel(slot: string) {
+	const words = slot.split("_");
+	return words
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+		.join(" ");
+}
+
+function buildWowheadUrl(itemId: number) {
+	return `https://www.wowhead.com/item=${itemId}`;
+}
+
+function buildWowheadData(item: AddonExportEquipmentItem) {
+	const pairs = [`item=${item.item_id}`];
+
+	if ((item.bonus_ids ?? []).length > 0) {
+		pairs.push(`bonus=${(item.bonus_ids ?? []).join(":")}`);
+	}
+	if (item.enchant_id != null) {
+		pairs.push(`ench=${item.enchant_id}`);
+	}
+	if ((item.gem_ids ?? []).length > 0) {
+		pairs.push(`gems=${(item.gem_ids ?? []).join(":")}`);
+	}
+	if (item.item_level != null) {
+		pairs.push(`ilvl=${item.item_level}`);
+	}
+
+	return pairs.join("&");
 }

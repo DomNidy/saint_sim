@@ -1,40 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAuthMiddleware } from "@/lib/auth/auth.middleware";
-import {
-	gearPreviewResponseSchema,
-	simulationRequestSchema,
-} from "@/lib/saint-api/contracts";
-import type { ErrorResponse } from "@/lib/saint-api/generated";
-import {
-	getSimulation,
-	simcGearPreview,
-	simulate,
-} from "@/lib/saint-api/generated";
+import { simulationRequestSchema } from "@/lib/saint-api/contracts";
+import { getSimulation, simulate } from "@/lib/saint-api/generated";
+import { readSaintApiErrorMessage } from "@/lib/saint-api/read-saint-api-error-message";
 import { saintApiClient } from "./saint-api/saint-api-client";
-
-/**
- * Extract API message from response when present, otherwise use the
- * supplied fallback.
- */
-function readSaintApiErrorMessage(
-	error: string | ErrorResponse | undefined,
-	fallback: string,
-) {
-	if (error === undefined) {
-		return fallback;
-	}
-
-	if (typeof error === "string") {
-		return error.trim();
-	}
-
-	if (error?.message) {
-		return error.message;
-	}
-
-	return fallback;
-}
 
 export const submitSimulationRequest = createServerFn({ method: "POST" })
 	.middleware([requireAuthMiddleware])
@@ -83,29 +53,4 @@ export const getSimulationResult = createServerFn()
 		}
 
 		return response.data;
-	});
-
-export const getGearPreview = createServerFn({ method: "POST" })
-	.inputValidator(
-		z.object({
-			simc_addon_export: z.string().min(1),
-		}),
-	)
-	.handler(async ({ data }) => {
-		simcGearPreview;
-		const response = await simcGearPreview({
-			client: saintApiClient,
-			body: data,
-		});
-
-		if (response.error || !response.data) {
-			throw new Error(
-				readSaintApiErrorMessage(
-					response.error as string | ErrorResponse | undefined,
-					"Unable to preview SimC gear.",
-				),
-			);
-		}
-
-		return gearPreviewResponseSchema.parse(response.data);
 	});

@@ -8,10 +8,10 @@ const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 )
 
-// Defines values for GearPreviewItemSource.
+// Defines values for AddonExportEquipmentSource.
 const (
-	Bag      GearPreviewItemSource = "bag"
-	Equipped GearPreviewItemSource = "equipped"
+	Bag      AddonExportEquipmentSource = "bag"
+	Equipped AddonExportEquipmentSource = "equipped"
 )
 
 // Defines values for SimulationStatus.
@@ -22,46 +22,71 @@ const (
 	InQueue    SimulationStatus = "in_queue"
 )
 
+type AddonExport struct {
+	ActiveTalents           *string                                 `json:"active_talents,omitempty"`
+	AlternateTalentLoadouts []AddonExportAlternateTalentLoadout     `json:"alternate_talent_loadouts,omitempty"`
+	CatalystCurrencies      map[string]int                          `json:"catalyst_currencies,omitempty"`
+	CharacterName           *string                                 `json:"character_name,omitempty"`
+	Checksum                *string                                 `json:"checksum,omitempty"`
+	Class                   *string                                 `json:"class,omitempty"`
+	Equipment               []AddonExportEquipmentItem              `json:"equipment,omitempty"`
+	HeaderComment           *string                                 `json:"header_comment,omitempty"`
+	LootSpec                *string                                 `json:"loot_spec,omitempty"`
+	Professions             *string                                 `json:"professions,omitempty"`
+	Race                    *string                                 `json:"race,omitempty"`
+	Region                  *string                                 `json:"region,omitempty"`
+	RequiredSimcComment     *string                                 `json:"required_simc_comment,omitempty"`
+	Role                    *string                                 `json:"role,omitempty"`
+	Server                  *string                                 `json:"server,omitempty"`
+	SimcAddonComment        *string                                 `json:"simc_addon_comment,omitempty"`
+	SlotHighWatermarks      map[string]AddonExportSlotHighWatermark `json:"slot_high_watermarks,omitempty"`
+	Spec                    *string                                 `json:"spec,omitempty"`
+	UpgradeAchievements     []int                                   `json:"upgrade_achievements,omitempty"`
+	WowBuildComment         *string                                 `json:"wow_build_comment,omitempty"`
+	Level                   *string                                 `json:"level,omitempty"`
+}
+
+type AddonExportAlternateTalentLoadout struct {
+	Name    string `json:"name"`
+	Talents string `json:"talents"`
+}
+
+type AddonExportEquipmentItem struct {
+	BonusIds        []int                      `json:"bonus_ids,omitempty"`
+	CraftedStats    []int                      `json:"crafted_stats,omitempty"`
+	CraftingQuality *int                       `json:"crafting_quality,omitempty"`
+	DisplayName     string                     `json:"display_name"`
+	EnchantId       *int                       `json:"enchant_id,omitempty"`
+	Fingerprint     string                     `json:"fingerprint"`
+	GemIds          []int                      `json:"gem_ids,omitempty"`
+	ItemId          int                        `json:"item_id"`
+	ItemLevel       *int                       `json:"item_level,omitempty"`
+	Name            string                     `json:"name"`
+	RawLine         string                     `json:"raw_line"`
+	Slot            string                     `json:"slot"`
+	Source          AddonExportEquipmentSource `json:"source"`
+}
+
+type AddonExportEquipmentSource string
+
+type AddonExportSlotHighWatermark struct {
+	CurrentItemLevel int `json:"current_item_level"`
+	MaxItemLevel     int `json:"max_item_level"`
+}
+
 // ErrorResponse Error response returned by API when something goes wrong
 type ErrorResponse struct {
 	// Message Message explaining the error
 	Message *string `json:"message,omitempty"`
 }
 
-// GearPreviewGroup defines model for gear_preview_group.
-type GearPreviewGroup struct {
-	Items []GearPreviewItem `json:"items"`
-	Label string            `json:"label"`
-	Slot  string            `json:"slot"`
-}
-
-// GearPreviewItem defines model for gear_preview_item.
-type GearPreviewItem struct {
-	DisplayName string                `json:"display_name"`
-	Fingerprint string                `json:"fingerprint"`
-	IconUrl     *string               `json:"icon_url"`
-	ItemId      int                   `json:"item_id"`
-	ItemLevel   *int                  `json:"item_level"`
-	Name        string                `json:"name"`
-	RawLine     string                `json:"raw_line"`
-	Slot        string                `json:"slot"`
-	Source      GearPreviewItemSource `json:"source"`
-	WowheadData string                `json:"wowhead_data"`
-	WowheadUrl  string                `json:"wowhead_url"`
-}
-
-// GearPreviewItemSource defines model for gear_preview_item_source.
-type GearPreviewItemSource string
-
-// GearPreviewRequest defines model for gear_preview_request.
-type GearPreviewRequest struct {
+type ParseAddonExportRequest struct {
 	// SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
 	SimcAddonExport SimcAddonExport `json:"simc_addon_export"`
 }
 
-// GearPreviewResponse defines model for gear_preview_response.
-type GearPreviewResponse struct {
-	Groups []GearPreviewGroup `json:"groups"`
+type ParseAddonExportResponse struct {
+	AddonExport AddonExport `json:"addon_export"`
 }
 
 // SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
@@ -89,17 +114,12 @@ type SimulationOptions struct {
 // SimulationStatus defines model for simulation_status.
 type SimulationStatus string
 
-// BadRequestError Error response returned by API when something goes wrong
 type BadRequestError = ErrorResponse
-
-// InternalError Error response returned by API when something goes wrong
 type InternalError = ErrorResponse
-
-// NotFoundError Error response returned by API when something goes wrong
 type NotFoundError = ErrorResponse
 
-// SimcGearPreviewJSONRequestBody defines body for SimcGearPreview for application/json ContentType.
-type SimcGearPreviewJSONRequestBody = GearPreviewRequest
+// ParseAddonExportJSONRequestBody defines body for ParseAddonExport for application/json ContentType.
+type ParseAddonExportJSONRequestBody = ParseAddonExportRequest
 
 // SimulateJSONRequestBody defines body for Simulate for application/json ContentType.
 type SimulateJSONRequestBody = SimulationOptions

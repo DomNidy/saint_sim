@@ -11,12 +11,14 @@ export default defineConfig({
 		{
 			name: "@hey-api/typescript",
 			enums: "javascript",
+			comments: true,
 		},
 		"@hey-api/client-fetch",
 		"@hey-api/sdk",
 		{
 			name: "zod",
 			definitions: true,
+			comments: true,
 		},
 	],
 });

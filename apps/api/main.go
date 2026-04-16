@@ -70,7 +70,7 @@ func main() {
 	router.GET("/simulation/:id", func(ginContext *gin.Context) {
 		handlers.GetSimulation(ginContext, dbClient)
 	})
-	router.POST("/simc/gear-preview", handlers.SimcGearPreview)
+	router.POST("/simc/parse-addon-export", handlers.ParseAddonExport)
 
 	// Authorization group: https://gin-gonic.com/zh-tw/docs/examples/using-middleware/
 	apiKeyAuthenticator := middleware.NewAPIKeyAuthenticator(dbClient)
