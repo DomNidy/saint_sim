@@ -4,7 +4,7 @@ tmp_dir = "apps/discord_bot/tmp"
 [build]
   cmd = "go build -o ./apps/discord_bot/tmp/main ./apps/discord_bot"
   bin = "./apps/discord_bot/tmp/main"
-  include_dir = ["apps/discord_bot", "pkg"]
+  include_dir = ["apps/discord_bot", "internal"]
   include_ext = ["go"]
   exclude_regex = ["_test\\.go"]
   delay = 500

@@ -4,7 +4,7 @@ tmp_dir = "apps/api/tmp"
 [build]
   cmd = "go build -o ./apps/api/tmp/main ./apps/api"
   bin = "./apps/api/tmp/main"
-  include_dir = ["apps/api", "pkg"]
+  include_dir = ["apps/api", "internal"]
   include_ext = ["go"]
   exclude_regex = ["_test\\.go"]
   delay = 500
