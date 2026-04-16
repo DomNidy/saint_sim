@@ -2,37 +2,19 @@ FROM golang:1.24-alpine AS builder
 
 WORKDIR /build
 
-COPY --from=root go.work go.work.sum ./
-
-RUN go work edit -dropuse ./apps/discord_bot
-RUN go work edit -dropuse ./apps/simulation_worker
-
-WORKDIR /build/pkg
-COPY --from=pkg . .
-
-WORKDIR /build/apps/api
-
-
-# download modules
-COPY go.mod go.sum ./
+COPY --from=root go.mod go.sum ./
 RUN go mod download
 
-# copy the remaining contents of discord_bot into container
-COPY . .
+COPY --from=root . .
 
-RUN go build -o api main.go
+RUN go build -o /out/api ./apps/api
 
-# alpine index: https://dl-4.alpinelinux.org/alpine/
 FROM alpine:3.20 AS runner
 
 WORKDIR /app
+RUN apk update && apk add --no-cache ca-certificates curl
 
-# Install CA certificates
-RUN apk update && apk add ca-certificates && apk add curl
-
-COPY --from=builder /build/apps/api/api .
-
+COPY --from=builder /out/api ./api
 RUN chmod +x api
-
 
 ENTRYPOINT ["./api"]

@@ -5,11 +5,8 @@ services:
     container_name: saint_discord_bot
     build:
       context: ./apps/discord_bot
-      # We are using multiple build contexts so we can easily copy the modules in /pkg/ into the containers
-      # https://www.docker.com/blog/dockerfiles-now-support-multiple-build-contexts/
       additional_contexts:
         root: ./
-        pkg: ./pkg
       tags:
         - "saint_discord_bot:latest"
     networks:
@@ -40,7 +37,6 @@ services:
       context: ./apps/api
       additional_contexts:
         root: ./
-        pkg: ./pkg
       tags:
         - "saint_api:latest"
     environment:
@@ -82,7 +78,6 @@ services:
       context: ./apps/simulation_worker
       additional_contexts:
         root: ./
-        pkg: ./pkg
       args:
         SIMC_IMAGE: ${SIMC_IMAGE}
       tags:

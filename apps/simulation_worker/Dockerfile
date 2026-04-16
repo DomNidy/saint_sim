@@ -1,55 +1,28 @@
-# version of simc base container to use
 ARG SIMC_IMAGE=simulationcraftorg/simc:latest
 ARG SIMC_PLATFORM=linux/amd64
 
-# Upstream SimC currently publishes an amd64-only image. Pin the worker build to
-# that platform so the Go binary, Alpine runtime, and copied simc binary all use
-# the same architecture
 FROM --platform=${SIMC_PLATFORM} ${SIMC_IMAGE} AS builder
 
 WORKDIR /build
-RUN apk --version
-
-# copy golang from a base image so we don't need to install it in the container
-# add it to sytem path
 COPY --from=golang:1.24-alpine /usr/local/go/ /usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 
-COPY --from=root go.work go.work.sum ./
-
-RUN go work edit -dropuse ./apps/discord_bot
-RUN go work edit -dropuse ./apps/api
-
-WORKDIR /build/pkg
-COPY --from=pkg . .
-
-WORKDIR /build/apps/simulation_worker
-
-# download modules
-COPY go.mod go.sum ./
+COPY --from=root go.mod go.sum ./
 RUN go mod download
 
-# copy the remaining contents of discord_bot into container
-COPY . .
+COPY --from=root . .
 
-RUN go build -o simulation_worker .
+RUN go build -o /out/simulation_worker ./apps/simulation_worker
 
-# alpine index: https://dl-4.alpinelinux.org/alpine/
 FROM --platform=${SIMC_PLATFORM} alpine:3.20 AS runner
 
 ENV SIMC_BINARY_PATH=./simc
-
 WORKDIR /app
 
-# Install CA certificates and dependencies needed to run simc
-RUN apk update && apk add ca-certificates libcurl libgcc libstdc++
+RUN apk update && apk add --no-cache ca-certificates libcurl libgcc libstdc++
 
-# Copy simc binary from previous stage into image
-# the simc binary should be in same dir as the simulation_worker binary
-# (the /app directory)
 COPY --from=builder /app/SimulationCraft/ .
-
-COPY --from=builder /build/apps/simulation_worker/simulation_worker .
+COPY --from=builder /out/simulation_worker ./simulation_worker
 RUN chmod +x simulation_worker
 
 ENTRYPOINT ["./simulation_worker"]

@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
+	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 )
 
 func main() {

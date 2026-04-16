@@ -18,7 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
+	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 )
 
 type stubAPIKeyAuthenticator struct {

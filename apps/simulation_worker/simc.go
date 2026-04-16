@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	api_types "github.com/DomNidy/saint_sim/pkg/api_types"
-	utils "github.com/DomNidy/saint_sim/pkg/utils"
+	api_types "github.com/DomNidy/saint_sim/internal/api_types"
+	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
 const simcNoArgumentsExitCode = 50

@@ -10,8 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/DomNidy/saint_sim/pkg/api_types"
-	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
+	"github.com/DomNidy/saint_sim/internal/api_types"
+	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 )
 
 // AuthScheme identifies which authentication scheme authorized the request.

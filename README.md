@@ -13,12 +13,12 @@ We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to sh
   - `/apps/api`: The API server application
   - `/apps/simulation_worker`: Application which handles simulation requests from users by invoking `simc`, then persists the results to the database
 - `/justfile`: Root task runner for local development and maintenance commands
-- `/pkg`: Directory containing shared packages and generated contracts used throughout `/apps`
+- `/internal`: Directory containing private shared packages and generated contracts used throughout the Go applications
 
-  - `/pkg/api_types`: Automatically generated Go types from the OpenAPI schema
-  - `/pkg/db`: Generated Go database access code from `sqlc`
-  - `/pkg/secrets`: Utility for reading secrets into memory
-  - `/pkg/utils`: Miscellaneous shared utilities
+  - `/internal/api_types`: Automatically generated Go types from the OpenAPI schema
+  - `/internal/db`: Generated Go database access code from `sqlc`
+  - `/internal/secrets`: Utility for reading secrets into memory
+  - `/internal/utils`: Miscellaneous shared utilities
   - `/apps/web/src/lib/db`: `sqlc`-generated TypeScript query bindings for the web app
   - `/apps/web/src/lib/api/generated`: OpenAPI-derived TypeScript types, SDK functions, Fetch client, and Zod schemas for the web app
 
@@ -170,6 +170,6 @@ The default env var for `SIMC_IMAGE` uses the `latest` tag. Docker can cache thi
 docker image pull simulationcraftorg/simc:latest
 ```
 
-### Issues with go workspaces and dockerfiles
+### Single-module Docker builds
 
-There is some added complexity with our dockerfiles since we are also using go workspaces. In each dockerfile, we need to copy the `go.work` and `go.work.sum` files from the root of the repository, into the container. Then, we need to edit the `go.work` file using `go work edit --dropuse <module_path>` to exclude modules that we don't import in that specific container. If we do not do this, we will run into build errors. As go will try to resolve the paths to those modules, then throw an error (because the modules aren't in containers).
+The repository now uses a single root Go module. Dockerfiles can build directly from the root source context without copying `go.work` or pruning workspace modules per service.

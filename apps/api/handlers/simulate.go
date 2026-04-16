@@ -14,10 +14,10 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/DomNidy/saint_sim/apps/api/middleware"
-	"github.com/DomNidy/saint_sim/pkg/api_types"
-	"github.com/DomNidy/saint_sim/pkg/db"
-	"github.com/DomNidy/saint_sim/pkg/simc"
-	"github.com/DomNidy/saint_sim/pkg/utils"
+	"github.com/DomNidy/saint_sim/internal/api_types"
+	"github.com/DomNidy/saint_sim/internal/db"
+	"github.com/DomNidy/saint_sim/internal/simc"
+	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
 type simulationValidationError struct {
