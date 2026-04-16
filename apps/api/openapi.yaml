@@ -71,23 +71,23 @@ paths:
           $ref: "#/components/responses/not_found_error"
         "500":
           $ref: "#/components/responses/internal_error"
-  /simc/gear-preview:
+  /simc/parse-addon-export:
     post:
-      operationId: simcGearPreview
-      description: Parse a SimC addon export and return grouped gear preview data.
+      operationId: parseAddonExport
+      description: Parse a SimC addon export and return structured addon export data.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/gear_preview_request"
+              $ref: "#/components/schemas/parse_addon_export_request"
       responses:
         "200":
-          description: Grouped preview data for parsed gear.
+          description: Structured parsed data for the addon export.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/gear_preview_response"
+                $ref: "#/components/schemas/parse_addon_export_response"
         "400":
           $ref: "#/components/responses/bad_request_error"
         "500":
@@ -147,7 +147,7 @@ components:
         simc_addon_export:
           $ref: "#/components/schemas/simc_addon_export"
 
-    gear_preview_request:
+    parse_addon_export_request:
       type: object
       required:
         - simc_addon_export
@@ -155,13 +155,37 @@ components:
         simc_addon_export:
           $ref: "#/components/schemas/simc_addon_export"
 
-    gear_preview_item_source:
+    addon_export_equipment_source:
       type: string
       enum:
         - equipped
         - bag
 
-    gear_preview_item:
+    addon_export_alternate_talent_loadout:
+      type: object
+      description: A saved alternate talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
+      required:
+        - name
+        - talents
+      properties:
+        name:
+          type: string
+        talents:
+          type: string
+
+    addon_export_slot_high_watermark:
+      type: object
+      description: The character's current and highest unlocked upgrade track item levels for a specific gear slot from Additional Character Info.
+      required:
+        - current_item_level
+        - max_item_level
+      properties:
+        current_item_level:
+          type: integer
+        max_item_level:
+          type: integer
+
+    addon_export_equipment_item:
       type: object
       required:
         - fingerprint
@@ -169,8 +193,6 @@ components:
         - name
         - display_name
         - item_id
-        - wowhead_url
-        - wowhead_data
         - source
         - raw_line
       properties:
@@ -187,43 +209,108 @@ components:
         item_level:
           type: integer
           nullable: true
-        icon_url:
-          type: string
+        enchant_id:
+          type: integer
           nullable: true
-        wowhead_url:
-          type: string
-        wowhead_data:
-          type: string
+        crafting_quality:
+          type: integer
+          nullable: true
+        bonus_ids:
+          type: array
+          items:
+            type: integer
+        gem_ids:
+          type: array
+          items:
+            type: integer
+        crafted_stats:
+          type: array
+          items:
+            type: integer
         source:
-          $ref: "#/components/schemas/gear_preview_item_source"
+          $ref: "#/components/schemas/addon_export_equipment_source"
         raw_line:
           type: string
 
-    gear_preview_group:
+    addon_export:
       type: object
-      required:
-        - slot
-        - label
-        - items
       properties:
-        slot:
+        character_name:
           type: string
-        label:
+          nullable: true
+        class:
           type: string
-        items:
+          nullable: true
+        level:
+          type: string
+          nullable: true
+        race:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        server:
+          type: string
+          nullable: true
+        role:
+          type: string
+          nullable: true
+        professions:
+          type: string
+          nullable: true
+        spec:
+          type: string
+          nullable: true
+        active_talents:
+          type: string
+          nullable: true
+        alternate_talent_loadouts:
           type: array
           items:
-            $ref: "#/components/schemas/gear_preview_item"
+            $ref: "#/components/schemas/addon_export_alternate_talent_loadout"
+        equipment:
+          type: array
+          items:
+            $ref: "#/components/schemas/addon_export_equipment_item"
+        checksum:
+          type: string
+          nullable: true
+        header_comment:
+          type: string
+          nullable: true
+        simc_addon_comment:
+          type: string
+          nullable: true
+        wow_build_comment:
+          type: string
+          nullable: true
+        required_simc_comment:
+          type: string
+          nullable: true
+        loot_spec:
+          type: string
+          nullable: true
+        catalyst_currencies:
+          type: object
+          additionalProperties:
+            type: integer
+        slot_high_watermarks:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/addon_export_slot_high_watermark"
+        upgrade_achievements:
+          type: array
+          items:
+            type: integer
 
-    gear_preview_response:
+    parse_addon_export_response:
       type: object
       required:
-        - groups
+        - addon_export
       properties:
-        groups:
-          type: array
-          items:
-            $ref: "#/components/schemas/gear_preview_group"
+        addon_export:
+          $ref: "#/components/schemas/addon_export"
 
     simulation:
       type: object

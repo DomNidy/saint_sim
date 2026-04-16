@@ -3,6 +3,8 @@ package simc
 import (
 	"reflect"
 	"testing"
+
+	"github.com/DomNidy/saint_sim/internal/api_types"
 )
 
 func TestParse(t *testing.T) {
@@ -31,7 +33,7 @@ talents=ACTIVE_TALENTS
 # talents=RAID_TALENTS
 
 # Host Commander's Casque (253)
-head=,id=250458,bonus_id=6652/12667/13577/13333/12787
+head=,id=250458,bonus_id=6652/12667/13577/13333/12787,crafted_stats=40/49,crafting_quality=5
 # Gnarlroot Spinecleaver (250)
 main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652
 
@@ -41,53 +43,105 @@ main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652
 # head=,id=258876,bonus_id=13611,drop_level=90
 #
 # Silvermoon Suncrest (246)
-# head=,id=266432,bonus_id=13577/12785
+# head=,id=266432,bonus_id=13577/12785,gem_id1=213482,gem_id2=213743
 
 ### Additional Character Info
 #
 	# catalyst_currencies=3269:8/2813:8/3116:8
+	# slot_high_watermarks=head:639:652/off_hand:636:649
+	# upgrade_achievements=123/456
 
 # Checksum: 6dda4018`
 
 	got := Parse(input)
 
-	want := AddonExport{
-		class:         DeathKnight,
-		level:         "90",
-		race:          "maghar_orc",
-		region:        "us",
-		server:        "hydraxis",
-		role:          "attack",
-		professions:   "mining=34/",
-		spec:          "unholy",
-		activeTalents: "ACTIVE_TALENTS",
-		alternateTalentLoadout: []alternateTalentLoadout{
-			{name: "M+", talents: "MPLUS_TALENTS"},
-			{name: "RAID", talents: "RAID_TALENTS"},
+	want := api_types.AddonExport{
+		CharacterName:       strPtr("Gubulgi"),
+		Class:               strPtr("deathknight"),
+		Level:               strPtr("90"),
+		Race:                strPtr("maghar_orc"),
+		Region:              strPtr("us"),
+		Server:              strPtr("hydraxis"),
+		Role:                strPtr("attack"),
+		Professions:         strPtr("mining=34/"),
+		Spec:                strPtr("unholy"),
+		ActiveTalents:       strPtr("ACTIVE_TALENTS"),
+		HeaderComment:       strPtr("Gubulgi - Unholy - 2026-03-28 12:47 - US/Hydraxis"),
+		SimcAddonComment:    strPtr("SimC Addon 12.0.0-02"),
+		WowBuildComment:     strPtr("WoW 12.0.1.66709, TOC 120001"),
+		RequiredSimcComment: strPtr("Requires SimulationCraft 1000-01 or newer"),
+		LootSpec:            strPtr("unholy"),
+		Checksum:            strPtr("6dda4018"),
+		AlternateTalentLoadouts: []api_types.AddonExportAlternateTalentLoadout{
+			{Name: "M+", Talents: "MPLUS_TALENTS"},
+			{Name: "RAID", Talents: "RAID_TALENTS"},
 		},
-		equipmentItems: []equipmentItem{
+		Equipment: []api_types.AddonExportEquipmentItem{
 			{
-				name:      "Host Commander's Casque (253)",
-				equipment: "head=,id=250458,bonus_id=6652/12667/13577/13333/12787",
-				bagItem:   false,
+				Fingerprint:     fingerprintForItem("head=,id=250458,bonus_id=6652/12667/13577/13333/12787,crafted_stats=40/49,crafting_quality=5", "equipped"),
+				Slot:            "head",
+				Name:            "Host Commander's Casque",
+				DisplayName:     "Host Commander's Casque",
+				ItemId:          250458,
+				ItemLevel:       intPtr(253),
+				CraftingQuality: intPtr(5),
+				BonusIds:        []int{6652, 12667, 13577, 13333, 12787},
+				CraftedStats:    []int{40, 49},
+				Source:          api_types.Equipped,
+				RawLine:         "head=,id=250458,bonus_id=6652/12667/13577/13333/12787,crafted_stats=40/49,crafting_quality=5",
 			},
 			{
-				name:      "Gnarlroot Spinecleaver (250)",
-				equipment: "main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652",
-				bagItem:   false,
+				Fingerprint: fingerprintForItem("main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652", "equipped"),
+				Slot:        "main_hand",
+				Name:        "Gnarlroot Spinecleaver",
+				DisplayName: "Gnarlroot Spinecleaver",
+				ItemId:      249671,
+				ItemLevel:   intPtr(250),
+				EnchantId:   intPtr(3368),
+				BonusIds:    []int{12786, 6652},
+				Source:      api_types.Equipped,
+				RawLine:     "main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652",
 			},
 			{
-				name:      "Frayed Guise (201)",
-				equipment: "head=,id=258876,bonus_id=13611,drop_level=90",
-				bagItem:   true,
+				Fingerprint: fingerprintForItem("head=,id=258876,bonus_id=13611,drop_level=90", "bag"),
+				Slot:        "head",
+				Name:        "Frayed Guise",
+				DisplayName: "Frayed Guise",
+				ItemId:      258876,
+				ItemLevel:   intPtr(201),
+				BonusIds:    []int{13611},
+				Source:      api_types.Bag,
+				RawLine:     "head=,id=258876,bonus_id=13611,drop_level=90",
 			},
 			{
-				name:      "Silvermoon Suncrest (246)",
-				equipment: "head=,id=266432,bonus_id=13577/12785",
-				bagItem:   true,
+				Fingerprint: fingerprintForItem("head=,id=266432,bonus_id=13577/12785,gem_id1=213482,gem_id2=213743", "bag"),
+				Slot:        "head",
+				Name:        "Silvermoon Suncrest",
+				DisplayName: "Silvermoon Suncrest",
+				ItemId:      266432,
+				ItemLevel:   intPtr(246),
+				BonusIds:    []int{13577, 12785},
+				GemIds:      []int{213482, 213743},
+				Source:      api_types.Bag,
+				RawLine:     "head=,id=266432,bonus_id=13577/12785,gem_id1=213482,gem_id2=213743",
 			},
 		},
-		checksum: "6dda4018",
+		CatalystCurrencies: map[string]int{
+			"3269": 8,
+			"2813": 8,
+			"3116": 8,
+		},
+		SlotHighWatermarks: map[string]api_types.AddonExportSlotHighWatermark{
+			"head": {
+				CurrentItemLevel: 639,
+				MaxItemLevel:     652,
+			},
+			"off_hand": {
+				CurrentItemLevel: 636,
+				MaxItemLevel:     649,
+			},
+		},
+		UpgradeAchievements: []int{123, 456},
 	}
 
 	if !reflect.DeepEqual(got, want) {
@@ -100,7 +154,23 @@ func TestParseDoesNotAcceptUnderscoreClassAliases(t *testing.T) {
 
 	got := Parse("death_knight=\"Example\"\nspec=unholy\n")
 
-	if got.class != "" {
-		t.Fatalf("class = %q, want empty class identifier", got.class)
+	if got.Class != nil {
+		t.Fatalf("class = %q, want nil class identifier", *got.Class)
 	}
+}
+
+func TestHasRecognizedData(t *testing.T) {
+	t.Parallel()
+
+	if HasRecognizedData(Parse("### comments only")) {
+		t.Fatal("HasRecognizedData returned true for unparseable input")
+	}
+
+	if !HasRecognizedData(Parse("priest=\"Example\"\nspec=shadow\n")) {
+		t.Fatal("HasRecognizedData returned false for recognizable input")
+	}
+}
+
+func intPtr(value int) *int {
+	return &value
 }

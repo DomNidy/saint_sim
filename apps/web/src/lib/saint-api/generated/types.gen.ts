@@ -16,36 +16,76 @@ export type SimulationOptions = {
     simc_addon_export: SimcAddonExport;
 };
 
-export type GearPreviewRequest = {
+export type ParseAddonExportRequest = {
     simc_addon_export: SimcAddonExport;
 };
 
-export const GearPreviewItemSource = { EQUIPPED: 'equipped', BAG: 'bag' } as const;
+export const AddonExportEquipmentSource = { EQUIPPED: 'equipped', BAG: 'bag' } as const;
 
-export type GearPreviewItemSource = typeof GearPreviewItemSource[keyof typeof GearPreviewItemSource];
+export type AddonExportEquipmentSource = typeof AddonExportEquipmentSource[keyof typeof AddonExportEquipmentSource];
 
-export type GearPreviewItem = {
+/**
+ * A saved alternate talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
+ */
+export type AddonExportAlternateTalentLoadout = {
+    name: string;
+    talents: string;
+};
+
+/**
+ * The character's current and highest unlocked upgrade track item levels for a specific gear slot from Additional Character Info.
+ */
+export type AddonExportSlotHighWatermark = {
+    current_item_level: number;
+    max_item_level: number;
+};
+
+export type AddonExportEquipmentItem = {
     fingerprint: string;
     slot: string;
     name: string;
     display_name: string;
     item_id: number;
     item_level?: number | null;
-    icon_url?: string | null;
-    wowhead_url: string;
-    wowhead_data: string;
-    source: GearPreviewItemSource;
+    enchant_id?: number | null;
+    crafting_quality?: number | null;
+    bonus_ids?: Array<number>;
+    gem_ids?: Array<number>;
+    crafted_stats?: Array<number>;
+    source: AddonExportEquipmentSource;
     raw_line: string;
 };
 
-export type GearPreviewGroup = {
-    slot: string;
-    label: string;
-    items: Array<GearPreviewItem>;
+export type AddonExport = {
+    character_name?: string | null;
+    class?: string | null;
+    level?: string | null;
+    race?: string | null;
+    region?: string | null;
+    server?: string | null;
+    role?: string | null;
+    professions?: string | null;
+    spec?: string | null;
+    active_talents?: string | null;
+    alternate_talent_loadouts?: Array<AddonExportAlternateTalentLoadout>;
+    equipment?: Array<AddonExportEquipmentItem>;
+    checksum?: string | null;
+    header_comment?: string | null;
+    simc_addon_comment?: string | null;
+    wow_build_comment?: string | null;
+    required_simc_comment?: string | null;
+    loot_spec?: string | null;
+    catalyst_currencies?: {
+        [key: string]: number;
+    };
+    slot_high_watermarks?: {
+        [key: string]: AddonExportSlotHighWatermark;
+    };
+    upgrade_achievements?: Array<number>;
 };
 
-export type GearPreviewResponse = {
-    groups: Array<GearPreviewGroup>;
+export type ParseAddonExportResponse = {
+    addon_export: AddonExport;
 };
 
 /**
@@ -165,14 +205,14 @@ export type SimulateResponses = {
 
 export type SimulateResponse = SimulateResponses[keyof SimulateResponses];
 
-export type SimcGearPreviewData = {
-    body: GearPreviewRequest;
+export type ParseAddonExportData = {
+    body: ParseAddonExportRequest;
     path?: never;
     query?: never;
-    url: '/simc/gear-preview';
+    url: '/simc/parse-addon-export';
 };
 
-export type SimcGearPreviewErrors = {
+export type ParseAddonExportErrors = {
     /**
      * Returned when the request is malformed or contains invalid input.
      */
@@ -183,13 +223,13 @@ export type SimcGearPreviewErrors = {
     500: ErrorResponse;
 };
 
-export type SimcGearPreviewError = SimcGearPreviewErrors[keyof SimcGearPreviewErrors];
+export type ParseAddonExportError = ParseAddonExportErrors[keyof ParseAddonExportErrors];
 
-export type SimcGearPreviewResponses = {
+export type ParseAddonExportResponses = {
     /**
-     * Grouped preview data for parsed gear.
+     * Structured parsed data for the addon export.
      */
-    200: GearPreviewResponse;
+    200: ParseAddonExportResponse;
 };
 
-export type SimcGearPreviewResponse = SimcGearPreviewResponses[keyof SimcGearPreviewResponses];
+export type ParseAddonExportResponse2 = ParseAddonExportResponses[keyof ParseAddonExportResponses];

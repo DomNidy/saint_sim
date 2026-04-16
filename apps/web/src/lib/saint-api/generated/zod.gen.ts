@@ -14,34 +14,70 @@ export const zSimulationOptions = z.object({
     simc_addon_export: zSimcAddonExport
 });
 
-export const zGearPreviewRequest = z.object({
+export const zParseAddonExportRequest = z.object({
     simc_addon_export: zSimcAddonExport
 });
 
-export const zGearPreviewItemSource = z.enum(['equipped', 'bag']);
+export const zAddonExportEquipmentSource = z.enum(['equipped', 'bag']);
 
-export const zGearPreviewItem = z.object({
+/**
+ * A saved alternate talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
+ */
+export const zAddonExportAlternateTalentLoadout = z.object({
+    name: z.string(),
+    talents: z.string()
+});
+
+/**
+ * The character's current and highest unlocked upgrade track item levels for a specific gear slot from Additional Character Info.
+ */
+export const zAddonExportSlotHighWatermark = z.object({
+    current_item_level: z.int(),
+    max_item_level: z.int()
+});
+
+export const zAddonExportEquipmentItem = z.object({
     fingerprint: z.string(),
     slot: z.string(),
     name: z.string(),
     display_name: z.string(),
     item_id: z.int(),
     item_level: z.int().nullish(),
-    icon_url: z.string().nullish(),
-    wowhead_url: z.string(),
-    wowhead_data: z.string(),
-    source: zGearPreviewItemSource,
+    enchant_id: z.int().nullish(),
+    crafting_quality: z.int().nullish(),
+    bonus_ids: z.array(z.int()).optional(),
+    gem_ids: z.array(z.int()).optional(),
+    crafted_stats: z.array(z.int()).optional(),
+    source: zAddonExportEquipmentSource,
     raw_line: z.string()
 });
 
-export const zGearPreviewGroup = z.object({
-    slot: z.string(),
-    label: z.string(),
-    items: z.array(zGearPreviewItem)
+export const zAddonExport = z.object({
+    character_name: z.string().nullish(),
+    class: z.string().nullish(),
+    level: z.string().nullish(),
+    race: z.string().nullish(),
+    region: z.string().nullish(),
+    server: z.string().nullish(),
+    role: z.string().nullish(),
+    professions: z.string().nullish(),
+    spec: z.string().nullish(),
+    active_talents: z.string().nullish(),
+    alternate_talent_loadouts: z.array(zAddonExportAlternateTalentLoadout).optional(),
+    equipment: z.array(zAddonExportEquipmentItem).optional(),
+    checksum: z.string().nullish(),
+    header_comment: z.string().nullish(),
+    simc_addon_comment: z.string().nullish(),
+    wow_build_comment: z.string().nullish(),
+    required_simc_comment: z.string().nullish(),
+    loot_spec: z.string().nullish(),
+    catalyst_currencies: z.record(z.string(), z.int()).optional(),
+    slot_high_watermarks: z.record(z.string(), zAddonExportSlotHighWatermark).optional(),
+    upgrade_achievements: z.array(z.int()).optional()
 });
 
-export const zGearPreviewResponse = z.object({
-    groups: z.array(zGearPreviewGroup)
+export const zParseAddonExportResponse = z.object({
+    addon_export: zAddonExport
 });
 
 export const zSimulationStatus = z.enum([
@@ -89,9 +125,9 @@ export const zSimulateResponse = z.object({
     simulation_id: z.string().optional()
 });
 
-export const zSimcGearPreviewBody = zGearPreviewRequest;
+export const zParseAddonExportBody = zParseAddonExportRequest;
 
 /**
- * Grouped preview data for parsed gear.
+ * Structured parsed data for the addon export.
  */
-export const zSimcGearPreviewResponse = zGearPreviewResponse;
+export const zParseAddonExportResponse2 = zParseAddonExportResponse;
