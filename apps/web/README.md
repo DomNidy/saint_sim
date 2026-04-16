@@ -1,274 +1,99 @@
-Welcome to your new TanStack Start app! 
+# Web App
 
-# Getting Started
+This app is the TanStack Start front-end for Saint. It handles Better Auth, web routes, and the browser client for the API server.
 
-To run this application:
+## Local dev
+
+The repo uses `npm` for the web app.
+
+From the repo root, the normal full-stack flow is:
 
 ```bash
+just dev
+just web
+```
+
+- `just dev` starts the Go services in Docker dev mode.
+- `just web` runs this app locally on `http://localhost:3000`.
+
+If you only need the web app plus auth/database access, the minimum dependency is Postgres plus this app:
+
+```bash
+docker compose up postgres
+cd apps/web
 npm install
 npm run dev
 ```
 
-# Building For Production
+## Environment
 
-To build this application for production:
+This app reads server env vars from `apps/web/.env`, validated in `src/env.ts`.
+
+The important variables are:
+
+- `BETTER_AUTH_URL`: canonical public origin for the web app. Keep this aligned with how you browse the app. `localhost` and `127.0.0.1` are different origins.
+- `BETTER_AUTH_SECRET`: Better Auth signing secret.
+- `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_NAME`: Postgres connection for Better Auth.
+- `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`: Discord OAuth config.
+- `SAINT_API_URL`, `SAINT_API_KEY`: API server base URL and auth used by the generated API client.
+
+Local auth runs on the same app at `/api/auth`. See `src/lib/auth/auth.ts` for the current Better Auth wiring and trusted-origin behavior.
+
+## Verify
+
+Use the narrowest command that matches the change:
 
 ```bash
+cd apps/web
+npm run check -- src/path/to/file.tsx
+npm run test -- src/path/to/file.test.tsx
 npm run build
 ```
 
-## Testing
+- `npm run check -- <paths>` is the default verification step for touched files.
+- Add `npm run test -- <paths>` when interaction, state, or a bug fix deserves a focused test.
+- Run `npm run build` for route, auth, env, loader/query, or server-side changes.
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+## Conventions
 
-```bash
-npm run test
-```
+### Better Auth
 
-## Styling
+- The app uses Better Auth against the same Postgres database as the rest of the stack.
+- Better Auth migrations should end up in the repo-level Goose history under `db/migrations`, not left as app-local migration files.
+- If auth fails with `INVALID_ORIGIN`, check `BETTER_AUTH_URL` first. Exact origin matching matters.
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+### TanStack Router + Query
 
-### Removing Tailwind CSS
+- Prefer loader data for first render on SSR-prefetched routes.
+- If a route also uses React Query after hydration, pass loader data as `initialData` so the client and server render the same initial tree.
+- Avoid reading browser-only APIs like `localStorage` during render on routes that may SSR.
 
-If you prefer not to use Tailwind CSS:
+### Testing
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Uninstall the packages: `npm install @tailwindcss/vite tailwindcss -D`
+- The app uses Vitest, Testing Library, and `jsdom`.
+- `@testing-library/jest-dom` is not installed here, so use standard Vitest assertions unless you add that setup explicitly.
+- Radix menus and dropdowns often open on `pointerDown`, not just `click`, so tests should match that behavior.
 
-## Linting & Formatting
+### Shadcn
 
-This project uses [Biome](https://biomejs.dev/) for linting and formatting. The following scripts are available:
+This repo is `npm`-first. Do not assume `pnpm` is available.
 
-
-```bash
-npm run lint
-npm run format
-npm run check
-```
-
-
-## Shadcn
-
-Add components using the latest version of [Shadcn](https://ui.shadcn.com/).
+To add a component, use an npm-friendly command such as:
 
 ```bash
-pnpm dlx shadcn@latest add button
+cd apps/web
+npx shadcn@latest add button
 ```
 
+`components.json` in this directory is the local shadcn config.
 
-## T3Env
+## API client generation
 
-- You can use T3Env to add type safety to your environment variables.
-- Add Environment variables to the `src/env.mjs` file.
-- Use the environment variables in your code.
+The generated client lives under `src/lib/saint-api/generated`.
 
-### Usage
+- Prefer `just codegen api` from the repo root when the API contract changes. That updates both the Go and web generated artifacts together.
+- `cd apps/web && npm run codegen:api` only refreshes the web client.
 
-```ts
-import { env } from "@/env";
+## Troubleshooting
 
-console.log(env.VITE_APP_TITLE);
-```
-
-
-
-
-
-## Setting up Better Auth
-
-1. Generate and set the `BETTER_AUTH_SECRET` environment variable in your `.env.local`:
-
-   ```bash
-   npx -y @better-auth/cli secret
-   ```
-
-2. Visit the [Better Auth documentation](https://www.better-auth.com) to unlock the full potential of authentication in your app.
-
-### Adding a Database (Optional)
-
-Better Auth can work in stateless mode, but to persist user data, add a database:
-
-```typescript
-// src/lib/auth.ts
-import { betterAuth } from "better-auth";
-import { Pool } from "pg";
-
-export const auth = betterAuth({
-  database: new Pool({
-    connectionString: process.env.DATABASE_URL,
-  }),
-  // ... rest of config
-});
-```
-
-### Integrate Better Auth with our Postgres DB
-
-This app uses Better Auth for authentication. We connect to the same postgres database as the other services.
-
-The required database tables for Better Auth are applied manually. Better Auth provides a command to generate
-a SQL migration script to create the necessary tables. This command is:
-
-```
-npx auth@latest generate
-```
-
-The resulting SQL migration file will be added into `/apps/web/better-auth_migrations`. From here, we need to:
-
-1. Move the migration file into `/db/migrations` in project root
-2. Edit the migration file so it integrates with `goose` tooling:
-  - Add a `-- +goose Up` comment to the top of the file.
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-  
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-  
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Demo files
-
-Files prefixed with `demo` can be safely deleted. They are there to provide a starting point for you to play around with the features you've installed.
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+For common auth issues, see `TROUBLESHOOTING.md`.
