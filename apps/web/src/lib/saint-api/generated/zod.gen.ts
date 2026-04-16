@@ -14,6 +14,36 @@ export const zSimulationOptions = z.object({
     simc_addon_export: zSimcAddonExport
 });
 
+export const zGearPreviewRequest = z.object({
+    simc_addon_export: zSimcAddonExport
+});
+
+export const zGearPreviewItemSource = z.enum(['equipped', 'bag']);
+
+export const zGearPreviewItem = z.object({
+    fingerprint: z.string(),
+    slot: z.string(),
+    name: z.string(),
+    display_name: z.string(),
+    item_id: z.int(),
+    item_level: z.int().nullish(),
+    icon_url: z.string().nullish(),
+    wowhead_url: z.string(),
+    wowhead_data: z.string(),
+    source: zGearPreviewItemSource,
+    raw_line: z.string()
+});
+
+export const zGearPreviewGroup = z.object({
+    slot: z.string(),
+    label: z.string(),
+    items: z.array(zGearPreviewItem)
+});
+
+export const zGearPreviewResponse = z.object({
+    groups: z.array(zGearPreviewGroup)
+});
+
 export const zSimulationStatus = z.enum([
     'in_progress',
     'in_queue',
@@ -58,3 +88,10 @@ export const zSimulateBody = zSimulationOptions;
 export const zSimulateResponse = z.object({
     simulation_id: z.string().optional()
 });
+
+export const zSimcGearPreviewBody = zGearPreviewRequest;
+
+/**
+ * Grouped preview data for parsed gear.
+ */
+export const zSimcGearPreviewResponse = zGearPreviewResponse;

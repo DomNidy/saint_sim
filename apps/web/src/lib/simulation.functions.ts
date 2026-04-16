@@ -6,7 +6,11 @@ import {
 	simulationRequestSchema,
 } from "@/lib/saint-api/contracts";
 import type { ErrorResponse } from "@/lib/saint-api/generated";
-import { getSimulation, simulate } from "@/lib/saint-api/generated";
+import {
+	getSimulation,
+	simcGearPreview,
+	simulate,
+} from "@/lib/saint-api/generated";
 import { saintApiClient } from "./saint-api/saint-api-client";
 
 /**
@@ -89,9 +93,9 @@ export const getGearPreview = createServerFn({ method: "POST" })
 		}),
 	)
 	.handler(async ({ data }) => {
-		const response = await saintApiClient.request({
-			method: "POST",
-			url: "/simc/gear-preview",
+		simcGearPreview;
+		const response = await simcGearPreview({
+			client: saintApiClient,
 			body: data,
 		});
 
