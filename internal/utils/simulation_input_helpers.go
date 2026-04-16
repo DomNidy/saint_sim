@@ -5,7 +5,7 @@ package utils
 import (
 	"fmt"
 
-	api_types "github.com/DomNidy/saint_sim/pkg/api_types"
+	api_types "github.com/DomNidy/saint_sim/internal/api_types"
 )
 
 type simulationValidationError string

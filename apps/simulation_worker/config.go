@@ -6,8 +6,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	secrets "github.com/DomNidy/saint_sim/pkg/secrets"
-	utils "github.com/DomNidy/saint_sim/pkg/utils"
+	secrets "github.com/DomNidy/saint_sim/internal/secrets"
+	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
 type workerConfig struct {

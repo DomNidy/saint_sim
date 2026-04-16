@@ -224,15 +224,15 @@ codegen target="":
     set -euo pipefail
     generate_db() {
       # v1.30.0 of sqlc crashes in pgx/os-user lookup when sqlc analyzes database.uri.
-      mkdir -p ./pkg/db ./apps/web/src/lib/db
+      mkdir -p ./internal/db ./apps/web/src/lib/db
       just sqlc generate -f db/sqlc.yaml
       # Use import type {...} syntax
       perl -0pi -e 's|import { QueryArrayConfig, QueryArrayResult } from "pg";|import type { QueryArrayConfig, QueryArrayResult } from "pg";|' ./apps/web/src/lib/db/query_sql.ts 
     }
 
     generate_api() {
-      mkdir -p ./pkg/api_types
-      go run github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.16.3 --generate types,skip-prune -o ./pkg/api_types/api_types.gen.go -package api_types ./apps/api/openapi.yaml
+      mkdir -p ./internal/api_types
+      go run github.com/deepmap/oapi-codegen/cmd/oapi-codegen@v1.16.3 --generate types,skip-prune -o ./internal/api_types/api_types.gen.go -package api_types ./apps/api/openapi.yaml
       (
         cd ./apps/web
         npm run codegen:api
@@ -257,18 +257,12 @@ codegen target="":
         ;;
     esac
 
-# Run go mod tidy across every Go module in the repository.
+# Run go mod tidy for the root Go module.
 tidy:
     #!/usr/bin/env bash
     set -euo pipefail
-    find . -type f -name "go.mod" -print0 | while IFS= read -r -d '' mod_file; do
-      module_dir="$(dirname "$mod_file")"
-      echo "Tidying $module_dir"
-      (
-        cd "$module_dir"
-        go mod tidy
-      )
-    done
+    go mod tidy
+
 
 # Validate required host dependencies and local setup.
 doctor:
@@ -319,22 +313,22 @@ lint:
       #!/usr/bin/env bash
       set -euo pipefail
       status=0
-      while IFS= read -r mod; do
-        echo "Linting $mod"
-        if ! (cd "$mod" && golangci-lint run ./...); then
+      for path in ./apps/api ./apps/discord_bot ./apps/simulation_worker ./internal; do
+        echo "Linting $path"
+        if ! (cd "$path" && golangci-lint run); then
           status=1
         fi
-      done < <(go work edit -json | jq -r '.Use[].DiskPath')
+      done
       cd ./apps/web && npm run lint
       exit "$status"
 
 fmt:
       #!/usr/bin/env bash
       set -euo pipefail
-      while IFS= read -r mod; do
-        echo "Formatting $mod"
-        if rg --files -g '*.go' "$mod" | grep -q .; then
-          rg --files -g '*.go' "$mod" | xargs gofmt -w
+      for path in ./apps/api ./apps/discord_bot ./apps/simulation_worker ./internal; do
+        echo "Formatting $path"
+        if rg --files -g '*.go' "$path" | grep -q .; then
+          rg --files -g '*.go' "$path" | xargs gofmt -w
         fi
-      done < <(go work edit -json | jq -r '.Use[].DiskPath')
+      done
       cd ./apps/web && npm run format -- --write .

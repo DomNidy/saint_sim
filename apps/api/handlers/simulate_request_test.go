@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	api_types "github.com/DomNidy/saint_sim/pkg/api_types"
+	api_types "github.com/DomNidy/saint_sim/internal/api_types"
 )
 
 func TestValidateSimulationRequest(t *testing.T) {

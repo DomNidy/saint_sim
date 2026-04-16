@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	api_types "github.com/DomNidy/saint_sim/pkg/api_types"
+	api_types "github.com/DomNidy/saint_sim/internal/api_types"
 )
 
 func TestSimulationInputFromOptions(t *testing.T) {

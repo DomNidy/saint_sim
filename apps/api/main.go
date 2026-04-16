@@ -12,9 +12,9 @@ import (
 
 	handlers "github.com/DomNidy/saint_sim/apps/api/handlers"
 	middleware "github.com/DomNidy/saint_sim/apps/api/middleware"
-	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
-	"github.com/DomNidy/saint_sim/pkg/secrets"
-	utils "github.com/DomNidy/saint_sim/pkg/utils"
+	dbqueries "github.com/DomNidy/saint_sim/internal/db"
+	"github.com/DomNidy/saint_sim/internal/secrets"
+	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
 func newJWTAuthenticator(

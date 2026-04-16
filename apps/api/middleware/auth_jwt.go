@@ -11,7 +11,7 @@ import (
 	gojwt "github.com/go-jose/go-jose/v4/jwt"
 	"github.com/jackc/pgx/v5"
 
-	dbqueries "github.com/DomNidy/saint_sim/pkg/db"
+	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 )
 
 var errEmptyPublicKey = errors.New("public key is empty")

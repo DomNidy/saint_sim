@@ -13,8 +13,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/DomNidy/saint_sim/apps/api/middleware"
-	"github.com/DomNidy/saint_sim/pkg/db"
-	"github.com/DomNidy/saint_sim/pkg/utils"
+	"github.com/DomNidy/saint_sim/internal/db"
+	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
 func TestSimulationOwnerID(t *testing.T) {
