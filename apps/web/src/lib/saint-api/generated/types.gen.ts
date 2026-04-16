@@ -16,6 +16,38 @@ export type SimulationOptions = {
     simc_addon_export: SimcAddonExport;
 };
 
+export type GearPreviewRequest = {
+    simc_addon_export: SimcAddonExport;
+};
+
+export const GearPreviewItemSource = { EQUIPPED: 'equipped', BAG: 'bag' } as const;
+
+export type GearPreviewItemSource = typeof GearPreviewItemSource[keyof typeof GearPreviewItemSource];
+
+export type GearPreviewItem = {
+    fingerprint: string;
+    slot: string;
+    name: string;
+    display_name: string;
+    item_id: number;
+    item_level?: number | null;
+    icon_url?: string | null;
+    wowhead_url: string;
+    wowhead_data: string;
+    source: GearPreviewItemSource;
+    raw_line: string;
+};
+
+export type GearPreviewGroup = {
+    slot: string;
+    label: string;
+    items: Array<GearPreviewItem>;
+};
+
+export type GearPreviewResponse = {
+    groups: Array<GearPreviewGroup>;
+};
+
 /**
  * All details & data about a simulation.
  */
@@ -132,3 +164,36 @@ export type SimulateResponses = {
 };
 
 export type SimulateResponse = SimulateResponses[keyof SimulateResponses];
+
+export type SimcGearPreviewData = {
+    body: GearPreviewRequest;
+    path?: never;
+    query?: never;
+    url: '/simc/gear-preview';
+};
+
+export type SimcGearPreviewErrors = {
+    /**
+     * Returned when the request is malformed or contains invalid input.
+     */
+    400: ErrorResponse;
+    /**
+     * Returned when the request does not include valid authentication credentials.
+     */
+    401: ErrorResponse;
+    /**
+     * Returned whenever an internal server error occurs. This usually means the cause for the error was out of the control of the caller.
+     */
+    500: ErrorResponse;
+};
+
+export type SimcGearPreviewError = SimcGearPreviewErrors[keyof SimcGearPreviewErrors];
+
+export type SimcGearPreviewResponses = {
+    /**
+     * Grouped preview data for parsed gear.
+     */
+    200: GearPreviewResponse;
+};
+
+export type SimcGearPreviewResponse = SimcGearPreviewResponses[keyof SimcGearPreviewResponses];
