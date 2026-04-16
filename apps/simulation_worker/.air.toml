@@ -4,7 +4,7 @@ tmp_dir = "apps/simulation_worker/tmp"
 [build]
   cmd = "go build -o ./apps/simulation_worker/tmp/main ./apps/simulation_worker"
   bin = "./apps/simulation_worker/tmp/main"
-  include_dir = ["apps/simulation_worker", "pkg"]
+  include_dir = ["apps/simulation_worker", "internal"]
   include_ext = ["go"]
   exclude_regex = ["_test\\.go"]
   delay = 500
