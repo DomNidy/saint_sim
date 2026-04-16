@@ -79,6 +79,7 @@ func main() {
 	authorized.POST("/simulation", func(ginContext *gin.Context) {
 		handlers.Simulate(ginContext, dbClient, simulationQueue)
 	})
+	authorized.POST("/simc/gear-preview", handlers.SimcGearPreview)
 
 	err = router.Run("0.0.0.0:8080")
 	if err != nil {

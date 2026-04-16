@@ -16,6 +16,12 @@ const (
 	InQueue    SimulationStatus = "in_queue"
 )
 
+// Defines values for GearPreviewItemSource.
+const (
+	Bag      GearPreviewItemSource = "bag"
+	Equipped GearPreviewItemSource = "equipped"
+)
+
 // ErrorResponse Error response returned by API when something goes wrong
 type ErrorResponse struct {
 	// Message Message explaining the error
@@ -24,6 +30,42 @@ type ErrorResponse struct {
 
 // SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
 type SimcAddonExport = string
+
+// GearPreviewItemSource defines model for gear_preview_item_source.
+type GearPreviewItemSource string
+
+// GearPreviewRequest defines model for gear_preview_request.
+type GearPreviewRequest struct {
+	// SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
+	SimcAddonExport SimcAddonExport `json:"simc_addon_export"`
+}
+
+// GearPreviewItem defines model for gear_preview_item.
+type GearPreviewItem struct {
+	DisplayName string                `json:"display_name"`
+	Fingerprint string                `json:"fingerprint"`
+	IconUrl     *string               `json:"icon_url,omitempty"`
+	ItemId      int                   `json:"item_id"`
+	ItemLevel   *int                  `json:"item_level,omitempty"`
+	Name        string                `json:"name"`
+	RawLine     string                `json:"raw_line"`
+	Slot        string                `json:"slot"`
+	Source      GearPreviewItemSource `json:"source"`
+	WowheadData string                `json:"wowhead_data"`
+	WowheadUrl  string                `json:"wowhead_url"`
+}
+
+// GearPreviewGroup defines model for gear_preview_group.
+type GearPreviewGroup struct {
+	Items []GearPreviewItem `json:"items"`
+	Label string            `json:"label"`
+	Slot  string            `json:"slot"`
+}
+
+// GearPreviewResponse defines model for gear_preview_response.
+type GearPreviewResponse struct {
+	Groups []GearPreviewGroup `json:"groups"`
+}
 
 // Simulation All details & data about a simulation.
 type Simulation struct {
@@ -58,3 +100,6 @@ type NotFoundError = ErrorResponse
 
 // SimulateJSONRequestBody defines body for Simulate for application/json ContentType.
 type SimulateJSONRequestBody = SimulationOptions
+
+// SimcGearPreviewJSONRequestBody defines body for SimcGearPreview for application/json ContentType.
+type SimcGearPreviewJSONRequestBody = GearPreviewRequest

@@ -3,10 +3,10 @@
 import { z } from "zod";
 
 import {
+	type SimcAddonExport,
 	type Simulation,
 	type SimulationOptions,
 	SimulationStatus,
-	type SimcAddonExport,
 } from "@/lib/saint-api/generated";
 import { zSimcAddonExport } from "@/lib/saint-api/generated/zod.gen";
 
@@ -18,3 +18,29 @@ export const simulationRequestSchema = z.object({
 });
 
 export type SimulationRequestInput = z.infer<typeof simulationRequestSchema>;
+
+export const gearPreviewItemSchema = z.object({
+	fingerprint: z.string(),
+	slot: z.string(),
+	name: z.string(),
+	display_name: z.string(),
+	item_id: z.number().int(),
+	item_level: z.number().int().nullable().optional(),
+	icon_url: z.string().nullable().optional(),
+	wowhead_url: z.string(),
+	wowhead_data: z.string(),
+	source: z.enum(["equipped", "bag"]),
+	raw_line: z.string(),
+});
+
+export const gearPreviewGroupSchema = z.object({
+	slot: z.string(),
+	label: z.string(),
+	items: z.array(gearPreviewItemSchema),
+});
+
+export const gearPreviewResponseSchema = z.object({
+	groups: z.array(gearPreviewGroupSchema),
+});
+
+export type GearPreviewResponse = z.infer<typeof gearPreviewResponseSchema>;
