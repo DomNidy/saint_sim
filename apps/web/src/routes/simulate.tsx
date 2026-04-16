@@ -239,13 +239,7 @@ function SimulationForm() {
 							</div>
 						) : null}
 
-						{previewQuery.isError ? (
-							<p className="text-destructive text-sm">
-								{previewQuery.error.message === "Authentication required."
-									? "Sign in to view gear previews."
-									: previewQuery.error.message}
-							</p>
-						) : null}
+						{previewQuery.isError && <p className="text-destructive text-sm"> {previewQuery.error.message} </p>}
 
 						{previewQuery.data?.groups.length === 0 ? (
 							<p className="text-muted-foreground text-sm">

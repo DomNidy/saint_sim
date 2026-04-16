@@ -81,9 +81,6 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/gear_preview_request"
-      security:
-        - BearerAuth: []
-        - ApiKeyAuth: []
       responses:
         "200":
           description: Grouped preview data for parsed gear.
@@ -93,12 +90,6 @@ paths:
                 $ref: "#/components/schemas/gear_preview_response"
         "400":
           $ref: "#/components/responses/bad_request_error"
-        "401":
-          description: Returned when the request does not include valid authentication credentials.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/error_response"
         "500":
           $ref: "#/components/responses/internal_error"
 components:

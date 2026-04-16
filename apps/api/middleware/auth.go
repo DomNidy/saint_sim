@@ -71,6 +71,7 @@ func AuthRequire(
 	apiKeyAuthenticator RequestAuthenticator,
 ) gin.HandlerFunc {
 	return func(ginContext *gin.Context) {
+		log.Printf("auth require")
 		apiKey := strings.TrimSpace(ginContext.GetHeader("Api-Key"))
 		authorizationValue := strings.TrimSpace(ginContext.GetHeader("Authorization"))
 

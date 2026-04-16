@@ -178,10 +178,6 @@ export type SimcGearPreviewErrors = {
      */
     400: ErrorResponse;
     /**
-     * Returned when the request does not include valid authentication credentials.
-     */
-    401: ErrorResponse;
-    /**
      * Returned whenever an internal server error occurs. This usually means the cause for the error was out of the control of the caller.
      */
     500: ErrorResponse;

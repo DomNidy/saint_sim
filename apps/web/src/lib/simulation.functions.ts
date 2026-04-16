@@ -86,7 +86,6 @@ export const getSimulationResult = createServerFn()
 	});
 
 export const getGearPreview = createServerFn({ method: "POST" })
-	.middleware([requireAuthMiddleware])
 	.inputValidator(
 		z.object({
 			simc_addon_export: z.string().min(1),
