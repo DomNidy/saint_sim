@@ -1,26 +1,29 @@
 # saint_sim
 
-The `saint_sim` project aims to provide World of Warcraft players with helpful insights to improve their character's effectiveness and make informed gearing decisions. We provide an interface for the core simulation engine, [simc](https://github.com/simulationcraft/simc), offering an API server and Discord bot.
+The `saint_sim` project aims to provide World of Warcraft players with helpful insights to improve their character's effectiveness and make informed gearing decisions. Around the core simulation engine, [simc](https://github.com/simulationcraft/simc), this repo includes an API server, web app, Discord bot, and simulation worker.
 
 ## Project Structure
 
 _The project structure is subject to change as things are ironed out throughout development._
 
-We use [Go Workspaces](https://go.dev/doc/tutorial/workspaces) to allow us to share packages from different go modules in this repository.
+The Go code in this repository uses a single root module defined by [`go.mod`](./go.mod).
 
 - `/apps`: Directory containing the various applications
-  - `/apps/discord_bot`: The Discord bot application _(forwards requests to `api`)_
+  - `/apps/discord_bot`: The Discord bot application
   - `/apps/api`: The API server application
   - `/apps/simulation_worker`: Application which handles simulation requests from users by invoking `simc`, then persists the results to the database
+  - `/apps/web`: TanStack Start web application
+- `/go.mod`: Root Go module for the Go services and shared packages
 - `/justfile`: Root task runner for local development and maintenance commands
 - `/internal`: Directory containing private shared packages and generated contracts used throughout the Go applications
 
   - `/internal/api_types`: Automatically generated Go types from the OpenAPI schema
   - `/internal/db`: Generated Go database access code from `sqlc`
   - `/internal/secrets`: Utility for reading secrets into memory
+  - `/internal/simc`: Shared SimC parsing and validation helpers
   - `/internal/utils`: Miscellaneous shared utilities
   - `/apps/web/src/lib/db`: `sqlc`-generated TypeScript query bindings for the web app
-  - `/apps/web/src/lib/api/generated`: OpenAPI-derived TypeScript types, SDK functions, Fetch client, and Zod schemas for the web app
+  - `/apps/web/src/lib/saint-api/generated`: OpenAPI-derived TypeScript types, SDK functions, Fetch client, and Zod schemas for the web app
 
 - `/db/migrations`: Goose SQL migrations. This is the single source of truth for database schema changes.
 
@@ -45,7 +48,7 @@ just setup
 The default values in `.env.example` are intended for local Docker development. Update these before starting services:
 
 - `DISCORD_TOKEN` and `APPLICATION_ID` if you want `discord_bot` to connect to Discord.
-- `SAINT_API_KEY` after generating and inserting a local API key with `just api-key`.
+- `SAINT_API_KEY` after generating and inserting a local API key with `just api-key`, if you want local clients to use API key auth.
 
 ### Apply database migrations locally
 
@@ -63,7 +66,7 @@ Goose migrations in `/db/migrations` are the authoritative schema history for th
 Use `just dev` to start the Docker Compose stack in development mode for the Go services.
 
 - `api`, `discord_bot`, and `simulation_worker` run under [`air`](https://github.com/air-verse/air) inside their containers.
-- Source is bind-mounted into the containers, so editing Go files under `apps/*` or shared code under `/pkg` triggers a rebuild and restart for the affected service.
+- Source is bind-mounted into the containers, so editing Go files under `apps/*` or shared code under `/internal` triggers a rebuild and restart for the affected service.
 - The web app is not part of `just dev`; run it separately with `just web`.
 
 ### Getting started
@@ -76,11 +79,7 @@ just api-key
 just start
 ```
 
-Then copy the printed `API key:` value into `SAINT_API_KEY` in `.env`, and recreate the Discord bot:
-
-```sh
-docker compose up --force-recreate discord_bot
-```
+Then copy the printed `API key:` value into any local client config that expects `SAINT_API_KEY`, and restart that client or container so it picks up the new value.
 
 ## Environment Variables & Configuration
 
@@ -107,15 +106,15 @@ just setup
 | `RABBITMQ_PORT`    | Host port mapped to RabbitMQ `5672`                      | `5672`                                                                                     |
 | `RABBITMQ_USER`    | RabbitMQ username                                        | `saint`                                                                                    |
 | `RABBITMQ_PASS`    | RabbitMQ password                                        | `saint_dev_password`                                                                       |
-| `SAINT_API_URL`    | Internal API URL used by `discord_bot`                   | `http://api:8080`                                                                          |
-| `SAINT_API_KEY`    | Raw API key used by clients such as `discord_bot` to authenticate with `api` | Replace after running `just api-key`                                  |
+| `SAINT_API_URL`    | API server base URL for containerized clients and local integrations | `http://api:8080`                                                        |
+| `SAINT_API_KEY`    | Raw API key value for any client using API key auth against `api` | Replace after running `just api-key`                                         |
 | `DISCORD_TOKEN`    | Discord bot token                                        | Required to run `discord_bot` against Discord                                              |
 | `APPLICATION_ID`   | Discord application ID                                   | Required to run `discord_bot` against Discord                                              |
 | `SIMC_IMAGE`       | Base image `simulation_worker` builds off of             | Default will use the latest version. This is a build-time argument, not an actual env var. |
 
-### Authenticating the `discord_bot` with the `api`
+### Provisioning a local `SAINT_API_KEY`
 
-`discord_bot` authenticates with the saint API using an API key. If you wish to run the `discord_bot`, you must generate an API key and insert its sha256 hash into the database. You can use `just api-key` to do this automatically when running locally. That command prints the raw key for the client and stores only the hashed value in Postgres. You still need to update `.env` with the printed `SAINT_API_KEY` so `discord_bot` has access to it at runtime. The database needs to be running in order for the API key to be inserted.
+Use `just api-key` to generate a local API key and insert its sha256 hash into the database. That command prints the raw key for the client and stores only the hashed value in Postgres. Put the printed value anywhere a local client expects `SAINT_API_KEY`, then restart that client so it picks up the updated configuration. The database needs to be running in order for the API key to be inserted.
 
 ### Changing Postgres or RabbitMQ credentials
 
@@ -148,7 +147,7 @@ The ports that management UIs are hosted on can be configured in the `docker-com
 
 ### A Modular Monolithic Monorepo
 
-The project is structured in such a way that each app in `/apps` can be deployed independently as a micro-service, or the entire application can be deployed as a monolith. This philosophy allows `simulation_worker` to be scaled separately. This is beneficial because WoW character simulations are computationally intensive, and would benefit from the ability to spin up multiple servers to perform simulations (if needed).
+The project is structured in such a way that each app in `/apps` can be deployed independently as a micro-service, or the entire application can be deployed as a monolith. The Go services share one root module and common packages under `/internal`, which keeps local builds and Docker contexts simpler while still allowing `simulation_worker` to scale separately. This is beneficial because WoW character simulations are computationally intensive, and would benefit from the ability to spin up multiple servers to perform simulations (if needed).
 
 If I just wanted to scale `simulation_worker` independently, the `api` layer would be unnecessary, as I could send sim requests directly to a message queue and process them asynchronously. However, introducing an API layer and using it as a proxy for sim requests offers many benefits, such as:
 
@@ -158,7 +157,7 @@ If I just wanted to scale `simulation_worker` independently, the `api` layer wou
 
 - Making it easier to add additional features *(as a product of more constrained SoC)*
 
-Currently, the front end (Discord) forwards simulation requests from users to a RabbitMQ broker, which then routes the request to a worker (a container running the `/simulation_worker` service). After the simulation is processed, the results are persisted to the database.
+Currently, clients submit simulation requests to the `api`. The API validates and persists the request, then publishes a job to RabbitMQ. `simulation_worker` consumes that job, runs `simc`, and persists the result back to Postgres.
 
 ## FAQ / Info
 

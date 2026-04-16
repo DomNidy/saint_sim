@@ -14,7 +14,7 @@ In dev:
 - the container starts from `SIMC_IMAGE`, not from the shared root `dev.Dockerfile`
 - Compose clears the base image entrypoint and runs `air -c apps/simulation_worker/.air.toml`
 - the repo is bind-mounted at `/src`
-- Air builds `apps/simulation_worker/tmp/main` and watches `apps/simulation_worker` plus `pkg`
+- Air builds `apps/simulation_worker/tmp/main` and watches `apps/simulation_worker` plus `internal`
 
 ## Worker-specific gotchas
 
@@ -31,7 +31,7 @@ In dev:
 | Change | Minimum verify |
 | --- | --- |
 | `worker.go`, `simc.go`, or other worker code | `cd apps/simulation_worker && golangci-lint run` then `cd apps/simulation_worker && GOCACHE=/tmp/go-build go build .` |
-| Shared code under `pkg/` used by the worker | narrow lint in the changed package, then `cd apps/simulation_worker && GOCACHE=/tmp/go-build go build .` |
+| Shared code under `internal/` used by the worker | narrow lint in the changed package, then `cd apps/simulation_worker && GOCACHE=/tmp/go-build go build .` |
 | `apps/simulation_worker/.air.toml` | `docker compose -f docker-compose.yml -f docker-compose.dev.yml config --services` and re-read the watcher/build paths in the file |
 | `apps/simulation_worker/dev.Dockerfile` or `docker-compose.dev.yml` | `docker compose -f docker-compose.yml -f docker-compose.dev.yml config --services`; if Docker is available, rebuild only `simulation_worker` |
 | `apps/simulation_worker/Dockerfile` | targeted Docker build of `simulation_worker` if Docker is available |
