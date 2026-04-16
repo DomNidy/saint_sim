@@ -70,6 +70,7 @@ func main() {
 	router.GET("/simulation/:id", func(ginContext *gin.Context) {
 		handlers.GetSimulation(ginContext, dbClient)
 	})
+	router.POST("/simc/gear-preview", handlers.SimcGearPreview)
 
 	// Authorization group: https://gin-gonic.com/zh-tw/docs/examples/using-middleware/
 	apiKeyAuthenticator := middleware.NewAPIKeyAuthenticator(dbClient)
@@ -79,7 +80,6 @@ func main() {
 	authorized.POST("/simulation", func(ginContext *gin.Context) {
 		handlers.Simulate(ginContext, dbClient, simulationQueue)
 	})
-	authorized.POST("/simc/gear-preview", handlers.SimcGearPreview)
 
 	err = router.Run("0.0.0.0:8080")
 	if err != nil {

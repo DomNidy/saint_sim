@@ -40,7 +40,6 @@ export const simulate = <ThrowOnError extends boolean = false>(options: Options<
  * Parse a SimC addon export and return grouped gear preview data.
  */
 export const simcGearPreview = <ThrowOnError extends boolean = false>(options: Options<SimcGearPreviewData, ThrowOnError>) => (options.client ?? client).post<SimcGearPreviewResponses, SimcGearPreviewErrors, ThrowOnError>({
-    security: [{ scheme: 'bearer', type: 'http' }, { name: 'Api-Key', type: 'apiKey' }],
     url: '/simc/gear-preview',
     ...options,
     headers: {
