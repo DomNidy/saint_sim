@@ -29,12 +29,18 @@ type addonExportParseState struct {
 // Parse converts a raw SimulationCraft addon export string into a structured
 // AddonExport API model.
 func Parse(tciString string) api_types.AddonExport {
+	alternateTalentLoadouts := []api_types.AddonExportAlternateTalentLoadout{}
+	equipment := []api_types.AddonExportEquipmentItem{}
+	catalystCurrencies := map[string]int{}
+	slotHighWatermarks := map[string]api_types.AddonExportSlotHighWatermark{}
+	upgradeAchievements := []int{}
+
 	export := api_types.AddonExport{
-		AlternateTalentLoadouts: []api_types.AddonExportAlternateTalentLoadout{},
-		Equipment:               []api_types.AddonExportEquipmentItem{},
-		CatalystCurrencies:      map[string]int{},
-		SlotHighWatermarks:      map[string]api_types.AddonExportSlotHighWatermark{},
-		UpgradeAchievements:     []int{},
+		AlternateTalentLoadouts: &alternateTalentLoadouts,
+		Equipment:               &equipment,
+		CatalystCurrencies:      &catalystCurrencies,
+		SlotHighWatermarks:      &slotHighWatermarks,
+		UpgradeAchievements:     &upgradeAchievements,
 	}
 
 	lines := strings.Split(NormalizeLineEndings(tciString), "\n")
@@ -68,17 +74,21 @@ func HasRecognizedData(export api_types.AddonExport) bool {
 		export.Professions != nil ||
 		export.Spec != nil ||
 		export.ActiveTalents != nil ||
-		len(export.AlternateTalentLoadouts) > 0 ||
-		len(export.Equipment) > 0 ||
+		(export.AlternateTalentLoadouts != nil &&
+			len(*export.AlternateTalentLoadouts) > 0) ||
+		(export.Equipment != nil && len(*export.Equipment) > 0) ||
 		export.Checksum != nil ||
 		export.HeaderComment != nil ||
 		export.SimcAddonComment != nil ||
 		export.WowBuildComment != nil ||
 		export.RequiredSimcComment != nil ||
 		export.LootSpec != nil ||
-		len(export.CatalystCurrencies) > 0 ||
-		len(export.SlotHighWatermarks) > 0 ||
-		len(export.UpgradeAchievements) > 0
+		(export.CatalystCurrencies != nil &&
+			len(*export.CatalystCurrencies) > 0) ||
+		(export.SlotHighWatermarks != nil &&
+			len(*export.SlotHighWatermarks) > 0) ||
+		(export.UpgradeAchievements != nil &&
+			len(*export.UpgradeAchievements) > 0)
 }
 
 func parseCommentLine(
@@ -109,7 +119,7 @@ func parseCommentLine(
 
 	if state.inBagSection && looksLikeEquipmentLine(comment) {
 		if item, ok := parseEquipmentItem(state.pendingEquipmentName, comment, true); ok {
-			export.Equipment = append(export.Equipment, item)
+			*export.Equipment = append(*export.Equipment, item)
 		}
 		state.pendingEquipmentName = ""
 
@@ -153,7 +163,7 @@ func parseAssignmentLine(
 
 	if looksLikeEquipmentLine(line) {
 		if item, itemOK := parseEquipmentItem(state.pendingEquipmentName, line, false); itemOK {
-			export.Equipment = append(export.Equipment, item)
+			*export.Equipment = append(*export.Equipment, item)
 		}
 		state.pendingEquipmentName = ""
 	}
@@ -210,13 +220,16 @@ func parseStructuredComment(
 			return true
 		}
 	case "catalyst_currencies":
-		export.CatalystCurrencies = parseIntMap(value)
+		parsed := parseIntMap(value)
+		export.CatalystCurrencies = &parsed
 		return true
 	case "slot_high_watermarks":
-		export.SlotHighWatermarks = parseSlotHighWatermarks(value)
+		parsed := parseSlotHighWatermarks(value)
+		export.SlotHighWatermarks = &parsed
 		return true
 	case "upgrade_achievements":
-		export.UpgradeAchievements = parseIntListValue(value, "/")
+		parsed := parseIntListValue(value, "/")
+		export.UpgradeAchievements = &parsed
 		return true
 	}
 
@@ -237,8 +250,8 @@ func parseLoadoutComment(
 	}
 
 	if strings.HasPrefix(comment, "talents=") && state.pendingLoadoutName != "" {
-		export.AlternateTalentLoadouts = append(
-			export.AlternateTalentLoadouts,
+		*export.AlternateTalentLoadouts = append(
+			*export.AlternateTalentLoadouts,
 			api_types.AddonExportAlternateTalentLoadout{
 				Name:    state.pendingLoadoutName,
 				Talents: strings.TrimSpace(strings.TrimPrefix(comment, "talents=")),
@@ -398,9 +411,9 @@ func parseEquipmentItem(
 		ItemLevel:       itemLevel,
 		EnchantId:       parseOptionalIntAttribute(attributes, "enchant_id"),
 		CraftingQuality: parseOptionalIntAttribute(attributes, "crafting_quality"),
-		BonusIds:        parseIntListAttribute(attributes, "bonus_id", "/"),
-		GemIds:          parseGemIDs(attributes),
-		CraftedStats:    parseIntListAttribute(attributes, "crafted_stats", "/"),
+		BonusIds:        intSlicePtr(parseIntListAttribute(attributes, "bonus_id", "/")),
+		GemIds:          intSlicePtr(parseGemIDs(attributes)),
+		CraftedStats:    intSlicePtr(parseIntListAttribute(attributes, "crafted_stats", "/")),
 		Source:          source,
 		RawLine:         rawLine,
 	}, true
@@ -523,6 +536,14 @@ func parseGemIDs(attributes map[string]string) []int {
 	}
 
 	return gems
+}
+
+func intSlicePtr(values []int) *[]int {
+	if values == nil {
+		return nil
+	}
+
+	return &values
 }
 
 func firstNonNil(values ...*int) *int {
