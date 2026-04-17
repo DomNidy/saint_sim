@@ -223,7 +223,7 @@ func createSimulationRequest(
 		ctx,
 		db.CreateSimulationParams{
 			SimConfig: simOptionsJSON,
-			OwnerID:   &authContext.UserID, // its okay if nil, unowned sims are allowed
+			OwnerID:   simulationOwnerID(authContext),
 		},
 	)
 	if err != nil {
@@ -231,6 +231,15 @@ func createSimulationRequest(
 	}
 
 	return simEntry.ID.String(), nil
+}
+
+func simulationOwnerID(authContext auth.AuthContext) *string {
+	userID, ok := auth.EffectiveUserID(authContext)
+	if !ok {
+		return nil
+	}
+
+	return &userID
 }
 
 func parseSimulationID(rawSimulationID string) (uuid.UUID, bool) {

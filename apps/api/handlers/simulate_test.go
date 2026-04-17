@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -143,5 +144,60 @@ func TestPublishSimulationJob(t *testing.T) {
 			acceptedResponse.SimulationId,
 			simulationID.String(),
 		)
+	}
+}
+
+func TestSimulationOwnerID(t *testing.T) {
+	t.Parallel()
+
+	userID := "user-123"
+
+	tests := []struct {
+		name        string
+		authContext auth.AuthContext
+		want        *string
+	}{
+		{
+			name: "bearer auth uses subject",
+			authContext: auth.AuthContext{
+				Scheme: auth.AuthSchemeBearer,
+				UserID: userID,
+			},
+			want: &userID,
+		},
+		{
+			name: "user-owned api key uses principal user id",
+			authContext: auth.AuthContext{
+				Scheme: auth.AuthSchemeAPIKey,
+				APIKey: &db.GetApiKeyRow{
+					PrincipalType: db.PrincipalTypeUser,
+					UserID:        &userID,
+				},
+			},
+			want: &userID,
+		},
+		{
+			name: "service-owned api key remains unowned",
+			authContext: auth.AuthContext{
+				Scheme: auth.AuthSchemeAPIKey,
+				APIKey: &db.GetApiKeyRow{
+					PrincipalType: db.PrincipalTypeService,
+				},
+			},
+			want: nil,
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := simulationOwnerID(test.authContext)
+			if !reflect.DeepEqual(got, test.want) {
+				t.Fatalf("simulationOwnerID() = %v, want %v", got, test.want)
+			}
+		})
 	}
 }
