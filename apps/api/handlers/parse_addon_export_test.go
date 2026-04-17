@@ -1,37 +1,36 @@
-//nolint:testpackage,exhaustruct
+//nolint:exhaustruct
 package handlers
 
 import (
-	"bytes"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-gonic/gin"
+	api "github.com/DomNidy/saint_sim/internal/api"
 )
 
 func TestParseAddonExport(t *testing.T) {
 	t.Parallel()
-	gin.SetMode(gin.TestMode)
 
-	okRecorder := httptest.NewRecorder()
-	okCtx, _ := gin.CreateTestContext(okRecorder)
-	okCtx.Request = httptest.NewRequest(
-		http.MethodPost,
-		"/simc/parse-addon-export",
-		bytes.NewBufferString(`{"simc_addon_export":"priest=\"Example\"\nlevel=80\nspec=shadow"}`),
+	server := NewServer(stubSimulationStore{}, &stubQueue{})
+
+	okResponse, err := server.ParseAddonExport(
+		t.Context(),
+		api.ParseAddonExportRequestObject{
+			Body: &api.ParseAddonExportRequest{
+				SimcAddonExport: "priest=\"Example\"\nlevel=80\nspec=shadow",
+			},
+		},
 	)
-	okCtx.Request.Header.Set("Content-Type", "application/json")
-
-	ParseAddonExport(okCtx)
-
-	if okRecorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", okRecorder.Code, http.StatusOK)
+	if err != nil {
+		t.Fatalf("ParseAddonExport() error = %v", err)
 	}
 
 	var payload map[string]any
-	if err := json.Unmarshal(okRecorder.Body.Bytes(), &payload); err != nil {
+	okBody, marshalErr := json.Marshal(okResponse)
+	if marshalErr != nil {
+		t.Fatalf("marshal response: %v", marshalErr)
+	}
+	if err := json.Unmarshal(okBody, &payload); err != nil {
 		t.Fatalf("unmarshal response: %v", err)
 	}
 
@@ -44,23 +43,23 @@ func TestParseAddonExport(t *testing.T) {
 		t.Fatalf("class = %v, want priest", addonExport["class"])
 	}
 
-	badRecorder := httptest.NewRecorder()
-	badCtx, _ := gin.CreateTestContext(badRecorder)
-	badCtx.Request = httptest.NewRequest(
-		http.MethodPost,
-		"/simc/parse-addon-export",
-		bytes.NewBufferString(`{"simc_addon_export":"### comments only"}`),
+	badResponse, err := server.ParseAddonExport(
+		t.Context(),
+		api.ParseAddonExportRequestObject{
+			Body: &api.ParseAddonExportRequest{
+				SimcAddonExport: "### comments only",
+			},
+		},
 	)
-	badCtx.Request.Header.Set("Content-Type", "application/json")
+	if err != nil {
+		t.Fatalf("ParseAddonExport() error = %v", err)
+	}
 
-	ParseAddonExport(badCtx)
-
-	if badRecorder.Code != http.StatusBadRequest {
+	if _, ok := badResponse.(api.ParseAddonExport400JSONResponse); !ok {
 		t.Fatalf(
-			"status = %d, want %d; body = %s",
-			badRecorder.Code,
-			http.StatusBadRequest,
-			badRecorder.Body.String(),
+			"response type = %T, want %T",
+			badResponse,
+			api.ParseAddonExport400JSONResponse{},
 		)
 	}
 }

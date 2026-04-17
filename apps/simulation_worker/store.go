@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	api_types "github.com/DomNidy/saint_sim/internal/api_types"
+	api "github.com/DomNidy/saint_sim/internal/api"
 	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 )
 
@@ -20,7 +20,7 @@ type simulationStore struct {
 type simulationRequest struct {
 	id      uuid.UUID
 	idText  string
-	options api_types.SimulationOptions
+	options api.SimulationOptions
 }
 
 func (store simulationStore) LoadRequest(
@@ -33,7 +33,7 @@ func (store simulationStore) LoadRequest(
 		return simulationRequest{}, fmt.Errorf("retrieve simulation options from db: %w", err)
 	}
 
-	var options api_types.SimulationOptions
+	var options api.SimulationOptions
 
 	err = json.Unmarshal(simOptionsJSON, &options)
 	if err != nil {

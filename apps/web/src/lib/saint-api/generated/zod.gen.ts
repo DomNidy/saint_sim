@@ -2,6 +2,10 @@
 
 import * as z from 'zod';
 
+export const zHealthResponse = z.object({
+    status: z.string()
+});
+
 /**
  * Raw SimulationCraft addon export string supplied by the caller.
  */
@@ -103,6 +107,11 @@ export const zSimulation = z.object({
 export const zErrorResponse = z.object({
     message: z.string().optional()
 });
+
+/**
+ * API is healthy.
+ */
+export const zHealthResponse2 = zHealthResponse;
 
 export const zGetSimulationPath = z.object({
     id: z.uuid()

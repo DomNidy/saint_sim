@@ -1,4 +1,4 @@
-//nolint:testpackage,exhaustruct,varnamelen,noctx,wsl_v5
+//nolint:testpackage,exhaustruct,varnamelen
 package middleware
 
 import (
@@ -211,7 +211,7 @@ func TestJWTAuthenticatorValidatesClaimsAndSignature(t *testing.T) {
 		},
 	)
 
-	principal, err := verifier.Authenticate(context.Background(), signedToken)
+	principal, err := verifier.Authenticate(t.Context(), signedToken)
 	if err != nil {
 		t.Fatalf("verify token: %v", err)
 	}
@@ -299,7 +299,7 @@ func TestJWTAuthenticatorRejectsWrongAudience(t *testing.T) {
 		&gojwt.Expected{AnyAudience: []string{"saint-api"}, Issuer: "https://auth.example.com"},
 	)
 
-	_, err := verifier.Authenticate(context.Background(), signedToken)
+	_, err := verifier.Authenticate(t.Context(), signedToken)
 	if !errors.Is(err, errInvalidBearerToken) {
 		t.Fatalf("expected invalid bearer token, got %v", err)
 	}
@@ -324,7 +324,7 @@ func TestJWTAuthenticatorRejectsUnknownKeyID(t *testing.T) {
 		&gojwt.Expected{AnyAudience: []string{"saint-api"}, Issuer: "https://auth.example.com"},
 	)
 
-	_, err := verifier.Authenticate(context.Background(), signedToken)
+	_, err := verifier.Authenticate(t.Context(), signedToken)
 	if !errors.Is(err, errInvalidBearerToken) {
 		t.Fatalf("expected invalid bearer token, got %v", err)
 	}

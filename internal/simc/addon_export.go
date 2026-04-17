@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DomNidy/saint_sim/internal/api_types"
+	api "github.com/DomNidy/saint_sim/internal/api"
 )
 
 type addonExportParseState struct {
@@ -28,14 +28,14 @@ type addonExportParseState struct {
 
 // Parse converts a raw SimulationCraft addon export string into a structured
 // AddonExport API model.
-func Parse(tciString string) api_types.AddonExport {
-	alternateTalentLoadouts := []api_types.AddonExportAlternateTalentLoadout{}
-	equipment := []api_types.AddonExportEquipmentItem{}
+func Parse(tciString string) api.AddonExport {
+	alternateTalentLoadouts := []api.AddonExportAlternateTalentLoadout{}
+	equipment := []api.AddonExportEquipmentItem{}
 	catalystCurrencies := map[string]int{}
-	slotHighWatermarks := map[string]api_types.AddonExportSlotHighWatermark{}
+	slotHighWatermarks := map[string]api.AddonExportSlotHighWatermark{}
 	upgradeAchievements := []int{}
 
-	export := api_types.AddonExport{
+	export := api.AddonExport{
 		AlternateTalentLoadouts: &alternateTalentLoadouts,
 		Equipment:               &equipment,
 		CatalystCurrencies:      &catalystCurrencies,
@@ -63,7 +63,7 @@ func Parse(tciString string) api_types.AddonExport {
 	return export
 }
 
-func HasRecognizedData(export api_types.AddonExport) bool {
+func HasRecognizedData(export api.AddonExport) bool {
 	return export.CharacterName != nil ||
 		export.Class != nil ||
 		export.Level != nil ||
@@ -92,7 +92,7 @@ func HasRecognizedData(export api_types.AddonExport) bool {
 }
 
 func parseCommentLine(
-	export *api_types.AddonExport,
+	export *api.AddonExport,
 	state *addonExportParseState,
 	line string,
 ) {
@@ -136,7 +136,7 @@ func parseCommentLine(
 }
 
 func parseAssignmentLine(
-	export *api_types.AddonExport,
+	export *api.AddonExport,
 	state *addonExportParseState,
 	line string,
 ) {
@@ -189,7 +189,7 @@ func parseSectionComment(state *addonExportParseState, comment string) bool {
 }
 
 func parseStructuredComment(
-	export *api_types.AddonExport,
+	export *api.AddonExport,
 	state *addonExportParseState,
 	comment string,
 ) bool {
@@ -237,7 +237,7 @@ func parseStructuredComment(
 }
 
 func parseLoadoutComment(
-	export *api_types.AddonExport,
+	export *api.AddonExport,
 	state *addonExportParseState,
 	comment string,
 ) bool {
@@ -252,7 +252,7 @@ func parseLoadoutComment(
 	if strings.HasPrefix(comment, "talents=") && state.pendingLoadoutName != "" {
 		*export.AlternateTalentLoadouts = append(
 			*export.AlternateTalentLoadouts,
-			api_types.AddonExportAlternateTalentLoadout{
+			api.AddonExportAlternateTalentLoadout{
 				Name:    state.pendingLoadoutName,
 				Talents: strings.TrimSpace(strings.TrimPrefix(comment, "talents=")),
 			},
@@ -265,7 +265,7 @@ func parseLoadoutComment(
 	return false
 }
 
-func parseChecksumComment(export *api_types.AddonExport, comment string) bool {
+func parseChecksumComment(export *api.AddonExport, comment string) bool {
 	if !strings.HasPrefix(comment, "Checksum:") {
 		return false
 	}
@@ -277,14 +277,14 @@ func parseChecksumComment(export *api_types.AddonExport, comment string) bool {
 	return true
 }
 
-func parseHeaderComment(export *api_types.AddonExport, comment string) {
+func parseHeaderComment(export *api.AddonExport, comment string) {
 	if export.HeaderComment == nil && looksLikeExportHeaderComment(comment) {
 		export.HeaderComment = strPtr(comment)
 	}
 }
 
 func parseMetadataAssignment(
-	export *api_types.AddonExport,
+	export *api.AddonExport,
 	key string,
 	value string,
 ) bool {
@@ -372,15 +372,15 @@ func parseEquipmentItem(
 	commentName string,
 	rawLine string,
 	bagItem bool,
-) (api_types.AddonExportEquipmentItem, bool) {
+) (api.AddonExportEquipmentItem, bool) {
 	slot, attributes, ok := parseEquipmentAssignment(rawLine)
 	if !ok {
-		return api_types.AddonExportEquipmentItem{}, false
+		return api.AddonExportEquipmentItem{}, false
 	}
 
 	itemID, ok := parseIntAttribute(attributes, "id")
 	if !ok {
-		return api_types.AddonExportEquipmentItem{}, false
+		return api.AddonExportEquipmentItem{}, false
 	}
 
 	displayName, commentItemLevel := parseItemCommentMetadata(commentName)
@@ -395,14 +395,14 @@ func parseEquipmentItem(
 		displayName = fmt.Sprintf("Item %d", itemID)
 	}
 
-	source := api_types.Equipped
+	source := api.Equipped
 	sourceName := "equipped"
 	if bagItem {
-		source = api_types.Bag
+		source = api.Bag
 		sourceName = "bag"
 	}
 
-	return api_types.AddonExportEquipmentItem{
+	return api.AddonExportEquipmentItem{
 		Fingerprint:     fingerprintForItem(rawLine, sourceName),
 		Slot:            slot,
 		Name:            displayName,
@@ -584,8 +584,8 @@ func parseIntMap(value string) map[string]int {
 
 func parseSlotHighWatermarks(
 	value string,
-) map[string]api_types.AddonExportSlotHighWatermark {
-	result := map[string]api_types.AddonExportSlotHighWatermark{}
+) map[string]api.AddonExportSlotHighWatermark {
+	result := map[string]api.AddonExportSlotHighWatermark{}
 	for _, entry := range strings.Split(value, "/") {
 		parts := strings.Split(strings.TrimSpace(entry), ":")
 		if len(parts) != 3 || parts[0] == "" {
@@ -598,7 +598,7 @@ func parseSlotHighWatermarks(
 			continue
 		}
 
-		result[parts[0]] = api_types.AddonExportSlotHighWatermark{
+		result[parts[0]] = api.AddonExportSlotHighWatermark{
 			CurrentItemLevel: currentItemLevel,
 			MaxItemLevel:     maxItemLevel,
 		}

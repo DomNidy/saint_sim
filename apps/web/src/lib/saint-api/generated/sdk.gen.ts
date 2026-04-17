@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetSimulationData, GetSimulationErrors, GetSimulationResponses, ParseAddonExportData, ParseAddonExportErrors, ParseAddonExportResponses, SimulateData, SimulateErrors, SimulateResponses } from './types.gen';
+import type { GetSimulationData, GetSimulationErrors, GetSimulationResponses, HealthData, HealthResponses, ParseAddonExportData, ParseAddonExportErrors, ParseAddonExportResponses, SimulateData, SimulateErrors, SimulateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,11 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: Record<string, unknown>;
 };
+
+/**
+ * Returns API health status.
+ */
+export const health = <ThrowOnError extends boolean = false>(options?: Options<HealthData, ThrowOnError>) => (options?.client ?? client).get<HealthResponses, unknown, ThrowOnError>({ url: '/health', ...options });
 
 /**
  * View the result of a simulation.

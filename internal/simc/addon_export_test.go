@@ -4,17 +4,17 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/DomNidy/saint_sim/internal/api_types"
+	api "github.com/DomNidy/saint_sim/internal/api"
 )
 
 func TestParse(t *testing.T) {
 	t.Parallel()
 
-	alternateTalentLoadouts := []api_types.AddonExportAlternateTalentLoadout{
+	alternateTalentLoadouts := []api.AddonExportAlternateTalentLoadout{
 		{Name: "M+", Talents: "MPLUS_TALENTS"},
 		{Name: "RAID", Talents: "RAID_TALENTS"},
 	}
-	equipment := []api_types.AddonExportEquipmentItem{
+	equipment := []api.AddonExportEquipmentItem{
 		{
 			Fingerprint: fingerprintForItem(
 				"head=,id=250458,bonus_id=6652/12667/13577/13333/12787,crafted_stats=40/49,crafting_quality=5",
@@ -28,7 +28,7 @@ func TestParse(t *testing.T) {
 			CraftingQuality: intPtr(5),
 			BonusIds:        intSlicePtr([]int{6652, 12667, 13577, 13333, 12787}),
 			CraftedStats:    intSlicePtr([]int{40, 49}),
-			Source:          api_types.Equipped,
+			Source:          api.Equipped,
 			RawLine:         "head=,id=250458,bonus_id=6652/12667/13577/13333/12787,crafted_stats=40/49,crafting_quality=5",
 		},
 		{
@@ -43,7 +43,7 @@ func TestParse(t *testing.T) {
 			ItemLevel:   intPtr(250),
 			EnchantId:   intPtr(3368),
 			BonusIds:    intSlicePtr([]int{12786, 6652}),
-			Source:      api_types.Equipped,
+			Source:      api.Equipped,
 			RawLine:     "main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652",
 		},
 		{
@@ -57,7 +57,7 @@ func TestParse(t *testing.T) {
 			ItemId:      258876,
 			ItemLevel:   intPtr(201),
 			BonusIds:    intSlicePtr([]int{13611}),
-			Source:      api_types.Bag,
+			Source:      api.Bag,
 			RawLine:     "head=,id=258876,bonus_id=13611,drop_level=90",
 		},
 		{
@@ -72,7 +72,7 @@ func TestParse(t *testing.T) {
 			ItemLevel:   intPtr(246),
 			BonusIds:    intSlicePtr([]int{13577, 12785}),
 			GemIds:      intSlicePtr([]int{213482, 213743}),
-			Source:      api_types.Bag,
+			Source:      api.Bag,
 			RawLine:     "head=,id=266432,bonus_id=13577/12785,gem_id1=213482,gem_id2=213743",
 		},
 	}
@@ -81,7 +81,7 @@ func TestParse(t *testing.T) {
 		"2813": 8,
 		"3116": 8,
 	}
-	slotHighWatermarks := map[string]api_types.AddonExportSlotHighWatermark{
+	slotHighWatermarks := map[string]api.AddonExportSlotHighWatermark{
 		"head": {
 			CurrentItemLevel: 639,
 			MaxItemLevel:     652,
@@ -138,7 +138,7 @@ main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652
 
 	got := Parse(input)
 
-	want := api_types.AddonExport{
+	want := api.AddonExport{
 		CharacterName:           strPtr("Gubulgi"),
 		Class:                   strPtr("deathknight"),
 		Level:                   strPtr("90"),
