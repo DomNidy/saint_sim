@@ -4,13 +4,13 @@ import (
 	"context"
 	"testing"
 
-	api_types "github.com/DomNidy/saint_sim/internal/api_types"
+	api "github.com/DomNidy/saint_sim/internal/api"
 )
 
 func TestSimulationInputFromOptions(t *testing.T) {
 	t.Parallel()
 
-	options := api_types.SimulationOptions{
+	options := api.SimulationOptions{
 		SimcAddonExport: "mage=\"Example\"\nlevel=80",
 	}
 
@@ -27,7 +27,7 @@ func TestSimulationInputFromOptions(t *testing.T) {
 func TestSimulationInputFromOptionsRejectsMissingExport(t *testing.T) {
 	t.Parallel()
 
-	_, err := simulationInputFromOptions(api_types.SimulationOptions{
+	_, err := simulationInputFromOptions(api.SimulationOptions{
 		SimcAddonExport: "",
 	})
 	if err == nil {

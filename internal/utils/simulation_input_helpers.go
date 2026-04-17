@@ -5,7 +5,7 @@ package utils
 import (
 	"fmt"
 
-	api_types "github.com/DomNidy/saint_sim/internal/api_types"
+	api "github.com/DomNidy/saint_sim/internal/api"
 )
 
 type simulationValidationError string
@@ -20,7 +20,7 @@ const (
 )
 
 // ValidateSimOptions validates the user-provided simulation options and reports the first failure.
-func ValidateSimOptions(options *api_types.SimulationOptions) error {
+func ValidateSimOptions(options *api.SimulationOptions) error {
 	if options == nil {
 		return errSimulationOptionsRequired
 	}

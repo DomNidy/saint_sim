@@ -4,6 +4,10 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type HealthResponse = {
+    status: string;
+};
+
 /**
  * Raw SimulationCraft addon export string supplied by the caller.
  */
@@ -125,6 +129,22 @@ export type ErrorResponse = {
      */
     message?: string;
 };
+
+export type HealthData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health';
+};
+
+export type HealthResponses = {
+    /**
+     * API is healthy.
+     */
+    200: HealthResponse;
+};
+
+export type HealthResponse2 = HealthResponses[keyof HealthResponses];
 
 export type GetSimulationData = {
     body?: never;

@@ -231,8 +231,8 @@ codegen target="":
     }
 
     generate_api() {
-      mkdir -p ./internal/api_types
-      go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.3.0 --generate types,skip-prune -o ./internal/api_types/api_types.gen.go -package api_types ./apps/api/openapi.yaml
+      mkdir -p ./internal/api
+      go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.3.0 --config ./apps/api/oapi-codegen.yaml ./apps/api/openapi.yaml
       (
         cd ./apps/web
         npm run codegen:api

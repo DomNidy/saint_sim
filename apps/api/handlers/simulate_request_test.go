@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"testing"
 
-	api_types "github.com/DomNidy/saint_sim/internal/api_types"
+	api "github.com/DomNidy/saint_sim/internal/api"
 )
 
 func TestValidateSimulationRequest(t *testing.T) {
@@ -13,25 +13,25 @@ func TestValidateSimulationRequest(t *testing.T) {
 
 	cases := []struct {
 		name       string
-		options    api_types.SimulationOptions
+		options    api.SimulationOptions
 		wantStatus int
 		wantOK     bool
 	}{
 		{
 			name: "valid simc addon export",
-			options: api_types.SimulationOptions{
+			options: api.SimulationOptions{
 				SimcAddonExport: "priest=\"Example\"\nlevel=80\nspec=shadow",
 			},
 			wantOK: true,
 		},
 		{
 			name:       "missing simc addon export",
-			options:    api_types.SimulationOptions{},
+			options:    api.SimulationOptions{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name: "empty simc addon export",
-			options: api_types.SimulationOptions{
+			options: api.SimulationOptions{
 				SimcAddonExport: "",
 			},
 			wantStatus: http.StatusBadRequest,

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	api_types "github.com/DomNidy/saint_sim/internal/api_types"
+	api "github.com/DomNidy/saint_sim/internal/api"
 	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
@@ -83,7 +83,7 @@ func (runner simcRunner) Run(ctx context.Context, input simulationInput) ([]byte
 	return output.Bytes(), nil
 }
 
-func simulationInputFromOptions(options api_types.SimulationOptions) (simulationInput, error) {
+func simulationInputFromOptions(options api.SimulationOptions) (simulationInput, error) {
 	err := utils.ValidateSimOptions(&options)
 	if err != nil {
 		return simulationInput{}, fmt.Errorf("validate simulation options: %w", err)

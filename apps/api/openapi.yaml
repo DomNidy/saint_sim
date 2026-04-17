@@ -7,6 +7,17 @@ info:
     This API responsible for the saint business logic. The discord bot, and, potentially more services in the future, will call this API.
 
 paths:
+  /health:
+    get:
+      operationId: health
+      description: Returns API health status.
+      responses:
+        "200":
+          description: API is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/health_response"
   /simulation/{id}:
     get:
       operationId: getSimulation
@@ -129,6 +140,15 @@ components:
       in: header
       name: Api-Key
   schemas:
+    health_response:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: healthy
+
     simc_addon_export:
       type: string
       description: Raw SimulationCraft addon export string supplied by the caller.

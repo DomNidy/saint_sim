@@ -4,14 +4,13 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
 	"time"
 
-	gin "github.com/gin-gonic/gin"
 	"github.com/go-jose/go-jose/v4/jwt"
 
 	handlers "github.com/DomNidy/saint_sim/apps/api/handlers"
 	middleware "github.com/DomNidy/saint_sim/apps/api/middleware"
+	api "github.com/DomNidy/saint_sim/internal/api"
 	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 	"github.com/DomNidy/saint_sim/internal/secrets"
 	utils "github.com/DomNidy/saint_sim/internal/utils"
@@ -59,31 +58,24 @@ func main() {
 	if dbClient == nil {
 		log.Panicf("API failed to acquire a dbClient, cannot run.")
 	}
-	// Setup api server
-	router := gin.Default()
-	router.GET("/health", func(ginContext *gin.Context) {
-		ginContext.JSON(http.StatusOK, gin.H{
-			"status": "healthy",
-		})
-	})
 
-	router.GET("/simulation/:id", func(ginContext *gin.Context) {
-		handlers.GetSimulation(ginContext, dbClient)
-	})
-	router.POST("/simc/parse-addon-export", handlers.ParseAddonExport)
+	swagger, err := api.GetSwagger()
+	if err != nil {
+		log.Panicf("ERROR: Failed to load embedded OpenAPI spec: %v", err)
+	}
 
-	// Authorization group: https://gin-gonic.com/zh-tw/docs/examples/using-middleware/
 	apiKeyAuthenticator := middleware.NewAPIKeyAuthenticator(dbClient)
 	jwtAuthenticator := newJWTAuthenticator(dbClient, betterAuthURL)
-	authorized := router.Group("/", middleware.AuthRequire(jwtAuthenticator, apiKeyAuthenticator))
 
-	authorized.POST("/simulation", func(ginContext *gin.Context) {
-		handlers.Simulate(ginContext, dbClient, simulationQueue)
-	})
+	router := newRouter(
+		handlers.NewServer(dbClient, simulationQueue),
+		swagger,
+		jwtAuthenticator,
+		apiKeyAuthenticator,
+	)
 
 	err = router.Run("0.0.0.0:8080")
 	if err != nil {
 		log.Printf("ERROR: Failed to start API server: %v", err)
 	}
-
 }

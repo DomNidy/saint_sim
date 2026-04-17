@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/DomNidy/saint_sim/internal/api_types"
+	api "github.com/DomNidy/saint_sim/internal/api"
 	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 )
 
@@ -83,7 +83,7 @@ func AuthRequire(
 			authorizationValue,
 		)
 		if err == nil {
-			ginContext.Set(authContextContextKey, authContext)
+			SetAuthContext(ginContext, authContext)
 			ginContext.Next()
 
 			return
@@ -104,6 +104,11 @@ func AuthRequire(
 		log.Printf("Internal auth error: %v", err)
 		abortWithError(ginContext, http.StatusInternalServerError, "Internal server error")
 	}
+}
+
+// SetAuthContext stores the resolved auth context on the Gin request context.
+func SetAuthContext(ginContext *gin.Context, authContext AuthContext) {
+	ginContext.Set(authContextContextKey, authContext)
 }
 
 // GetAuthContext retrieves the authenticated request context from Gin context.
@@ -226,7 +231,7 @@ func bearerTokenFromHeader(authorizationValue string) (string, error) {
 }
 
 func abortWithError(ginContext *gin.Context, statusCode int, message string) {
-	ginContext.AbortWithStatusJSON(statusCode, api_types.ErrorResponse{
+	ginContext.AbortWithStatusJSON(statusCode, api.ErrorResponse{
 		Message: &message,
 	})
 }
