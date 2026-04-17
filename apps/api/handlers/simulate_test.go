@@ -9,87 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/DomNidy/saint_sim/apps/api/middleware"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
 	"github.com/DomNidy/saint_sim/internal/utils"
 )
-
-func TestSimulationOwnerID(t *testing.T) {
-	t.Parallel()
-
-	userID := "user-42"
-	serviceID := uuid.MustParse("20875e8d-a145-4310-b503-89f0884c5008")
-
-	cases := []struct {
-		name        string
-		authContext middleware.AuthContext
-		expectedID  string
-		expectedOK  bool
-	}{
-		{
-			name: "bearer auth",
-			authContext: middleware.AuthContext{
-				Scheme: middleware.AuthSchemeBearer,
-				UserID: userID,
-			},
-			expectedID: userID,
-			expectedOK: true,
-		},
-		{
-			name: "user-owned api key",
-			authContext: middleware.AuthContext{
-				Scheme: middleware.AuthSchemeAPIKey,
-				APIKey: &db.GetApiKeyRow{
-					PrincipalType: db.PrincipalTypeUser,
-					UserID:        &userID,
-				},
-			},
-			expectedID: userID,
-			expectedOK: true,
-		},
-		{
-			name: "service-owned api key",
-			authContext: middleware.AuthContext{
-				Scheme: middleware.AuthSchemeAPIKey,
-				APIKey: &db.GetApiKeyRow{
-					PrincipalType: db.PrincipalTypeService,
-					ServiceID:     &serviceID,
-				},
-			},
-			expectedID: "",
-			expectedOK: false,
-		},
-	}
-
-	for idx := range cases {
-		testCase := cases[idx]
-
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-
-			ginContext := &gin.Context{}
-			ginContext.Set("auth.context", testCase.authContext)
-
-			ownerID := simulationOwnerID(ginContext)
-			if (ownerID != nil) != testCase.expectedOK {
-				t.Fatalf("ownerID != nil = %v, want %v", ownerID != nil, testCase.expectedOK)
-			}
-
-			if ownerID == nil {
-				if testCase.expectedID != "" {
-					t.Fatalf("ownerID = nil, want %q", testCase.expectedID)
-				}
-
-				return
-			}
-
-			if *ownerID != testCase.expectedID {
-				t.Fatalf("*ownerID = %q, want %q", *ownerID, testCase.expectedID)
-			}
-		})
-	}
-}
 
 type stubQueue struct {
 	publish func(job utils.SimulationJobMessage) error

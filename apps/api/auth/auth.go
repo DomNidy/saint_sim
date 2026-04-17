@@ -1,16 +1,13 @@
-// Package middleware provides middleware that is used to authenticate incoming API requests.
-package middleware
+// Package auth provides methods, errors, and types, used to authenticate incoming API requests.
+package auth
 
 import (
 	"context"
 	"errors"
-	"log"
-	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 
-	api "github.com/DomNidy/saint_sim/internal/api"
 	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 )
 
@@ -64,55 +61,20 @@ type RequestAuthenticator interface {
 	Authenticate(ctx context.Context, key string) (AuthContext, error)
 }
 
-// AuthRequire validates that incoming requests provide either a valid Api-Key or a valid Bearer
-// JWT.
-func AuthRequire(
-	jwtAuthenticator RequestAuthenticator,
-	apiKeyAuthenticator RequestAuthenticator,
-) gin.HandlerFunc {
-	return func(ginContext *gin.Context) {
-		log.Printf("auth require")
-		apiKey := strings.TrimSpace(ginContext.GetHeader("Api-Key"))
-		authorizationValue := strings.TrimSpace(ginContext.GetHeader("Authorization"))
-
-		authContext, err := authenticateRequest(
-			ginContext.Request.Context(),
-			jwtAuthenticator,
-			apiKeyAuthenticator,
-			apiKey,
-			authorizationValue,
-		)
-		if err == nil {
-			SetAuthContext(ginContext, authContext)
-			ginContext.Next()
-
-			return
-		}
-
-		if errors.Is(err, errInvalidAPIKey) ||
-			errors.Is(err, errInvalidBearerToken) ||
-			errors.Is(
-				err,
-				errMalformedAuthorizationValue,
-			) || errors.Is(err, errMissingCredentials) {
-			log.Printf("Unauthorized request: %v", err)
-			abortWithError(ginContext, http.StatusUnauthorized, "Unauthorized")
-
-			return
-		}
-
-		log.Printf("Internal auth error: %v", err)
-		abortWithError(ginContext, http.StatusInternalServerError, "Internal server error")
-	}
-}
-
 // SetAuthContext stores the resolved auth context on the Gin request context.
 func SetAuthContext(ginContext *gin.Context, authContext AuthContext) {
 	ginContext.Set(authContextContextKey, authContext)
 }
 
-// GetAuthContext retrieves the authenticated request context from Gin context.
-func GetAuthContext(ginContext *gin.Context) (AuthContext, bool) {
+// ResolveAuthFromContext retrieves the AuthContext from a gin.Context.
+func ResolveAuthFromContext(ctx context.Context) (AuthContext, bool) {
+	// kinda hacky: oapi-codegen server interface's method signatures use
+	// context.Context type, not gin.Context. So we check here.
+	ginContext, isGinContext := ctx.(*gin.Context)
+	if !isGinContext {
+		return AuthContext{Scheme: "", UserID: "", APIKey: nil}, false
+	}
+
 	rawPrincipal, exists := ginContext.Get(authContextContextKey)
 	if !exists {
 		return AuthContext{Scheme: "", UserID: "", APIKey: nil}, false
@@ -150,7 +112,7 @@ func EffectiveUserID(authContext AuthContext) (string, bool) {
 // or via a user-owned API key. It returns false for service-owned API keys and requests
 // without an authenticated user identity.
 func GetEffectiveUserID(ginContext *gin.Context) (string, bool) {
-	authContext, ok := GetAuthContext(ginContext)
+	authContext, ok := ResolveAuthFromContext(ginContext)
 	if !ok {
 		return "", false
 	}
@@ -228,10 +190,4 @@ func bearerTokenFromHeader(authorizationValue string) (string, error) {
 	}
 
 	return strings.TrimSpace(token), nil
-}
-
-func abortWithError(ginContext *gin.Context, statusCode int, message string) {
-	ginContext.AbortWithStatusJSON(statusCode, api.ErrorResponse{
-		Message: &message,
-	})
 }

@@ -8,8 +8,8 @@ import (
 
 	"github.com/go-jose/go-jose/v4/jwt"
 
+	"github.com/DomNidy/saint_sim/apps/api/auth"
 	handlers "github.com/DomNidy/saint_sim/apps/api/handlers"
-	middleware "github.com/DomNidy/saint_sim/apps/api/middleware"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 	"github.com/DomNidy/saint_sim/internal/secrets"
@@ -19,8 +19,8 @@ import (
 func newJWTAuthenticator(
 	dbClient *dbqueries.Queries,
 	betterAuthURL string,
-) *middleware.JWTAuthenticator {
-	return middleware.NewJWTAuthenticator(dbClient, &jwt.Expected{
+) *auth.JWTAuthenticator {
+	return auth.NewJWTAuthenticator(dbClient, &jwt.Expected{
 		// only accept jwt issued by our web app
 		Issuer: betterAuthURL,
 		// dont accept allow tokens for other audiences
@@ -64,7 +64,7 @@ func main() {
 		log.Panicf("ERROR: Failed to load embedded OpenAPI spec: %v", err)
 	}
 
-	apiKeyAuthenticator := middleware.NewAPIKeyAuthenticator(dbClient)
+	apiKeyAuthenticator := auth.NewAPIKeyAuthenticator(dbClient)
 	jwtAuthenticator := newJWTAuthenticator(dbClient, betterAuthURL)
 
 	router := newRouter(
