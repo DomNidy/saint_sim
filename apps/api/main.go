@@ -66,12 +66,15 @@ func main() {
 
 	apiKeyAuthenticator := auth.NewAPIKeyAuthenticator(dbClient)
 	jwtAuthenticator := newJWTAuthenticator(dbClient, betterAuthURL)
+	openAPIAuthenticator := auth.NewOpenAPIRequestAuthenticator(
+		jwtAuthenticator,
+		apiKeyAuthenticator,
+	)
 
 	router := newRouter(
 		handlers.NewServer(dbClient, simulationQueue),
 		swagger,
-		jwtAuthenticator,
-		apiKeyAuthenticator,
+		openAPIAuthenticator,
 	)
 
 	err = router.Run("0.0.0.0:8080")

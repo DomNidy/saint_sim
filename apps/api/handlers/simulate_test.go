@@ -4,11 +4,13 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/DomNidy/saint_sim/apps/api/auth"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
 	"github.com/DomNidy/saint_sim/internal/utils"
@@ -58,7 +60,12 @@ func TestPublishSimulationJob(t *testing.T) {
 	t.Parallel()
 	gin.SetMode(gin.TestMode)
 
-	ctx := &gin.Context{}
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	auth.SetAuthContext(ctx, auth.AuthContext{
+		Scheme: auth.AuthSchemeBearer,
+		UserID: "user-123",
+	})
 
 	didWriteToStore := false
 	didPublishToQueue := false
