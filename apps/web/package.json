@@ -20,6 +20,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@t3-oss/env-core": "^0.13.10",
     "@tailwindcss/vite": "^4.1.18",
+    "@tanstack/intent": "^0.0.29",
     "@tanstack/react-devtools": "latest",
     "@tanstack/react-query": "latest",
     "@tanstack/react-query-devtools": "latest",
