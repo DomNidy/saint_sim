@@ -107,35 +107,37 @@ func TestRouterSimulationAuthAndValidation(t *testing.T) {
 				return db.Simulation{ID: simulationID}, nil
 			},
 		}),
-		withJWTAuthenticator(routerStubAuthenticator{
-			authenticate: func(_ context.Context, rawToken string) (auth.AuthContext, error) {
-				if rawToken != "valid-token" {
-					return auth.AuthContext{}, errUnexpectedToken
-				}
+		withOpenAPIAuthenticator(auth.NewOpenAPIRequestAuthenticator(
+			routerStubAuthenticator{
+				authenticate: func(_ context.Context, rawToken string) (auth.AuthContext, error) {
+					if rawToken != "valid-token" {
+						return auth.AuthContext{}, errUnexpectedToken
+					}
 
-				return auth.AuthContext{
-					Scheme: auth.AuthSchemeBearer,
-					UserID: "user-123",
-				}, nil
+					return auth.AuthContext{
+						Scheme: auth.AuthSchemeBearer,
+						UserID: "user-123",
+					}, nil
+				},
 			},
-		}),
-		withAPIKeyAuthenticator(routerStubAuthenticator{
-			authenticate: func(_ context.Context, rawAPIKey string) (auth.AuthContext, error) {
-				if rawAPIKey != "good-api-key" {
-					return auth.AuthContext{}, errUnexpectedAPIKey
-				}
+			routerStubAuthenticator{
+				authenticate: func(_ context.Context, rawAPIKey string) (auth.AuthContext, error) {
+					if rawAPIKey != "good-api-key" {
+						return auth.AuthContext{}, errUnexpectedAPIKey
+					}
 
-				userID := "user-123"
+					userID := "user-123"
 
-				return auth.AuthContext{
-					Scheme: auth.AuthSchemeAPIKey,
-					APIKey: &db.GetApiKeyRow{
-						PrincipalType: db.PrincipalTypeUser,
-						UserID:        &userID,
-					},
-				}, nil
+					return auth.AuthContext{
+						Scheme: auth.AuthSchemeAPIKey,
+						APIKey: &db.GetApiKeyRow{
+							PrincipalType: db.PrincipalTypeUser,
+							UserID:        &userID,
+						},
+					}, nil
+				},
 			},
-		}),
+		)),
 	)
 
 	testCases := []struct {
@@ -268,9 +270,8 @@ func TestRouterGeneratedBindingAndValidation(t *testing.T) {
 }
 
 type testRouterOptions struct {
-	store               routerStubStore
-	jwtAuthenticator    auth.RequestAuthenticator
-	apiKeyAuthenticator auth.RequestAuthenticator
+	store                routerStubStore
+	openAPIAuthenticator auth.OpenAPIRequestAuthenticator
 }
 
 type testRouterOption func(*testRouterOptions)
@@ -281,15 +282,11 @@ func withStore(store routerStubStore) testRouterOption {
 	}
 }
 
-func withJWTAuthenticator(auth auth.RequestAuthenticator) testRouterOption {
+func withOpenAPIAuthenticator(
+	authenticator auth.OpenAPIRequestAuthenticator,
+) testRouterOption {
 	return func(options *testRouterOptions) {
-		options.jwtAuthenticator = auth
-	}
-}
-
-func withAPIKeyAuthenticator(auth auth.RequestAuthenticator) testRouterOption {
-	return func(options *testRouterOptions) {
-		options.apiKeyAuthenticator = auth
+		options.openAPIAuthenticator = authenticator
 	}
 }
 
@@ -305,29 +302,7 @@ func newTestRouter(t *testing.T, opts ...testRouterOption) *gin.Engine {
 				return db.Simulation{ID: uuid.New()}, nil
 			},
 		},
-		jwtAuthenticator: routerStubAuthenticator{
-			authenticate: func(_ context.Context, rawToken string) (auth.AuthContext, error) {
-				if rawToken != "valid-token" {
-					return auth.AuthContext{}, errInvalidTestToken
-				}
-
-				return auth.AuthContext{
-					Scheme: auth.AuthSchemeBearer,
-					UserID: "user-123",
-				}, nil
-			},
-		},
-		apiKeyAuthenticator: routerStubAuthenticator{
-			authenticate: func(_ context.Context, rawAPIKey string) (auth.AuthContext, error) {
-				if rawAPIKey != "good-api-key" {
-					return auth.AuthContext{}, errInvalidTestAPIKey
-				}
-
-				return auth.AuthContext{
-					Scheme: auth.AuthSchemeAPIKey,
-				}, nil
-			},
-		},
+		openAPIAuthenticator: newTestOpenAPIAuthenticator(),
 	}
 
 	for _, opt := range opts {
@@ -342,7 +317,34 @@ func newTestRouter(t *testing.T, opts ...testRouterOption) *gin.Engine {
 	return newRouter(
 		handlers.NewServer(options.store, routerStubQueue{}),
 		swagger,
-		options.jwtAuthenticator,
-		options.apiKeyAuthenticator,
+		options.openAPIAuthenticator,
+	)
+}
+
+func newTestOpenAPIAuthenticator() auth.OpenAPIRequestAuthenticator {
+	return auth.NewOpenAPIRequestAuthenticator(
+		routerStubAuthenticator{
+			authenticate: func(_ context.Context, rawToken string) (auth.AuthContext, error) {
+				if rawToken != "valid-token" {
+					return auth.AuthContext{}, errInvalidTestToken
+				}
+
+				return auth.AuthContext{
+					Scheme: auth.AuthSchemeBearer,
+					UserID: "user-123",
+				}, nil
+			},
+		},
+		routerStubAuthenticator{
+			authenticate: func(_ context.Context, rawAPIKey string) (auth.AuthContext, error) {
+				if rawAPIKey != "good-api-key" {
+					return auth.AuthContext{}, errInvalidTestAPIKey
+				}
+
+				return auth.AuthContext{
+					Scheme: auth.AuthSchemeAPIKey,
+				}, nil
+			},
+		},
 	)
 }

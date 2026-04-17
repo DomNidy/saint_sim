@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3filter"
-	ginmiddleware "github.com/oapi-codegen/gin-middleware"
 )
 
 var (
@@ -15,11 +14,29 @@ var (
 	errUnsupportedSecurityScheme     = errors.New("unsupported security scheme")
 )
 
-type APIAuthenticator struct {
+// OpenAPIRequestAuthenticator authenticates a single OpenAPI security
+// requirement and returns the resolved request auth context.
+type OpenAPIRequestAuthenticator func(
+	ctx context.Context,
+	input *openapi3filter.AuthenticationInput,
+) (AuthContext, error)
+
+// NewOpenAPIRequestAuthenticator wires the core request authenticators into an
+// OpenAPI security requirement authenticator that can be consumed by middleware.
+func NewOpenAPIRequestAuthenticator(
+	jwtAuthenticator RequestAuthenticator,
+	apiKeyAuthenticator RequestAuthenticator,
+) OpenAPIRequestAuthenticator {
+	return func(
+		ctx context.Context,
+		input *openapi3filter.AuthenticationInput,
+	) (AuthContext, error) {
+		return authenticateOpenAPIRequest(ctx, input, jwtAuthenticator, apiKeyAuthenticator)
+	}
 }
 
-// AuthenticateOpenAPIRequest authenticates a request for a single OpenAPI
-// security scheme. The resolved AuthContext will be set on the request context.
+// authenticateOpenAPIRequest authenticates a request for a single OpenAPI
+// security scheme and returns the resolved auth context.
 //
 // The server's oapi middleware will call this for each security requirement on a
 // route, until one passes (doesn't return an error). The `input` here encodes the
@@ -27,20 +44,20 @@ type APIAuthenticator struct {
 //
 // Example: openapi definition for GET /pets route defines `BearerAuth` and `ApiKeyAuth`,
 // For a single request:
-// AuthenticateOpenAPIRequest call 1: try validate BearerAuth scheme.
+// authenticateOpenAPIRequest call 1: try validate BearerAuth scheme.
 // if failed, continue:
-// AuthenticateOpenAPIRequest call 2: try validate ApiKeyAuth scheme.
+// authenticateOpenAPIRequest call 2: try validate ApiKeyAuth scheme.
 // etc.
-func AuthenticateOpenAPIRequest(
+func authenticateOpenAPIRequest(
 	ctx context.Context,
 	input *openapi3filter.AuthenticationInput,
 	jwtAuthenticator RequestAuthenticator,
 	apiKeyAuthenticator RequestAuthenticator,
-) error {
+) (AuthContext, error) {
 	if input == nil ||
 		input.RequestValidationInput == nil ||
 		input.RequestValidationInput.Request == nil {
-		return errMissingRequestValidationInput
+		return AuthContext{}, errMissingRequestValidationInput
 	}
 
 	request := input.RequestValidationInput.Request
@@ -53,15 +70,10 @@ func AuthenticateOpenAPIRequest(
 		apiKeyAuthenticator,
 	)
 	if err != nil {
-		return fmt.Errorf("openapi authentication failed: %w", input.NewError(err))
+		return AuthContext{}, fmt.Errorf("openapi authentication failed: %w", input.NewError(err))
 	}
 
-	ginContext := ginmiddleware.GetGinContext(ctx)
-	if ginContext != nil {
-		SetAuthContext(ginContext, authContext)
-	}
-
-	return nil
+	return authContext, nil
 }
 
 func authenticateOpenAPISecurityRequirement(

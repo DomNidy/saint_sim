@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	ginmiddleware "github.com/oapi-codegen/gin-middleware"
 
+	"github.com/DomNidy/saint_sim/apps/api/auth"
 	"github.com/DomNidy/saint_sim/internal/api"
 )
 
@@ -19,7 +20,7 @@ import (
 // operations.
 func OpenAPIValidation(
 	swagger *openapi3.T,
-	authenticationFunc *openapi3filter.AuthenticationFunc,
+	authenticateRequest auth.OpenAPIRequestAuthenticator,
 ) gin.HandlerFunc {
 	return ginmiddleware.OapiRequestValidatorWithOptions(swagger, &ginmiddleware.Options{
 		ErrorHandler: openAPIErrorHandler,
@@ -28,8 +29,18 @@ func OpenAPIValidation(
 				ctx context.Context,
 				input *openapi3filter.AuthenticationInput,
 			) error {
-				if authenticationFunc != nil {
-					return (*authenticationFunc)(ctx, input)
+				if authenticateRequest != nil {
+					authContext, err := authenticateRequest(ctx, input)
+					if err != nil {
+						return err
+					}
+
+					ginContext := ginmiddleware.GetGinContext(ctx)
+					if ginContext != nil {
+						auth.SetAuthContext(ginContext, authContext)
+					}
+
+					return nil
 				}
 
 				log.Printf(

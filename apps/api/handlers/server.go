@@ -214,7 +214,6 @@ func createSimulationRequest(
 	dbClient simulationCreator,
 	simOptions api.SimulationOptions,
 ) (string, error) {
-
 	simOptionsJSON, err := json.Marshal(simOptions)
 	if err != nil {
 		return "", fmt.Errorf("marshal simulation options: %w", err)
