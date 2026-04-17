@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -44,35 +44,36 @@ describe("useParseAddonExport", () => {
 	it("does not issue a request when disabled", () => {
 		parseAddonExportMock.mockReset();
 
-		renderHook(() => useParseAddonExport('priest="Example"', false), {
+		const TestComponent = () => {
+			useParseAddonExport('priest="Example"', false);
+			return <p>disabled</p>;
+		};
+
+		render(<TestComponent />, {
 			wrapper: createWrapper(),
 		});
 
 		expect(parseAddonExportMock).not.toHaveBeenCalled();
 	});
 
-	it("debounces requests and deduplicates equivalent canonical inputs", async () => {
+	it("fetches immediately on first render, then debounces and deduplicates canonical inputs", async () => {
 		vi.useFakeTimers();
 		parseAddonExportMock.mockReset();
 		parseAddonExportMock.mockResolvedValue({
 			addon_export: { equipment: [] },
 		});
 
-		const { rerender } = renderHook(
-			({ value }) => useParseAddonExport(value, true),
+		const TestComponent = ({ value }: { value: string }) => {
+			useParseAddonExport(value, true);
+			return <p>{value}</p>;
+		};
+
+		const { rerender } = render(
+			<TestComponent value={'priest="Example"\r\nlevel=80\t \r\n'} />,
 			{
-				initialProps: {
-					value: 'priest="Example"\r\nlevel=80\t \r\n',
-				},
 				wrapper: createWrapper(),
 			},
 		);
-
-		expect(parseAddonExportMock).not.toHaveBeenCalled();
-
-		await act(async () => {
-			vi.advanceTimersByTime(400);
-		});
 
 		await waitFor(() => {
 			expect(parseAddonExportMock).toHaveBeenCalledTimes(1);
@@ -84,9 +85,7 @@ describe("useParseAddonExport", () => {
 			},
 		});
 
-		rerender({
-			value: 'priest="Example"\nlevel=80',
-		});
+		rerender(<TestComponent value={'priest="Example"\nlevel=80'} />);
 
 		await act(async () => {
 			vi.advanceTimersByTime(400);
@@ -94,9 +93,9 @@ describe("useParseAddonExport", () => {
 
 		expect(parseAddonExportMock).toHaveBeenCalledTimes(1);
 
-		rerender({
-			value: 'priest="Example"\nlevel=80\nspec=shadow',
-		});
+		rerender(
+			<TestComponent value={'priest="Example"\nlevel=80\nspec=shadow'} />,
+		);
 
 		await act(async () => {
 			vi.advanceTimersByTime(400);
