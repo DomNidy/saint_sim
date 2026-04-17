@@ -10,11 +10,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
-	"github.com/DomNidy/saint_sim/apps/api/middleware"
+	"github.com/DomNidy/saint_sim/apps/api/auth"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
 	"github.com/DomNidy/saint_sim/internal/simc"
@@ -119,6 +118,13 @@ func (server *Server) Simulate(
 		}, nil
 	}
 
+	authContext, ok := auth.ResolveAuthFromContext(ctx)
+	if !ok {
+		return api.Simulate401JSONResponse{
+			Message: utils.StrPtr("Unauthorized"),
+		}, nil
+	}
+
 	simOptions := *request.Body
 	simOptions.SimcAddonExport = simc.NormalizeLineEndings(simOptions.SimcAddonExport)
 
@@ -127,7 +133,7 @@ func (server *Server) Simulate(
 		return api.Simulate400JSONResponse(validationFailure.response), nil
 	}
 
-	simulationID, err := createSimulationRequest(ctx, server.dbClient, simOptions)
+	simulationID, err := createSimulationRequest(ctx, authContext, server.dbClient, simOptions)
 	if err != nil {
 		log.Printf("Error creating simulation request: %v", err)
 
@@ -204,9 +210,11 @@ func validateSimulationRequest(
 
 func createSimulationRequest(
 	ctx context.Context,
+	authContext auth.AuthContext,
 	dbClient simulationCreator,
 	simOptions api.SimulationOptions,
 ) (string, error) {
+
 	simOptionsJSON, err := json.Marshal(simOptions)
 	if err != nil {
 		return "", fmt.Errorf("marshal simulation options: %w", err)
@@ -216,7 +224,7 @@ func createSimulationRequest(
 		ctx,
 		db.CreateSimulationParams{
 			SimConfig: simOptionsJSON,
-			OwnerID:   simulationOwnerID(ctx),
+			OwnerID:   &authContext.UserID, // its okay if nil, unowned sims are allowed
 		},
 	)
 	if err != nil {
@@ -224,20 +232,6 @@ func createSimulationRequest(
 	}
 
 	return simEntry.ID.String(), nil
-}
-
-func simulationOwnerID(ctx context.Context) *string {
-	ginContext, hasGinContext := ctx.(*gin.Context)
-	if !hasGinContext {
-		return nil
-	}
-
-	userID, hasUserID := middleware.GetEffectiveUserID(ginContext)
-	if !hasUserID {
-		return nil
-	}
-
-	return &userID
 }
 
 func parseSimulationID(rawSimulationID string) (uuid.UUID, bool) {

@@ -13,8 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/DomNidy/saint_sim/apps/api/auth"
 	handlers "github.com/DomNidy/saint_sim/apps/api/handlers"
-	"github.com/DomNidy/saint_sim/apps/api/middleware"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
 	"github.com/DomNidy/saint_sim/internal/utils"
@@ -67,13 +67,13 @@ func (queue routerStubQueue) Publish(job utils.SimulationJobMessage) error {
 }
 
 type routerStubAuthenticator struct {
-	authenticate func(context.Context, string) (middleware.AuthContext, error)
+	authenticate func(context.Context, string) (auth.AuthContext, error)
 }
 
 func (auth routerStubAuthenticator) Authenticate(
 	ctx context.Context,
 	key string,
-) (middleware.AuthContext, error) {
+) (auth.AuthContext, error) {
 	return auth.authenticate(ctx, key)
 }
 
@@ -108,27 +108,27 @@ func TestRouterSimulationAuthAndValidation(t *testing.T) {
 			},
 		}),
 		withJWTAuthenticator(routerStubAuthenticator{
-			authenticate: func(_ context.Context, rawToken string) (middleware.AuthContext, error) {
+			authenticate: func(_ context.Context, rawToken string) (auth.AuthContext, error) {
 				if rawToken != "valid-token" {
-					return middleware.AuthContext{}, errUnexpectedToken
+					return auth.AuthContext{}, errUnexpectedToken
 				}
 
-				return middleware.AuthContext{
-					Scheme: middleware.AuthSchemeBearer,
+				return auth.AuthContext{
+					Scheme: auth.AuthSchemeBearer,
 					UserID: "user-123",
 				}, nil
 			},
 		}),
 		withAPIKeyAuthenticator(routerStubAuthenticator{
-			authenticate: func(_ context.Context, rawAPIKey string) (middleware.AuthContext, error) {
+			authenticate: func(_ context.Context, rawAPIKey string) (auth.AuthContext, error) {
 				if rawAPIKey != "good-api-key" {
-					return middleware.AuthContext{}, errUnexpectedAPIKey
+					return auth.AuthContext{}, errUnexpectedAPIKey
 				}
 
 				userID := "user-123"
 
-				return middleware.AuthContext{
-					Scheme: middleware.AuthSchemeAPIKey,
+				return auth.AuthContext{
+					Scheme: auth.AuthSchemeAPIKey,
 					APIKey: &db.GetApiKeyRow{
 						PrincipalType: db.PrincipalTypeUser,
 						UserID:        &userID,
@@ -269,8 +269,8 @@ func TestRouterGeneratedBindingAndValidation(t *testing.T) {
 
 type testRouterOptions struct {
 	store               routerStubStore
-	jwtAuthenticator    middleware.RequestAuthenticator
-	apiKeyAuthenticator middleware.RequestAuthenticator
+	jwtAuthenticator    auth.RequestAuthenticator
+	apiKeyAuthenticator auth.RequestAuthenticator
 }
 
 type testRouterOption func(*testRouterOptions)
@@ -281,13 +281,13 @@ func withStore(store routerStubStore) testRouterOption {
 	}
 }
 
-func withJWTAuthenticator(auth middleware.RequestAuthenticator) testRouterOption {
+func withJWTAuthenticator(auth auth.RequestAuthenticator) testRouterOption {
 	return func(options *testRouterOptions) {
 		options.jwtAuthenticator = auth
 	}
 }
 
-func withAPIKeyAuthenticator(auth middleware.RequestAuthenticator) testRouterOption {
+func withAPIKeyAuthenticator(auth auth.RequestAuthenticator) testRouterOption {
 	return func(options *testRouterOptions) {
 		options.apiKeyAuthenticator = auth
 	}
@@ -306,25 +306,25 @@ func newTestRouter(t *testing.T, opts ...testRouterOption) *gin.Engine {
 			},
 		},
 		jwtAuthenticator: routerStubAuthenticator{
-			authenticate: func(_ context.Context, rawToken string) (middleware.AuthContext, error) {
+			authenticate: func(_ context.Context, rawToken string) (auth.AuthContext, error) {
 				if rawToken != "valid-token" {
-					return middleware.AuthContext{}, errInvalidTestToken
+					return auth.AuthContext{}, errInvalidTestToken
 				}
 
-				return middleware.AuthContext{
-					Scheme: middleware.AuthSchemeBearer,
+				return auth.AuthContext{
+					Scheme: auth.AuthSchemeBearer,
 					UserID: "user-123",
 				}, nil
 			},
 		},
 		apiKeyAuthenticator: routerStubAuthenticator{
-			authenticate: func(_ context.Context, rawAPIKey string) (middleware.AuthContext, error) {
+			authenticate: func(_ context.Context, rawAPIKey string) (auth.AuthContext, error) {
 				if rawAPIKey != "good-api-key" {
-					return middleware.AuthContext{}, errInvalidTestAPIKey
+					return auth.AuthContext{}, errInvalidTestAPIKey
 				}
 
-				return middleware.AuthContext{
-					Scheme: middleware.AuthSchemeAPIKey,
+				return auth.AuthContext{
+					Scheme: auth.AuthSchemeAPIKey,
 				}, nil
 			},
 		},
