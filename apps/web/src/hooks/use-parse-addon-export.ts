@@ -24,7 +24,8 @@ export function canonicalizeSimcAddonExport(raw: string): string {
  *
  * Behavior:
  * - canonicalizes line endings and trailing whitespace
- * - debounces requests before calling the Saint API
+ * - fetches immediately for the initial non-empty enabled input
+ * - debounces subsequent canonical input changes before calling the Saint API
  * - skips requests when disabled or when the canonicalized input is empty
  *
  * Intended usage:
