@@ -32,7 +32,8 @@ paths:
             format: uuid
       responses:
         "200":
-          description: The simulation result, or, if the simulation is currently in progress, the current state of the simulation job.
+          description: The simulation result, or, if the simulation is currently in
+            progress, the current state of the simulation job.
           content:
             application/json:
               schema:
@@ -67,19 +68,23 @@ paths:
                     type: string
                     description: ID of the simulation that was created
         "400":
-          description: Returned when the request is malformed or contains invalid simulation options.
+          description: Returned when the request is malformed or contains invalid
+            simulation options.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/error_response"
         "401":
-          description: Returned when the request does not include valid authentication credentials.
+          description: Returned when the request does not include valid authentication
+            credentials.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/error_response"
         "404":
           $ref: "#/components/responses/not_found_error"
+        "422":
+          $ref: "#/components/responses/malformed_request"
         "500":
           $ref: "#/components/responses/internal_error"
   /simc/parse-addon-export:
@@ -118,11 +123,22 @@ components:
           schema:
             $ref: "#/components/schemas/error_response"
     internal_error:
-      description: Returned whenever an internal server error occurs. This usually means the cause for the error was out of the control of the caller.
+      description: Returned whenever an internal server error occurs. This usually
+        means the cause for the error was out of the control of the caller.
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/error_response"
+    malformed_request:
+      description: Error response returned by API when user input failed semantic
+      content:
+        application/json:
+          schema:
+            required:
+              - message
+            properties:
+              message:
+                type: string
   securitySchemes:
     BearerAuth:
       description: |
@@ -160,12 +176,78 @@ components:
 
     simulation_options:
       type: object
+      properties:
+        kind:
+          description: The kind of simulation to perform. `topGear` simulates all
+            combinations of the specified gear, basic simulates the character
+            using its equipped gear.
+          type: string
+          enum:
+            - topGear
+            - basic
+      discriminator:
+        propertyName: kind
+        mapping:
+          basic: "#/components/schemas/simulation_options_basic"
+          topGear: "#/components/schemas/simulation_options_topGear"
+      oneOf:
+        - $ref: "#/components/schemas/simulation_options_basic"
+        - $ref: "#/components/schemas/simulation_options_topGear"
+      description: Specifies simulation options to send to the API.
+      required:
+        - kind
+
+    simulation_options_basic:
+      type: object
       description: Specifies simulation options to send to the API.
       required:
         - simc_addon_export
+        - kind
       properties:
         simc_addon_export:
           $ref: "#/components/schemas/simc_addon_export"
+        kind:
+          type: string
+          enum:
+            - basic
+
+    simulation_options_topGear:
+      type: object
+      description: Top gear simulation options. The gear which we should try to find
+        some optimal combination of.
+      required:
+        - character_name
+        - equipment
+        - talent_loadout
+        - class
+        - spec
+        - role
+        - kind
+      properties:
+        character_name:
+          type: string
+        class:
+          description: The class the character is
+          type: string
+        spec:
+          description: The spec of the character
+          type: string
+        role:
+          description: The role of the character
+        talent_loadout:
+          description: The talent loadout to use in the simulation.
+          $ref: "#/components/schemas/addon_export_talent_loadout"
+        equipment:
+          description: The gear to consider in the simulation. We will try to find optimal
+            combinations of these. Must have at least 1 item per slot so it is
+            possible to form a full equipment set.
+          type: array
+          items:
+            $ref: "#/components/schemas/addon_export_equipment_item"
+        kind:
+          type: string
+          enum:
+            - topGear
 
     parse_addon_export_request:
       type: object
@@ -181,21 +263,24 @@ components:
         - equipped
         - bag
 
-    addon_export_alternate_talent_loadout:
+    addon_export_talent_loadout:
       type: object
-      description: A saved alternate talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
+      description: A saved talent loadout exported by the SimC addon, pairing the
+        loadout label with its raw talents string.
       required:
-        - name
         - talents
       properties:
         name:
+          description: The name of the talent loadout.
           type: string
         talents:
+          description: The WoW talent string
           type: string
 
     addon_export_slot_high_watermark:
       type: object
-      description: The character's current and highest unlocked upgrade track item levels for a specific gear slot from Additional Character Info.
+      description: The character's current and highest unlocked upgrade track item
+        levels for a specific gear slot from Additional Character Info.
       required:
         - current_item_level
         - max_item_level
@@ -282,13 +367,10 @@ components:
         spec:
           type: string
           nullable: true
-        active_talents:
-          type: string
-          nullable: true
-        alternate_talent_loadouts:
+        talent_loadouts:
           type: array
           items:
-            $ref: "#/components/schemas/addon_export_alternate_talent_loadout"
+            $ref: "#/components/schemas/addon_export_talent_loadout"
         equipment:
           type: array
           items:
@@ -341,7 +423,7 @@ components:
           description: ID for the simulation operation
           example: "41e9a22f-d2c1-48b2-b234-15db461049d4"
         simulation_status:
-            $ref: "#/components/schemas/simulation_status"
+          $ref: "#/components/schemas/simulation_status"
         sim_result:
           type: string
           description: The raw output / result of the simulation operation
@@ -356,7 +438,7 @@ components:
         - in_progress # currently being performed
         - in_queue # waiting to be picked up and in queue
         - error # failed
-        - complete 
+        - complete
 
     error_response:
       type: object

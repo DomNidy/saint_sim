@@ -11,8 +11,11 @@ import (
 	pgx "github.com/jackc/pgx/v5"
 	amqp091 "github.com/rabbitmq/amqp091-go"
 
+	"github.com/DomNidy/saint_sim/internal/api"
 	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
+
+var errUnsupportedSimulationKind = errors.New("got unsupported simulation kind")
 
 type simulationWorker struct {
 	runner simcRunner
@@ -97,27 +100,40 @@ func (worker simulationWorker) processRequest(
 	ctx context.Context,
 	request simulationRequest,
 ) error {
-	input, err := simulationInputFromOptions(request.options)
+	options, err := request.options.ValueByDiscriminator()
 	if err != nil {
-		return err
+		return fmt.Errorf("could not parse sim options by discriminator: %w", err)
 	}
 
-	err = worker.store.MarkStarted(ctx, request.id)
-	if err != nil {
-		log.Printf("unable to mark simulation %s as started: %v", request.idText, err)
+	if basicSimOptions, ok := options.(api.SimulationOptionsBasic); ok {
+		input, err := simulationInputFromBasicOptions(basicSimOptions)
+		if err != nil {
+			return err
+		}
+
+		err = worker.store.MarkStarted(ctx, request.id)
+		if err != nil {
+			log.Printf("unable to mark simulation %s as started: %v", request.idText, err)
+		}
+
+		result, err := worker.runner.Run(ctx, input)
+		if err != nil {
+			return fmt.Errorf("run simulation: %w", err)
+		}
+
+		err = worker.store.MarkCompleted(ctx, request.id, result)
+		if err != nil {
+			return fmt.Errorf("persist simulation result: %w", err)
+		}
+
+		return nil
 	}
 
-	result, err := worker.runner.Run(ctx, input)
-	if err != nil {
-		return fmt.Errorf("run simulation: %w", err)
-	}
-
-	err = worker.store.MarkCompleted(ctx, request.id, result)
-	if err != nil {
-		return fmt.Errorf("persist simulation result: %w", err)
-	}
-
-	return nil
+	return fmt.Errorf(
+		"%w: kind: '%s'",
+		errUnsupportedSimulationKind,
+		request.options.Kind,
+	)
 }
 
 func parseSimulationRequestID(msg amqp091.Delivery) (string, uuid.UUID, error) {

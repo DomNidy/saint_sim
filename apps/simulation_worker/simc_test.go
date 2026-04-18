@@ -10,11 +10,12 @@ import (
 func TestSimulationInputFromOptions(t *testing.T) {
 	t.Parallel()
 
-	options := api.SimulationOptions{
+	options := api.SimulationOptionsBasic{
 		SimcAddonExport: "mage=\"Example\"\nlevel=80",
+		Kind:            api.SimulationOptionsBasicKindBasic,
 	}
 
-	input, err := simulationInputFromOptions(options)
+	input, err := simulationInputFromBasicOptions(options)
 	if err != nil {
 		t.Fatalf("simulationInputFromOptions() error = %v", err)
 	}
@@ -27,8 +28,9 @@ func TestSimulationInputFromOptions(t *testing.T) {
 func TestSimulationInputFromOptionsRejectsMissingExport(t *testing.T) {
 	t.Parallel()
 
-	_, err := simulationInputFromOptions(api.SimulationOptions{
+	_, err := simulationInputFromBasicOptions(api.SimulationOptionsBasic{
 		SimcAddonExport: "",
+		Kind:            api.SimulationOptionsBasicKindBasic,
 	})
 	if err == nil {
 		t.Fatal("simulationInputFromOptions() error = nil, want error")

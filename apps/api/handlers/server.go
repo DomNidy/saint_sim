@@ -126,14 +126,49 @@ func (server *Server) Simulate(
 	}
 
 	simOptions := *request.Body
+
+	options, err := simOptions.ValueByDiscriminator()
+	if err != nil {
+		return api.Simulate422JSONResponse{
+			MalformedRequestJSONResponse: api.MalformedRequestJSONResponse{
+				Message: "Invalid or malformed input",
+			},
+		}, nil
+	}
+
+	if topGearOptions, ok := options.(api.SimulationOptionsTopGear); ok {
+		log.Printf("got a topgear sim, but not implemented yet: %v", topGearOptions)
+		return api.Simulate202JSONResponse{
+			SimulationId: utils.StrPtr("not_implemented_yet_id_123"),
+		}, nil
+	}
+
+	if basicSimOptions, ok := options.(api.SimulationOptionsBasic); ok {
+		return server.handleSimulationOptionsBasic(ctx, authContext, basicSimOptions)
+	}
+
+	// if we reach here, that means we didn't handle all possible simulation option types
+	// so 500 error
+	return api.Simulate500JSONResponse{
+		InternalErrorJSONResponse: api.InternalErrorJSONResponse{
+			Message: utils.StrPtr("Internal server error try again later"),
+		},
+	}, nil
+}
+
+func (server *Server) handleSimulationOptionsBasic(
+	ctx context.Context,
+	authContext auth.AuthContext,
+	simOptions api.SimulationOptionsBasic,
+) (api.SimulateResponseObject, error) {
 	simOptions.SimcAddonExport = simc.NormalizeLineEndings(simOptions.SimcAddonExport)
 
-	validationFailure := validateSimulationRequest(ctx, simOptions)
+	validationFailure := validateSimulationRequestBasic(ctx, simOptions)
 	if validationFailure != nil {
 		return api.Simulate400JSONResponse(validationFailure.response), nil
 	}
 
-	simulationID, err := createSimulationRequest(ctx, authContext, server.dbClient, simOptions)
+	simulationID, err := createSimulationRequestBasic(ctx, authContext, server.dbClient, simOptions)
 	if err != nil {
 		log.Printf("Error creating simulation request: %v", err)
 
@@ -189,13 +224,13 @@ func (server *Server) GetSimulation(
 	return api.GetSimulation200JSONResponse(simulationResponseFromRecord(simulation)), nil
 }
 
-func validateSimulationRequest(
+func validateSimulationRequestBasic(
 	ctx context.Context,
-	simOptions api.SimulationOptions,
+	simOptions api.SimulationOptionsBasic,
 ) *simulationValidationError {
 	_ = ctx
 
-	err := utils.ValidateSimOptions(&simOptions)
+	err := utils.ValidateSimulationOptionsBasic(&simOptions)
 	if err != nil {
 		return &simulationValidationError{
 			statusCode: http.StatusBadRequest,
@@ -208,11 +243,11 @@ func validateSimulationRequest(
 	return nil
 }
 
-func createSimulationRequest(
+func createSimulationRequestBasic(
 	ctx context.Context,
 	authContext auth.AuthContext,
 	dbClient simulationCreator,
-	simOptions api.SimulationOptions,
+	simOptions api.SimulationOptionsBasic,
 ) (string, error) {
 	simOptionsJSON, err := json.Marshal(simOptions)
 	if err != nil {

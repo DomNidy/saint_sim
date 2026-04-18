@@ -2,6 +2,7 @@ package simc
 
 import (
 	"reflect"
+	"sort"
 	"testing"
 
 	api "github.com/DomNidy/saint_sim/internal/api"
@@ -10,9 +11,10 @@ import (
 func TestParse(t *testing.T) {
 	t.Parallel()
 
-	alternateTalentLoadouts := []api.AddonExportAlternateTalentLoadout{
-		{Name: "M+", Talents: "MPLUS_TALENTS"},
-		{Name: "RAID", Talents: "RAID_TALENTS"},
+	talentLoadouts := []api.AddonExportTalentLoadout{
+		{Name: strPtr("Active"), Talents: "ACTIVE_TALENTS"},
+		{Name: strPtr("M+"), Talents: "MPLUS_TALENTS"},
+		{Name: strPtr("RAID"), Talents: "RAID_TALENTS"},
 	}
 	equipment := []api.AddonExportEquipmentItem{
 		{
@@ -30,50 +32,62 @@ func TestParse(t *testing.T) {
 			CraftedStats:    intSlicePtr([]int{40, 49}),
 			Source:          api.Equipped,
 			RawLine:         "head=,id=250458,bonus_id=6652/12667/13577/13333/12787,crafted_stats=40/49,crafting_quality=5",
+			EnchantId:       nil,
+			GemIds:          nil,
 		},
 		{
 			Fingerprint: fingerprintForItem(
 				"main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652",
 				"equipped",
 			),
-			Slot:        "main_hand",
-			Name:        "Gnarlroot Spinecleaver",
-			DisplayName: "Gnarlroot Spinecleaver",
-			ItemId:      249671,
-			ItemLevel:   intPtr(250),
-			EnchantId:   intPtr(3368),
-			BonusIds:    intSlicePtr([]int{12786, 6652}),
-			Source:      api.Equipped,
-			RawLine:     "main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652",
+			Slot:            "main_hand",
+			Name:            "Gnarlroot Spinecleaver",
+			DisplayName:     "Gnarlroot Spinecleaver",
+			ItemId:          249671,
+			ItemLevel:       intPtr(250),
+			EnchantId:       intPtr(3368),
+			BonusIds:        intSlicePtr([]int{12786, 6652}),
+			GemIds:          nil,
+			CraftedStats:    nil,
+			CraftingQuality: nil,
+			Source:          api.Equipped,
+			RawLine:         "main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652",
 		},
 		{
 			Fingerprint: fingerprintForItem(
 				"head=,id=258876,bonus_id=13611,drop_level=90",
 				"bag",
 			),
-			Slot:        "head",
-			Name:        "Frayed Guise",
-			DisplayName: "Frayed Guise",
-			ItemId:      258876,
-			ItemLevel:   intPtr(201),
-			BonusIds:    intSlicePtr([]int{13611}),
-			Source:      api.Bag,
-			RawLine:     "head=,id=258876,bonus_id=13611,drop_level=90",
+			Slot:            "head",
+			Name:            "Frayed Guise",
+			DisplayName:     "Frayed Guise",
+			ItemId:          258876,
+			ItemLevel:       intPtr(201),
+			EnchantId:       nil,
+			CraftingQuality: nil,
+			BonusIds:        intSlicePtr([]int{13611}),
+			GemIds:          nil,
+			CraftedStats:    nil,
+			Source:          api.Bag,
+			RawLine:         "head=,id=258876,bonus_id=13611,drop_level=90",
 		},
 		{
 			Fingerprint: fingerprintForItem(
 				"head=,id=266432,bonus_id=13577/12785,gem_id1=213482,gem_id2=213743",
 				"bag",
 			),
-			Slot:        "head",
-			Name:        "Silvermoon Suncrest",
-			DisplayName: "Silvermoon Suncrest",
-			ItemId:      266432,
-			ItemLevel:   intPtr(246),
-			BonusIds:    intSlicePtr([]int{13577, 12785}),
-			GemIds:      intSlicePtr([]int{213482, 213743}),
-			Source:      api.Bag,
-			RawLine:     "head=,id=266432,bonus_id=13577/12785,gem_id1=213482,gem_id2=213743",
+			Slot:            "head",
+			Name:            "Silvermoon Suncrest",
+			DisplayName:     "Silvermoon Suncrest",
+			ItemId:          266432,
+			ItemLevel:       intPtr(246),
+			EnchantId:       nil,
+			CraftingQuality: nil,
+			BonusIds:        intSlicePtr([]int{13577, 12785}),
+			GemIds:          intSlicePtr([]int{213482, 213743}),
+			CraftedStats:    nil,
+			Source:          api.Bag,
+			RawLine:         "head=,id=266432,bonus_id=13577/12785,gem_id1=213482,gem_id2=213743",
 		},
 	}
 	catalystCurrencies := map[string]int{
@@ -139,28 +153,30 @@ main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652
 	got := Parse(input)
 
 	want := api.AddonExport{
-		CharacterName:           strPtr("Gubulgi"),
-		Class:                   strPtr("deathknight"),
-		Level:                   strPtr("90"),
-		Race:                    strPtr("maghar_orc"),
-		Region:                  strPtr("us"),
-		Server:                  strPtr("hydraxis"),
-		Role:                    strPtr("attack"),
-		Professions:             strPtr("mining=34/"),
-		Spec:                    strPtr("unholy"),
-		ActiveTalents:           strPtr("ACTIVE_TALENTS"),
-		HeaderComment:           strPtr("Gubulgi - Unholy - 2026-03-28 12:47 - US/Hydraxis"),
-		SimcAddonComment:        strPtr("SimC Addon 12.0.0-02"),
-		WowBuildComment:         strPtr("WoW 12.0.1.66709, TOC 120001"),
-		RequiredSimcComment:     strPtr("Requires SimulationCraft 1000-01 or newer"),
-		LootSpec:                strPtr("unholy"),
-		Checksum:                strPtr("6dda4018"),
-		AlternateTalentLoadouts: &alternateTalentLoadouts,
-		Equipment:               &equipment,
-		CatalystCurrencies:      &catalystCurrencies,
-		SlotHighWatermarks:      &slotHighWatermarks,
-		UpgradeAchievements:     &upgradeAchievements,
+		CharacterName:       strPtr("Gubulgi"),
+		Class:               strPtr("deathknight"),
+		Level:               strPtr("90"),
+		Race:                strPtr("maghar_orc"),
+		Region:              strPtr("us"),
+		Server:              strPtr("hydraxis"),
+		Role:                strPtr("attack"),
+		Professions:         strPtr("mining=34/"),
+		Spec:                strPtr("unholy"),
+		TalentLoadouts:      &talentLoadouts,
+		HeaderComment:       strPtr("Gubulgi - Unholy - 2026-03-28 12:47 - US/Hydraxis"),
+		SimcAddonComment:    strPtr("SimC Addon 12.0.0-02"),
+		WowBuildComment:     strPtr("WoW 12.0.1.66709, TOC 120001"),
+		RequiredSimcComment: strPtr("Requires SimulationCraft 1000-01 or newer"),
+		LootSpec:            strPtr("unholy"),
+		Checksum:            strPtr("6dda4018"),
+		Equipment:           &equipment,
+		CatalystCurrencies:  &catalystCurrencies,
+		SlotHighWatermarks:  &slotHighWatermarks,
+		UpgradeAchievements: &upgradeAchievements,
 	}
+
+	sortTalentLoadouts(got.TalentLoadouts)
+	sortTalentLoadouts(want.TalentLoadouts)
 
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("Parse() mismatch:\n got: %#v\nwant: %#v", got, want)
@@ -191,4 +207,30 @@ func TestHasRecognizedData(t *testing.T) {
 
 func intPtr(value int) *int {
 	return &value
+}
+
+// Parse does not guarantee loadout ordering, so normalize before comparing.
+func sortTalentLoadouts(loadouts *[]api.AddonExportTalentLoadout) {
+	if loadouts == nil {
+		return
+	}
+
+	sort.Slice(*loadouts, func(i, j int) bool {
+		left := (*loadouts)[i]
+		right := (*loadouts)[j]
+		leftName := ""
+		if left.Name != nil {
+			leftName = *left.Name
+		}
+		rightName := ""
+		if right.Name != nil {
+			rightName = *right.Name
+		}
+
+		if leftName != rightName {
+			return leftName < rightName
+		}
+
+		return left.Talents < right.Talents
+	})
 }
