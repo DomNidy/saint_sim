@@ -43,6 +43,13 @@ CREATE TYPE principal_type AS ENUM(
     'service'
 );
 
+CREATE TYPE simulation_status AS ENUM(
+    'in_progress', -- currently being performed
+    'in_queue', -- waiting to be picked up and in queue
+    'error', -- failed
+    'complete'
+);
+
 -- services principal table. Each row here represents
 -- a backend service.
 CREATE TABLE public.services(
@@ -81,12 +88,15 @@ CREATE TABLE public.api_keys(
 
 CREATE TABLE public.simulation(
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id text,
+    status simulation_status NOT NULL DEFAULT 'in_queue',
     sim_config jsonb NOT NULL,
     sim_result text,
     error_text text,
     created_at timestamptz NOT NULL DEFAULT now(),
     started_at timestamptz,
-    completed_at timestamptz
+    completed_at timestamptz,
+    CONSTRAINT fk_simulation_owner_id FOREIGN KEY (owner_id) REFERENCES public.user(id) ON DELETE SET NULL
 );
 
 CREATE TRIGGER new_sim_result
@@ -175,4 +185,3 @@ DROP FUNCTION IF EXISTS public.update_timestamp();
 DROP FUNCTION IF EXISTS public.notify_simulation_data();
 
 DROP FUNCTION IF EXISTS public.notify_sim_result();
-

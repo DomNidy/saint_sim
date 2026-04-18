@@ -15,7 +15,7 @@ import (
 const createSimulation = `-- name: CreateSimulation :one
 INSERT INTO public.simulation (sim_config, owner_id)
 VALUES ($1, $2)
-RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id
+RETURNING id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at
 `
 
 type CreateSimulationParams struct {
@@ -28,13 +28,14 @@ func (q *Queries) CreateSimulation(ctx context.Context, arg CreateSimulationPara
 	var i Simulation
 	err := row.Scan(
 		&i.ID,
+		&i.OwnerID,
+		&i.Status,
 		&i.SimConfig,
 		&i.SimResult,
 		&i.ErrorText,
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.CompletedAt,
-		&i.OwnerID,
 	)
 	return i, err
 }
@@ -93,7 +94,7 @@ func (q *Queries) GetJwkByID(ctx context.Context, id string) (Jwk, error) {
 }
 
 const getSimulation = `-- name: GetSimulation :one
-SELECT id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id
+SELECT id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at
 FROM public.simulation
 WHERE id = $1
 `
@@ -103,13 +104,14 @@ func (q *Queries) GetSimulation(ctx context.Context, id uuid.UUID) (Simulation, 
 	var i Simulation
 	err := row.Scan(
 		&i.ID,
+		&i.OwnerID,
+		&i.Status,
 		&i.SimConfig,
 		&i.SimResult,
 		&i.ErrorText,
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.CompletedAt,
-		&i.OwnerID,
 	)
 	return i, err
 }
@@ -143,9 +145,10 @@ SET
     sim_result = COALESCE($1, sim_result),
     error_text = COALESCE($2, error_text),
     started_at = COALESCE($3, started_at),
-    completed_at = COALESCE($4, completed_at)
-WHERE id = $5
-RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id
+    completed_at = COALESCE($4, completed_at),
+    status = COALESCE($5, status)
+WHERE id = $6
+RETURNING id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at
 `
 
 type UpdateSimulationParams struct {
@@ -153,6 +156,7 @@ type UpdateSimulationParams struct {
 	ErrorText   *string
 	StartedAt   pgtype.Timestamptz
 	CompletedAt pgtype.Timestamptz
+	Status      NullSimulationStatus
 	ID          uuid.UUID
 }
 
@@ -162,18 +166,20 @@ func (q *Queries) UpdateSimulation(ctx context.Context, arg UpdateSimulationPara
 		arg.ErrorText,
 		arg.StartedAt,
 		arg.CompletedAt,
+		arg.Status,
 		arg.ID,
 	)
 	var i Simulation
 	err := row.Scan(
 		&i.ID,
+		&i.OwnerID,
+		&i.Status,
 		&i.SimConfig,
 		&i.SimResult,
 		&i.ErrorText,
 		&i.CreatedAt,
 		&i.StartedAt,
 		&i.CompletedAt,
-		&i.OwnerID,
 	)
 	return i, err
 }

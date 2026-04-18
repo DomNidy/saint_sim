@@ -86,7 +86,7 @@ export async function getJwkByID(client: Client, args: GetJwkByIDArgs): Promise<
 export const createSimulationQuery = `-- name: CreateSimulation :one
 INSERT INTO public.simulation (sim_config, owner_id)
 VALUES ($1, $2)
-RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id`;
+RETURNING id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at`;
 
 export interface CreateSimulationArgs {
     simConfig: any;
@@ -95,13 +95,14 @@ export interface CreateSimulationArgs {
 
 export interface CreateSimulationRow {
     id: string;
+    ownerId: string | null;
+    status: string;
     simConfig: any;
     simResult: string | null;
     errorText: string | null;
     createdAt: Date;
     startedAt: Date | null;
     completedAt: Date | null;
-    ownerId: string | null;
 }
 
 export async function createSimulation(client: Client, args: CreateSimulationArgs): Promise<CreateSimulationRow | null> {
@@ -116,13 +117,14 @@ export async function createSimulation(client: Client, args: CreateSimulationArg
     const row = result.rows[0];
     return {
         id: row[0],
-        simConfig: row[1],
-        simResult: row[2],
-        errorText: row[3],
-        createdAt: row[4],
-        startedAt: row[5],
-        completedAt: row[6],
-        ownerId: row[7]
+        ownerId: row[1],
+        status: row[2],
+        simConfig: row[3],
+        simResult: row[4],
+        errorText: row[5],
+        createdAt: row[6],
+        startedAt: row[7],
+        completedAt: row[8]
     };
 }
 
@@ -132,33 +134,36 @@ SET
     sim_result = COALESCE($1, sim_result),
     error_text = COALESCE($2, error_text),
     started_at = COALESCE($3, started_at),
-    completed_at = COALESCE($4, completed_at)
-WHERE id = $5
-RETURNING id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id`;
+    completed_at = COALESCE($4, completed_at),
+    status = COALESCE($5, status)
+WHERE id = $6
+RETURNING id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at`;
 
 export interface UpdateSimulationArgs {
     simResult: string | null;
     errorText: string | null;
     startedAt: Date | null;
     completedAt: Date | null;
+    status: string | null;
     id: string;
 }
 
 export interface UpdateSimulationRow {
     id: string;
+    ownerId: string | null;
+    status: string;
     simConfig: any;
     simResult: string | null;
     errorText: string | null;
     createdAt: Date;
     startedAt: Date | null;
     completedAt: Date | null;
-    ownerId: string | null;
 }
 
 export async function updateSimulation(client: Client, args: UpdateSimulationArgs): Promise<UpdateSimulationRow | null> {
     const result = await client.query({
         text: updateSimulationQuery,
-        values: [args.simResult, args.errorText, args.startedAt, args.completedAt, args.id],
+        values: [args.simResult, args.errorText, args.startedAt, args.completedAt, args.status, args.id],
         rowMode: "array"
     });
     if (result.rows.length !== 1) {
@@ -167,13 +172,14 @@ export async function updateSimulation(client: Client, args: UpdateSimulationArg
     const row = result.rows[0];
     return {
         id: row[0],
-        simConfig: row[1],
-        simResult: row[2],
-        errorText: row[3],
-        createdAt: row[4],
-        startedAt: row[5],
-        completedAt: row[6],
-        ownerId: row[7]
+        ownerId: row[1],
+        status: row[2],
+        simConfig: row[3],
+        simResult: row[4],
+        errorText: row[5],
+        createdAt: row[6],
+        startedAt: row[7],
+        completedAt: row[8]
     };
 }
 
@@ -207,7 +213,7 @@ export async function getSimulationOptions(client: Client, args: GetSimulationOp
 }
 
 export const getSimulationQuery = `-- name: GetSimulation :one
-SELECT id, sim_config, sim_result, error_text, created_at, started_at, completed_at, owner_id
+SELECT id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at
 FROM public.simulation
 WHERE id = $1`;
 
@@ -217,13 +223,14 @@ export interface GetSimulationArgs {
 
 export interface GetSimulationRow {
     id: string;
+    ownerId: string | null;
+    status: string;
     simConfig: any;
     simResult: string | null;
     errorText: string | null;
     createdAt: Date;
     startedAt: Date | null;
     completedAt: Date | null;
-    ownerId: string | null;
 }
 
 export async function getSimulation(client: Client, args: GetSimulationArgs): Promise<GetSimulationRow | null> {
@@ -238,13 +245,14 @@ export async function getSimulation(client: Client, args: GetSimulationArgs): Pr
     const row = result.rows[0];
     return {
         id: row[0],
-        simConfig: row[1],
-        simResult: row[2],
-        errorText: row[3],
-        createdAt: row[4],
-        startedAt: row[5],
-        completedAt: row[6],
-        ownerId: row[7]
+        ownerId: row[1],
+        status: row[2],
+        simConfig: row[3],
+        simResult: row[4],
+        errorText: row[5],
+        createdAt: row[6],
+        startedAt: row[7],
+        completedAt: row[8]
     };
 }
 

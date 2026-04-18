@@ -26,7 +26,8 @@ SET
     sim_result = COALESCE(sqlc.narg('sim_result'), sim_result),
     error_text = COALESCE(sqlc.narg('error_text'), error_text),
     started_at = COALESCE(sqlc.narg('started_at'), started_at),
-    completed_at = COALESCE(sqlc.narg('completed_at'), completed_at)
+    completed_at = COALESCE(sqlc.narg('completed_at'), completed_at),
+    status = COALESCE(sqlc.narg('status'), status)
 WHERE id = sqlc.arg('id')
 RETURNING *;
 
@@ -40,8 +41,6 @@ LIMIT 1;
 SELECT *
 FROM public.simulation
 WHERE id = $1;
-
-
 
 -- name: ListenNewSimulationData :exec
 LISTEN new_simulation_data;

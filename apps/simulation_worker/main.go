@@ -44,7 +44,7 @@ func run() error {
 
 	worker := simulationWorker{
 		runner: simcRunner{binaryPath: config.simcBinaryPath},
-		store: simulationStore{
+		store: dbSimulationStore{
 			queries: *dbqueries.New(dependencies.dbPool),
 		},
 	}

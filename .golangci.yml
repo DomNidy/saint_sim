@@ -5,7 +5,7 @@ run:
   tests: true
   allow-parallel-runners: true
   allow-serial-runners: false
-  go: "1.24"
+  go: "1.24.2"
 formatters:
   enable:
     - golines

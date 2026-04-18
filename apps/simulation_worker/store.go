@@ -13,20 +13,26 @@ import (
 	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 )
 
-type simulationStore struct {
+type SimulationStore interface {
+	LoadRequest(ctx context.Context, requestID uuid.UUID) (simulationRequest, error)
+	UpdateSimulation(
+		ctx context.Context,
+		updateOptions dbqueries.UpdateSimulationParams,
+	) (dbqueries.Simulation, error)
+}
+
+type dbSimulationStore struct {
 	queries dbqueries.Queries
 }
 
 type simulationRequest struct {
 	id      uuid.UUID
-	idText  string
 	options api.SimulationOptions
 }
 
-func (store simulationStore) LoadRequest(
+func (store dbSimulationStore) LoadRequest(
 	ctx context.Context,
 	requestID uuid.UUID,
-	requestIDText string,
 ) (simulationRequest, error) {
 	simOptionsJSON, err := store.queries.GetSimulationOptions(ctx, requestID)
 	if err != nil {
@@ -42,75 +48,15 @@ func (store simulationStore) LoadRequest(
 
 	return simulationRequest{
 		id:      requestID,
-		idText:  requestIDText,
 		options: options,
 	}, nil
 }
 
-func (store simulationStore) MarkStarted(ctx context.Context, requestID uuid.UUID) error {
-	_, err := store.queries.UpdateSimulation(
-		ctx,
-		dbqueries.UpdateSimulationParams{
-			SimResult:   nil,
-			ErrorText:   nil,
-			StartedAt:   timestampValue(time.Now()),
-			CompletedAt: invalidTimestamp(),
-			ID:          requestID,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("mark simulation started in db: %w", err)
-	}
-
-	return nil
-}
-
-func (store simulationStore) MarkCompleted(
+func (store dbSimulationStore) UpdateSimulation(
 	ctx context.Context,
-	requestID uuid.UUID,
-	simulationResult []byte,
-) error {
-	simResult := string(simulationResult)
-
-	_, err := store.queries.UpdateSimulation(
-		ctx,
-		dbqueries.UpdateSimulationParams{
-			SimResult:   &simResult,
-			ErrorText:   nil,
-			StartedAt:   invalidTimestamp(),
-			CompletedAt: timestampValue(time.Now()),
-			ID:          requestID,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("write simulation result to db: %w", err)
-	}
-
-	return nil
-}
-
-func (store simulationStore) MarkFailed(
-	ctx context.Context,
-	requestID uuid.UUID,
-	cause error,
-) error {
-	errorText := cause.Error()
-
-	_, err := store.queries.UpdateSimulation(
-		ctx,
-		dbqueries.UpdateSimulationParams{
-			SimResult:   nil,
-			ErrorText:   &errorText,
-			StartedAt:   invalidTimestamp(),
-			CompletedAt: timestampValue(time.Now()),
-			ID:          requestID,
-		},
-	)
-	if err != nil {
-		return fmt.Errorf("mark simulation failed in db: %w", err)
-	}
-
-	return nil
+	updateOptions dbqueries.UpdateSimulationParams,
+) (dbqueries.Simulation, error) {
+	return store.queries.UpdateSimulation(ctx, updateOptions)
 }
 
 func timestampValue(value time.Time) pgtype.Timestamptz {

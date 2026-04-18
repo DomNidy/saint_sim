@@ -6,20 +6,22 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/google/uuid"
 	pgx "github.com/jackc/pgx/v5"
 	amqp091 "github.com/rabbitmq/amqp091-go"
 
 	"github.com/DomNidy/saint_sim/internal/api"
+	"github.com/DomNidy/saint_sim/internal/db"
 	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
-var errUnsupportedSimulationKind = errors.New("got unsupported simulation kind")
-
 type simulationWorker struct {
 	runner simcRunner
-	store  simulationStore
+	store  SimulationStore
 }
 
 func (worker simulationWorker) Start(
@@ -63,95 +65,153 @@ func (worker simulationWorker) handleDelivery(
 ) {
 	log.Printf("received simulation message #%d: %s", receivedCount, string(msg.Body))
 
-	requestIDText, requestID, err := parseSimulationRequestID(msg)
+	requestID, err := parseSimulationRequestID(msg)
 	if err != nil {
 		log.Printf("discarding malformed simulation message: %v", err)
 
 		return
 	}
 
-	request, err := worker.store.LoadRequest(ctx, requestID, requestIDText)
+	request, err := worker.store.LoadRequest(ctx, requestID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			log.Printf("simulation %s no longer exists; skipping message", requestIDText)
+			log.Printf("simulation %s no longer exists; skipping message", requestID.String())
 		} else {
-			log.Printf("failed to load simulation %s: %v", requestIDText, err)
+			log.Printf("failed to load simulation %s: %v", requestID.String(), err)
 		}
 
 		return
 	}
 
-	err = worker.processRequest(ctx, request)
-	if err != nil {
-		log.Printf("simulation %s failed: %v", request.idText, err)
+	markSimErrored := func(simulationId uuid.UUID) {
+		worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
+			ID:        simulationId,
+			ErrorText: utils.StrPtr("internal server error"),
+			Status: db.NullSimulationStatus{
+				SimulationStatus: db.SimulationStatusError, Valid: true,
+			},
+		})
+	}
 
-		markErr := worker.store.MarkFailed(ctx, request.id, err)
-		if markErr != nil {
-			log.Printf(
-				"failed to persist simulation error for %s: %v",
-				request.idText,
-				markErr,
-			)
+	// route request to the handler for the simulation kind
+	switch request.options.Kind {
+	case api.SimulationOptionsKindBasic:
+		err = worker.processBasic(ctx, request)
+		if err != nil {
+			log.Printf("failed to process basic simulation %s: %v", requestID.String(), err)
+			markSimErrored(requestID)
 		}
+
+		return
+	case api.SimulationOptionsKindTopGear:
+		err = worker.processTopGear(ctx, request)
+		if err != nil {
+			log.Printf("got error cast to basic sim options, ignoring this job: %v", err)
+			markSimErrored(requestID)
+		}
+
+		return
+	default:
+		log.Printf("got unsupported simulation, ignoring this. kind: '%s'", request.options.Kind)
+		// todo: mark as errored in db
+		return
 	}
 }
 
-func (worker simulationWorker) processRequest(
+func (worker simulationWorker) processBasic(
 	ctx context.Context,
 	request simulationRequest,
 ) error {
-	options, err := request.options.ValueByDiscriminator()
+	options, err := request.options.AsSimulationOptionsBasic()
 	if err != nil {
-		return fmt.Errorf("could not parse sim options by discriminator: %w", err)
+		return fmt.Errorf("could not cast to basic: %w", err)
 	}
 
-	if basicSimOptions, ok := options.(api.SimulationOptionsBasic); ok {
-		input, err := simulationInputFromBasicOptions(basicSimOptions)
-		if err != nil {
-			return err
-		}
-
-		err = worker.store.MarkStarted(ctx, request.id)
-		if err != nil {
-			log.Printf("unable to mark simulation %s as started: %v", request.idText, err)
-		}
-
-		result, err := worker.runner.Run(ctx, input)
-		if err != nil {
-			return fmt.Errorf("run simulation: %w", err)
-		}
-
-		err = worker.store.MarkCompleted(ctx, request.id, result)
-		if err != nil {
-			return fmt.Errorf("persist simulation result: %w", err)
-		}
-
-		return nil
+	err = utils.ValidateSimulationOptionsBasic(&options)
+	if err != nil {
+		return fmt.Errorf("validate simulation options: %w", err)
 	}
 
-	return fmt.Errorf(
-		"%w: kind: '%s'",
-		errUnsupportedSimulationKind,
-		request.options.Kind,
-	)
+	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
+		ID: request.id,
+		Status: db.NullSimulationStatus{
+			SimulationStatus: db.SimulationStatusInProgress,
+			Valid:            true,
+		},
+	})
+	if err != nil {
+		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
+	}
+
+	tempDir, err := os.MkdirTemp("", "saint-simc-*")
+	if err != nil {
+		return fmt.Errorf("create simc temp dir: %w", err)
+	}
+
+	defer func() {
+		removeErr := os.RemoveAll(tempDir)
+		if removeErr != nil {
+			fmt.Fprintf(os.Stderr, "remove simc temp dir: %v\n", removeErr)
+		}
+	}()
+
+	profilePath := filepath.Join(tempDir, "input.simc")
+
+	err = os.WriteFile(profilePath, []byte(options.SimcAddonExport), simcProfileFileMode)
+	if err != nil {
+		return fmt.Errorf("write simc profile: %w", err)
+	}
+
+	result, err := worker.runner.Run(ctx, profilePath)
+	if err != nil {
+		return fmt.Errorf("run simulation: %w", err)
+	}
+
+	simResult := string(result)
+
+	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
+		ID:          request.id,
+		SimResult:   &simResult,
+		CompletedAt: timestampValue(time.Now().UTC()),
+		Status: db.NullSimulationStatus{
+			SimulationStatus: db.SimulationStatusComplete,
+			Valid:            true,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("persist simulation result: %w", err)
+	}
+
+	return nil
 }
 
-func parseSimulationRequestID(msg amqp091.Delivery) (string, uuid.UUID, error) {
+func parseSimulationRequestID(msg amqp091.Delivery) (uuid.UUID, error) {
 	var simRequestMsg utils.SimulationJobMessage
 
 	err := json.Unmarshal(msg.Body, &simRequestMsg)
 	if err != nil {
-		return "", uuid.UUID{}, fmt.Errorf("unmarshal simulation message: %w", err)
+		return uuid.UUID{}, fmt.Errorf("unmarshal simulation message: %w", err)
 	}
 
 	requestID, err := uuid.Parse(simRequestMsg.SimulationID)
 	if err != nil {
-		return "", uuid.UUID{}, fmt.Errorf(
+		return uuid.UUID{}, fmt.Errorf(
 			"parse simulation id %q: %w",
 			simRequestMsg.SimulationID,
 			err,
 		)
 	}
 
-	return simRequestMsg.SimulationID, requestID, nil
+	return requestID, nil
+}
+
+func (worker simulationWorker) processTopGear(
+	ctx context.Context,
+	request simulationRequest,
+) error {
+	_, err := request.options.AsSimulationOptionsTopGear()
+	if err != nil {
+		return fmt.Errorf("could not cast to topGear: %w", err)
+	}
+	return nil
 }

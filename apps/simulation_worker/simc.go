@@ -6,22 +6,15 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
-
-	api "github.com/DomNidy/saint_sim/internal/api"
-	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
 const simcNoArgumentsExitCode = 50
 const simcProfileFileMode = 0o600
 
 type simcRunner struct {
+	// simc binary path
 	binaryPath string
-}
-
-type simulationInput struct {
-	simcAddonExport string
 }
 
 func (runner simcRunner) Version(ctx context.Context) (string, error) {
@@ -46,26 +39,7 @@ func (runner simcRunner) Version(ctx context.Context) (string, error) {
 	return strings.TrimSpace(output.String()), nil
 }
 
-func (runner simcRunner) Run(ctx context.Context, input simulationInput) ([]byte, error) {
-	tempDir, err := os.MkdirTemp("", "saint-simc-*")
-	if err != nil {
-		return nil, fmt.Errorf("create simc temp dir: %w", err)
-	}
-
-	defer func() {
-		removeErr := os.RemoveAll(tempDir)
-		if removeErr != nil {
-			fmt.Fprintf(os.Stderr, "remove simc temp dir: %v\n", removeErr)
-		}
-	}()
-
-	profilePath := filepath.Join(tempDir, "input.simc")
-
-	err = os.WriteFile(profilePath, []byte(input.simcAddonExport), simcProfileFileMode)
-	if err != nil {
-		return nil, fmt.Errorf("write simc profile: %w", err)
-	}
-
+func (runner simcRunner) Run(ctx context.Context, profilePath string) ([]byte, error) {
 	// #nosec G204 -- the binary path comes from deployment configuration and the
 	// profile path is created locally.
 	command := exec.CommandContext(ctx, runner.binaryPath, profilePath)
@@ -75,21 +49,10 @@ func (runner simcRunner) Run(ctx context.Context, input simulationInput) ([]byte
 	command.Stdout = &output
 	command.Stderr = os.Stderr
 
-	err = command.Run()
+	err := command.Run()
 	if err != nil {
 		return nil, fmt.Errorf("execute simc binary: %w", err)
 	}
 
 	return output.Bytes(), nil
-}
-
-func simulationInputFromBasicOptions(options api.SimulationOptionsBasic) (simulationInput, error) {
-	err := utils.ValidateSimulationOptionsBasic(&options)
-	if err != nil {
-		return simulationInput{}, fmt.Errorf("validate simulation options: %w", err)
-	}
-
-	return simulationInput{
-		simcAddonExport: options.SimcAddonExport,
-	}, nil
 }

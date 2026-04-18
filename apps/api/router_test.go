@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/DomNidy/saint_sim/apps/api/auth"
-	handlers "github.com/DomNidy/saint_sim/apps/api/handlers"
+	"github.com/DomNidy/saint_sim/apps/api/handlers"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
 	"github.com/DomNidy/saint_sim/internal/utils"

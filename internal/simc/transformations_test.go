@@ -1,6 +1,10 @@
-package simc
+package simc_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/DomNidy/saint_sim/internal/simc"
+)
 
 func TestNormalizeLineEndings(t *testing.T) {
 	t.Parallel()
@@ -43,11 +47,10 @@ func TestNormalizeLineEndings(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := NormalizeLineEndings(tt.input)
+			got := simc.NormalizeLineEndings(tt.input)
 			if got != tt.want {
 				t.Fatalf("NormalizeLineEndings(%q) = %q, want %q", tt.input, got, tt.want)
 			}
@@ -95,7 +98,7 @@ func TestStripAllComments(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := StripAllComments(tt.input)
+			got := simc.StripAllComments(tt.input)
 			if got != tt.want {
 				t.Fatalf("StripAllComments(%q) = %q, want %q", tt.input, got, tt.want)
 			}
@@ -144,11 +147,10 @@ func TestTrimLineWhitespace(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := TrimLineWhitespace(tt.input)
+			got := simc.TrimLineWhitespace(tt.input)
 			if got != tt.want {
 				t.Fatalf("TrimLineWhitespace(%q) = %q, want %q", tt.input, got, tt.want)
 			}

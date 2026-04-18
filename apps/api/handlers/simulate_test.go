@@ -4,6 +4,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
@@ -207,6 +208,62 @@ func TestSimulationOwnerID(t *testing.T) {
 			got := simulationOwnerID(test.authContext)
 			if !reflect.DeepEqual(got, test.want) {
 				t.Fatalf("simulationOwnerID() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestValidateSimulationRequest(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		options    api.SimulationOptionsBasic
+		wantStatus int
+		wantOK     bool
+	}{
+		{
+			name: "valid simc addon export",
+			options: api.SimulationOptionsBasic{
+				SimcAddonExport: "priest=\"Example\"\nlevel=80\nspec=shadow",
+			},
+			wantOK: true,
+		},
+		{
+			name:       "missing simc addon export",
+			options:    api.SimulationOptionsBasic{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "empty simc addon export",
+			options: api.SimulationOptionsBasic{
+				SimcAddonExport: "",
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for idx := range cases {
+		testCase := cases[idx]
+
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := validateSimulationRequestBasic(t.Context(), testCase.options)
+			if testCase.wantOK {
+				if result != nil {
+					t.Fatalf("validateSimulationRequest() = %#v, want nil", result)
+				}
+
+				return
+			}
+
+			if result == nil {
+				t.Fatal("validateSimulationRequest() = nil, want error")
+			}
+
+			if result.statusCode != testCase.wantStatus {
+				t.Fatalf("statusCode = %d, want %d", result.statusCode, testCase.wantStatus)
 			}
 		})
 	}

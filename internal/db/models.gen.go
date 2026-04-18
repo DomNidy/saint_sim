@@ -54,6 +54,50 @@ func (ns NullPrincipalType) Value() (driver.Value, error) {
 	return string(ns.PrincipalType), nil
 }
 
+type SimulationStatus string
+
+const (
+	SimulationStatusInProgress SimulationStatus = "in_progress"
+	SimulationStatusInQueue    SimulationStatus = "in_queue"
+	SimulationStatusError      SimulationStatus = "error"
+	SimulationStatusComplete   SimulationStatus = "complete"
+)
+
+func (e *SimulationStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SimulationStatus(s)
+	case string:
+		*e = SimulationStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SimulationStatus: %T", src)
+	}
+	return nil
+}
+
+type NullSimulationStatus struct {
+	SimulationStatus SimulationStatus
+	Valid            bool // Valid is true if SimulationStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSimulationStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.SimulationStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SimulationStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSimulationStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SimulationStatus), nil
+}
+
 type Account struct {
 	ID                    string
 	AccountId             string
@@ -114,13 +158,14 @@ type Session struct {
 
 type Simulation struct {
 	ID          uuid.UUID
+	OwnerID     *string
+	Status      SimulationStatus
 	SimConfig   []byte
 	SimResult   *string
 	ErrorText   *string
 	CreatedAt   pgtype.Timestamptz
 	StartedAt   pgtype.Timestamptz
 	CompletedAt pgtype.Timestamptz
-	OwnerID     *string
 }
 
 type User struct {
