@@ -1,14 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireAuthMiddleware } from "@/lib/auth/auth.middleware";
-import { simulationRequestSchema } from "@/lib/saint-api/contracts";
 import { getSimulation, simulate } from "@/lib/saint-api/generated";
 import { readSaintApiErrorMessage } from "@/lib/saint-api/read-saint-api-error-message";
+import { zSimulationOptions } from "./saint-api/generated/zod.gen";
 import { saintApiClient } from "./saint-api/saint-api-client";
 
 export const submitSimulationRequest = createServerFn({ method: "POST" })
 	.middleware([requireAuthMiddleware])
-	.inputValidator(simulationRequestSchema)
+	.inputValidator(zSimulationOptions)
 	.handler(async ({ data }) => {
 		const response = await simulate({
 			client: saintApiClient,

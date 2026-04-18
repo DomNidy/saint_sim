@@ -83,8 +83,8 @@ func (runner simcRunner) Run(ctx context.Context, input simulationInput) ([]byte
 	return output.Bytes(), nil
 }
 
-func simulationInputFromOptions(options api.SimulationOptions) (simulationInput, error) {
-	err := utils.ValidateSimOptions(&options)
+func simulationInputFromBasicOptions(options api.SimulationOptionsBasic) (simulationInput, error) {
+	err := utils.ValidateSimulationOptionsBasic(&options)
 	if err != nil {
 		return simulationInput{}, fmt.Errorf("validate simulation options: %w", err)
 	}

@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -33,6 +34,22 @@ const (
 	Equipped AddonExportEquipmentSource = "equipped"
 )
 
+// Defines values for SimulationOptionsKind.
+const (
+	SimulationOptionsKindBasic   SimulationOptionsKind = "basic"
+	SimulationOptionsKindTopGear SimulationOptionsKind = "topGear"
+)
+
+// Defines values for SimulationOptionsBasicKind.
+const (
+	SimulationOptionsBasicKindBasic SimulationOptionsBasicKind = "basic"
+)
+
+// Defines values for SimulationOptionsTopGearKind.
+const (
+	TopGear SimulationOptionsTopGearKind = "topGear"
+)
+
 // Defines values for SimulationStatus.
 const (
 	Complete   SimulationStatus = "complete"
@@ -43,33 +60,26 @@ const (
 
 // AddonExport defines model for addon_export.
 type AddonExport struct {
-	ActiveTalents           *string                                  `json:"active_talents"`
-	AlternateTalentLoadouts *[]AddonExportAlternateTalentLoadout     `json:"alternate_talent_loadouts,omitempty"`
-	CatalystCurrencies      *map[string]int                          `json:"catalyst_currencies,omitempty"`
-	CharacterName           *string                                  `json:"character_name"`
-	Checksum                *string                                  `json:"checksum"`
-	Class                   *string                                  `json:"class"`
-	Equipment               *[]AddonExportEquipmentItem              `json:"equipment,omitempty"`
-	HeaderComment           *string                                  `json:"header_comment"`
-	Level                   *string                                  `json:"level"`
-	LootSpec                *string                                  `json:"loot_spec"`
-	Professions             *string                                  `json:"professions"`
-	Race                    *string                                  `json:"race"`
-	Region                  *string                                  `json:"region"`
-	RequiredSimcComment     *string                                  `json:"required_simc_comment"`
-	Role                    *string                                  `json:"role"`
-	Server                  *string                                  `json:"server"`
-	SimcAddonComment        *string                                  `json:"simc_addon_comment"`
-	SlotHighWatermarks      *map[string]AddonExportSlotHighWatermark `json:"slot_high_watermarks,omitempty"`
-	Spec                    *string                                  `json:"spec"`
-	UpgradeAchievements     *[]int                                   `json:"upgrade_achievements,omitempty"`
-	WowBuildComment         *string                                  `json:"wow_build_comment"`
-}
-
-// AddonExportAlternateTalentLoadout A saved alternate talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
-type AddonExportAlternateTalentLoadout struct {
-	Name    string `json:"name"`
-	Talents string `json:"talents"`
+	CatalystCurrencies  *map[string]int                          `json:"catalyst_currencies,omitempty"`
+	CharacterName       *string                                  `json:"character_name"`
+	Checksum            *string                                  `json:"checksum"`
+	Class               *string                                  `json:"class"`
+	Equipment           *[]AddonExportEquipmentItem              `json:"equipment,omitempty"`
+	HeaderComment       *string                                  `json:"header_comment"`
+	Level               *string                                  `json:"level"`
+	LootSpec            *string                                  `json:"loot_spec"`
+	Professions         *string                                  `json:"professions"`
+	Race                *string                                  `json:"race"`
+	Region              *string                                  `json:"region"`
+	RequiredSimcComment *string                                  `json:"required_simc_comment"`
+	Role                *string                                  `json:"role"`
+	Server              *string                                  `json:"server"`
+	SimcAddonComment    *string                                  `json:"simc_addon_comment"`
+	SlotHighWatermarks  *map[string]AddonExportSlotHighWatermark `json:"slot_high_watermarks,omitempty"`
+	Spec                *string                                  `json:"spec"`
+	TalentLoadouts      *[]AddonExportTalentLoadout              `json:"talent_loadouts,omitempty"`
+	UpgradeAchievements *[]int                                   `json:"upgrade_achievements,omitempty"`
+	WowBuildComment     *string                                  `json:"wow_build_comment"`
 }
 
 // AddonExportEquipmentItem defines model for addon_export_equipment_item.
@@ -96,6 +106,15 @@ type AddonExportEquipmentSource string
 type AddonExportSlotHighWatermark struct {
 	CurrentItemLevel int `json:"current_item_level"`
 	MaxItemLevel     int `json:"max_item_level"`
+}
+
+// AddonExportTalentLoadout A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
+type AddonExportTalentLoadout struct {
+	// Name The name of the talent loadout.
+	Name *string `json:"name,omitempty"`
+
+	// Talents The WoW talent string
+	Talents string `json:"talents"`
 }
 
 // ErrorResponse Error response returned by API when something goes wrong
@@ -138,9 +157,48 @@ type Simulation struct {
 
 // SimulationOptions Specifies simulation options to send to the API.
 type SimulationOptions struct {
+	// Kind The kind of simulation to perform. `topGear` simulates all combinations of the specified gear, basic simulates the character using its equipped gear.
+	Kind  SimulationOptionsKind `json:"kind"`
+	union json.RawMessage
+}
+
+// SimulationOptionsKind The kind of simulation to perform. `topGear` simulates all combinations of the specified gear, basic simulates the character using its equipped gear.
+type SimulationOptionsKind string
+
+// SimulationOptionsBasic Specifies simulation options to send to the API.
+type SimulationOptionsBasic struct {
+	Kind SimulationOptionsBasicKind `json:"kind"`
+
 	// SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
 	SimcAddonExport SimcAddonExport `json:"simc_addon_export"`
 }
+
+// SimulationOptionsBasicKind defines model for SimulationOptionsBasic.Kind.
+type SimulationOptionsBasicKind string
+
+// SimulationOptionsTopGear Top gear simulation options. The gear which we should try to find some optimal combination of.
+type SimulationOptionsTopGear struct {
+	CharacterName string `json:"character_name"`
+
+	// Class The class the character is
+	Class string `json:"class"`
+
+	// Equipment The gear to consider in the simulation. We will try to find optimal combinations of these. Must have at least 1 item per slot so it is possible to form a full equipment set.
+	Equipment []AddonExportEquipmentItem   `json:"equipment"`
+	Kind      SimulationOptionsTopGearKind `json:"kind"`
+
+	// Role The role of the character
+	Role interface{} `json:"role"`
+
+	// Spec The spec of the character
+	Spec string `json:"spec"`
+
+	// TalentLoadout A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
+	TalentLoadout AddonExportTalentLoadout `json:"talent_loadout"`
+}
+
+// SimulationOptionsTopGearKind defines model for SimulationOptionsTopGear.Kind.
+type SimulationOptionsTopGearKind string
 
 // SimulationStatus defines model for simulation_status.
 type SimulationStatus string
@@ -151,6 +209,11 @@ type BadRequestError = ErrorResponse
 // InternalError Error response returned by API when something goes wrong
 type InternalError = ErrorResponse
 
+// MalformedRequest defines model for malformed_request.
+type MalformedRequest struct {
+	Message string `json:"message"`
+}
+
 // NotFoundError Error response returned by API when something goes wrong
 type NotFoundError = ErrorResponse
 
@@ -159,6 +222,132 @@ type ParseAddonExportJSONRequestBody = ParseAddonExportRequest
 
 // SimulateJSONRequestBody defines body for Simulate for application/json ContentType.
 type SimulateJSONRequestBody = SimulationOptions
+
+// AsSimulationOptionsBasic returns the union data inside the SimulationOptions as a SimulationOptionsBasic
+func (t SimulationOptions) AsSimulationOptionsBasic() (SimulationOptionsBasic, error) {
+	var body SimulationOptionsBasic
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSimulationOptionsBasic overwrites any union data inside the SimulationOptions as the provided SimulationOptionsBasic
+func (t *SimulationOptions) FromSimulationOptionsBasic(v SimulationOptionsBasic) error {
+	t.Kind = "basic"
+
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSimulationOptionsBasic performs a merge with any union data inside the SimulationOptions, using the provided SimulationOptionsBasic
+func (t *SimulationOptions) MergeSimulationOptionsBasic(v SimulationOptionsBasic) error {
+	t.Kind = "basic"
+
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSimulationOptionsTopGear returns the union data inside the SimulationOptions as a SimulationOptionsTopGear
+func (t SimulationOptions) AsSimulationOptionsTopGear() (SimulationOptionsTopGear, error) {
+	var body SimulationOptionsTopGear
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSimulationOptionsTopGear overwrites any union data inside the SimulationOptions as the provided SimulationOptionsTopGear
+func (t *SimulationOptions) FromSimulationOptionsTopGear(v SimulationOptionsTopGear) error {
+	t.Kind = "topGear"
+
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSimulationOptionsTopGear performs a merge with any union data inside the SimulationOptions, using the provided SimulationOptionsTopGear
+func (t *SimulationOptions) MergeSimulationOptionsTopGear(v SimulationOptionsTopGear) error {
+	t.Kind = "topGear"
+
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SimulationOptions) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"kind"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t SimulationOptions) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "basic":
+		return t.AsSimulationOptionsBasic()
+	case "topGear":
+		return t.AsSimulationOptionsTopGear()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t SimulationOptions) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	object := make(map[string]json.RawMessage)
+	if t.union != nil {
+		err = json.Unmarshal(b, &object)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	object["kind"], err = json.Marshal(t.Kind)
+	if err != nil {
+		return nil, fmt.Errorf("error marshaling 'kind': %w", err)
+	}
+
+	b, err = json.Marshal(object)
+	return b, err
+}
+
+func (t *SimulationOptions) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	if err != nil {
+		return err
+	}
+	object := make(map[string]json.RawMessage)
+	err = json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["kind"]; found {
+		err = json.Unmarshal(raw, &t.Kind)
+		if err != nil {
+			return fmt.Errorf("error reading 'kind': %w", err)
+		}
+	}
+
+	return err
+}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -289,6 +478,10 @@ type BadRequestErrorJSONResponse ErrorResponse
 
 type InternalErrorJSONResponse ErrorResponse
 
+type MalformedRequestJSONResponse struct {
+	Message string `json:"message"`
+}
+
 type NotFoundErrorJSONResponse ErrorResponse
 
 type HealthRequestObject struct {
@@ -385,6 +578,15 @@ type Simulate404JSONResponse struct{ NotFoundErrorJSONResponse }
 func (response Simulate404JSONResponse) VisitSimulateResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type Simulate422JSONResponse struct{ MalformedRequestJSONResponse }
+
+func (response Simulate422JSONResponse) VisitSimulateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -582,42 +784,49 @@ func (sh *strictHandler) GetSimulation(ctx *gin.Context, id openapi_types.UUID) 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"EwAA//9dx+vvdCcAAA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

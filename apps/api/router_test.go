@@ -140,6 +140,16 @@ func TestRouterSimulationAuthAndValidation(t *testing.T) {
 		)),
 	)
 
+	simOpts := api.SimulationOptionsBasic{
+		Kind:            api.SimulationOptionsBasicKindBasic,
+		SimcAddonExport: `{"simc_addon_export":"priest=\"Example\"\nlevel=80\nspec=shadow"}`,
+	}
+
+	simOptionsJsonBody, err := json.Marshal(simOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	testCases := []struct {
 		name       string
 		headers    map[string]string
@@ -151,7 +161,7 @@ func TestRouterSimulationAuthAndValidation(t *testing.T) {
 			headers: map[string]string{
 				"Authorization": "Bearer valid-token",
 			},
-			body:       `{"simc_addon_export":"priest=\"Example\"\nlevel=80\nspec=shadow"}`,
+			body:       string(simOptionsJsonBody),
 			wantStatus: http.StatusAccepted,
 		},
 		{
@@ -160,12 +170,12 @@ func TestRouterSimulationAuthAndValidation(t *testing.T) {
 				"Authorization": "Bearer bad-token",
 				"Api-Key":       "good-api-key",
 			},
-			body:       `{"simc_addon_export":"priest=\"Example\"\nlevel=80\nspec=shadow"}`,
+			body:       string(simOptionsJsonBody),
 			wantStatus: http.StatusAccepted,
 		},
 		{
 			name:       "missing credentials",
-			body:       `{"simc_addon_export":"priest=\"Example\"\nlevel=80\nspec=shadow"}`,
+			body:       string(simOptionsJsonBody),
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
@@ -173,7 +183,7 @@ func TestRouterSimulationAuthAndValidation(t *testing.T) {
 			headers: map[string]string{
 				"Authorization": "Bearer",
 			},
-			body:       `{"simc_addon_export":"priest=\"Example\"\nlevel=80\nspec=shadow"}`,
+			body:       string(simOptionsJsonBody),
 			wantStatus: http.StatusUnauthorized,
 		},
 		{

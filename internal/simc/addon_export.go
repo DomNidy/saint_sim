@@ -9,7 +9,7 @@
 package simc
 
 import (
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"sort"
@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	api "github.com/DomNidy/saint_sim/internal/api"
+	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
 type addonExportParseState struct {
@@ -26,25 +27,47 @@ type addonExportParseState struct {
 	pendingLoadoutName   string
 }
 
+const exportHeaderSeparatorCount = 2
+
 // Parse converts a raw SimulationCraft addon export string into a structured
 // AddonExport API model.
 func Parse(tciString string) api.AddonExport {
-	alternateTalentLoadouts := []api.AddonExportAlternateTalentLoadout{}
+	talentLoadouts := []api.AddonExportTalentLoadout{}
 	equipment := []api.AddonExportEquipmentItem{}
 	catalystCurrencies := map[string]int{}
 	slotHighWatermarks := map[string]api.AddonExportSlotHighWatermark{}
 	upgradeAchievements := []int{}
 
 	export := api.AddonExport{
-		AlternateTalentLoadouts: &alternateTalentLoadouts,
-		Equipment:               &equipment,
-		CatalystCurrencies:      &catalystCurrencies,
-		SlotHighWatermarks:      &slotHighWatermarks,
-		UpgradeAchievements:     &upgradeAchievements,
+		CharacterName:       nil,
+		Class:               nil,
+		Level:               nil,
+		Race:                nil,
+		Region:              nil,
+		Server:              nil,
+		Role:                nil,
+		Professions:         nil,
+		Spec:                nil,
+		TalentLoadouts:      &talentLoadouts,
+		Checksum:            nil,
+		HeaderComment:       nil,
+		SimcAddonComment:    nil,
+		WowBuildComment:     nil,
+		RequiredSimcComment: nil,
+		LootSpec:            nil,
+		Equipment:           &equipment,
+		CatalystCurrencies:  &catalystCurrencies,
+		SlotHighWatermarks:  &slotHighWatermarks,
+		UpgradeAchievements: &upgradeAchievements,
 	}
 
 	lines := strings.Split(NormalizeLineEndings(tciString), "\n")
-	state := addonExportParseState{}
+	state := addonExportParseState{
+		inBagSection:         false,
+		inAdditionalInfo:     false,
+		pendingEquipmentName: "",
+		pendingLoadoutName:   "",
+	}
 
 	for _, rawLine := range lines {
 		line := strings.Trim(rawLine, " \t")
@@ -54,6 +77,7 @@ func Parse(tciString string) api.AddonExport {
 
 		if strings.HasPrefix(line, "#") {
 			parseCommentLine(&export, &state, line)
+
 			continue
 		}
 
@@ -63,7 +87,14 @@ func Parse(tciString string) api.AddonExport {
 	return export
 }
 
+// HasRecognizedData reports whether Parse extracted any recognizable addon export data.
 func HasRecognizedData(export api.AddonExport) bool {
+	return hasRecognizedScalarData(export) ||
+		hasRecognizedSliceData(export) ||
+		hasRecognizedMapData(export)
+}
+
+func hasRecognizedScalarData(export api.AddonExport) bool {
 	return export.CharacterName != nil ||
 		export.Class != nil ||
 		export.Level != nil ||
@@ -71,24 +102,29 @@ func HasRecognizedData(export api.AddonExport) bool {
 		export.Region != nil ||
 		export.Server != nil ||
 		export.Role != nil ||
-		export.Professions != nil ||
+		hasRecognizedSupplementaryScalarData(export)
+}
+
+func hasRecognizedSupplementaryScalarData(export api.AddonExport) bool {
+	return export.Professions != nil ||
 		export.Spec != nil ||
-		export.ActiveTalents != nil ||
-		(export.AlternateTalentLoadouts != nil &&
-			len(*export.AlternateTalentLoadouts) > 0) ||
-		(export.Equipment != nil && len(*export.Equipment) > 0) ||
 		export.Checksum != nil ||
 		export.HeaderComment != nil ||
 		export.SimcAddonComment != nil ||
 		export.WowBuildComment != nil ||
 		export.RequiredSimcComment != nil ||
-		export.LootSpec != nil ||
-		(export.CatalystCurrencies != nil &&
-			len(*export.CatalystCurrencies) > 0) ||
-		(export.SlotHighWatermarks != nil &&
-			len(*export.SlotHighWatermarks) > 0) ||
-		(export.UpgradeAchievements != nil &&
-			len(*export.UpgradeAchievements) > 0)
+		export.LootSpec != nil
+}
+
+func hasRecognizedSliceData(export api.AddonExport) bool {
+	return export.TalentLoadouts != nil && len(*export.TalentLoadouts) > 0 ||
+		export.Equipment != nil && len(*export.Equipment) > 0 ||
+		export.UpgradeAchievements != nil && len(*export.UpgradeAchievements) > 0
+}
+
+func hasRecognizedMapData(export api.AddonExport) bool {
+	return export.CatalystCurrencies != nil && len(*export.CatalystCurrencies) > 0 ||
+		export.SlotHighWatermarks != nil && len(*export.SlotHighWatermarks) > 0
 }
 
 func parseCommentLine(
@@ -121,6 +157,7 @@ func parseCommentLine(
 		if item, ok := parseEquipmentItem(state.pendingEquipmentName, comment, true); ok {
 			*export.Equipment = append(*export.Equipment, item)
 		}
+
 		state.pendingEquipmentName = ""
 
 		return
@@ -165,6 +202,7 @@ func parseAssignmentLine(
 		if item, itemOK := parseEquipmentItem(state.pendingEquipmentName, line, false); itemOK {
 			*export.Equipment = append(*export.Equipment, item)
 		}
+
 		state.pendingEquipmentName = ""
 	}
 }
@@ -195,16 +233,19 @@ func parseStructuredComment(
 ) bool {
 	if strings.HasPrefix(comment, "SimC Addon ") {
 		export.SimcAddonComment = strPtr(comment)
+
 		return true
 	}
 
 	if strings.HasPrefix(comment, "WoW ") {
 		export.WowBuildComment = strPtr(comment)
+
 		return true
 	}
 
 	if strings.HasPrefix(comment, "Requires SimulationCraft ") {
 		export.RequiredSimcComment = strPtr(comment)
+
 		return true
 	}
 
@@ -217,19 +258,23 @@ func parseStructuredComment(
 	case "loot_spec":
 		if !state.inAdditionalInfo {
 			export.LootSpec = strPtr(value)
+
 			return true
 		}
 	case "catalyst_currencies":
 		parsed := parseIntMap(value)
 		export.CatalystCurrencies = &parsed
+
 		return true
 	case "slot_high_watermarks":
 		parsed := parseSlotHighWatermarks(value)
 		export.SlotHighWatermarks = &parsed
+
 		return true
 	case "upgrade_achievements":
 		parsed := parseIntListValue(value, "/")
 		export.UpgradeAchievements = &parsed
+
 		return true
 	}
 
@@ -249,11 +294,13 @@ func parseLoadoutComment(
 		return true
 	}
 
+	// Named saved loadouts are emitted as comments; unnamed talent assignments are
+	// handled in parseMetadataAssignment as the active loadout.
 	if strings.HasPrefix(comment, "talents=") && state.pendingLoadoutName != "" {
-		*export.AlternateTalentLoadouts = append(
-			*export.AlternateTalentLoadouts,
-			api.AddonExportAlternateTalentLoadout{
-				Name:    state.pendingLoadoutName,
+		*export.TalentLoadouts = append(
+			*export.TalentLoadouts,
+			api.AddonExportTalentLoadout{
+				Name:    utils.StrPtr(state.pendingLoadoutName),
 				Talents: strings.TrimSpace(strings.TrimPrefix(comment, "talents=")),
 			},
 		)
@@ -283,6 +330,17 @@ func parseHeaderComment(export *api.AddonExport, comment string) {
 	}
 }
 
+func appendActiveTalentLoadout(export *api.AddonExport, value string) {
+	if export.TalentLoadouts == nil {
+		return
+	}
+
+	*export.TalentLoadouts = append(*export.TalentLoadouts, api.AddonExportTalentLoadout{
+		Name:    utils.StrPtr("Active"),
+		Talents: value,
+	})
+}
+
 func parseMetadataAssignment(
 	export *api.AddonExport,
 	key string,
@@ -304,7 +362,7 @@ func parseMetadataAssignment(
 	case "spec":
 		export.Spec = strPtr(value)
 	case "talents":
-		export.ActiveTalents = strPtr(value)
+		appendActiveTalentLoadout(export, value)
 	default:
 		return false
 	}
@@ -365,7 +423,7 @@ func looksLikeEquipmentNameComment(comment string) bool {
 }
 
 func looksLikeExportHeaderComment(comment string) bool {
-	return strings.Count(comment, " - ") >= 2
+	return strings.Count(comment, " - ") >= exportHeaderSeparatorCount
 }
 
 func parseEquipmentItem(
@@ -373,14 +431,14 @@ func parseEquipmentItem(
 	rawLine string,
 	bagItem bool,
 ) (api.AddonExportEquipmentItem, bool) {
-	slot, attributes, ok := parseEquipmentAssignment(rawLine)
-	if !ok {
-		return api.AddonExportEquipmentItem{}, false
+	slot, attributes, foundAssignment := parseEquipmentAssignment(rawLine)
+	if !foundAssignment {
+		return emptyEquipmentItem(), false
 	}
 
-	itemID, ok := parseIntAttribute(attributes, "id")
-	if !ok {
-		return api.AddonExportEquipmentItem{}, false
+	itemID, foundItemID := parseIntAttribute(attributes, "id")
+	if !foundItemID {
+		return emptyEquipmentItem(), false
 	}
 
 	displayName, commentItemLevel := parseItemCommentMetadata(commentName)
@@ -417,6 +475,24 @@ func parseEquipmentItem(
 		Source:          source,
 		RawLine:         rawLine,
 	}, true
+}
+
+func emptyEquipmentItem() api.AddonExportEquipmentItem {
+	return api.AddonExportEquipmentItem{
+		Fingerprint:     "",
+		Slot:            "",
+		Name:            "",
+		DisplayName:     "",
+		ItemId:          0,
+		ItemLevel:       nil,
+		EnchantId:       nil,
+		CraftingQuality: nil,
+		BonusIds:        nil,
+		GemIds:          nil,
+		CraftedStats:    nil,
+		Source:          "",
+		RawLine:         "",
+	}
 }
 
 func parseEquipmentAssignment(line string) (string, map[string]string, bool) {
@@ -558,7 +634,7 @@ func firstNonNil(values ...*int) *int {
 
 func fingerprintForItem(rawLine, source string) string {
 	normalized := strings.TrimSpace(strings.ToLower(rawLine)) + "|" + source
-	hash := sha1.Sum([]byte(normalized))
+	hash := sha256.Sum256([]byte(normalized))
 
 	return hex.EncodeToString(hash[:])
 }

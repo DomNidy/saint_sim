@@ -8,6 +8,7 @@ import {
 import { LoaderCircle, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { type SubmitHandler, useForm, useWatch } from "react-hook-form";
+import type { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,13 +34,12 @@ import {
 	localStorageSet,
 	PREV_SIMC_PROFILE_KEY,
 } from "@/lib/local-storage";
-import {
-	type SimulationRequestInput,
-	simulationRequestSchema,
-} from "@/lib/saint-api/contracts";
 import type { AddonExportEquipmentItem } from "@/lib/saint-api/generated";
+import { zSimulationOptionsBasic } from "@/lib/saint-api/generated/zod.gen";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
 import { cn } from "@/lib/utils";
+
+type SimulationRequestInput = z.infer<typeof zSimulationOptionsBasic>;
 
 declare global {
 	interface Window {
@@ -94,8 +94,9 @@ function SimulationForm() {
 	const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
 	const form = useForm<SimulationRequestInput>({
-		resolver: zodResolver(simulationRequestSchema),
+		resolver: zodResolver(zSimulationOptionsBasic),
 		defaultValues: {
+			kind: "basic",
 			simc_addon_export: "",
 		},
 	});
@@ -117,7 +118,7 @@ function SimulationForm() {
 		if (hydrated) {
 			const prevProfile = localStorageGet(PREV_SIMC_PROFILE_KEY);
 			if (prevProfile !== null) {
-				form.reset({ simc_addon_export: prevProfile });
+				form.reset({ kind: "basic", simc_addon_export: prevProfile });
 			}
 		}
 	}, [hydrated, form]);
@@ -221,6 +222,7 @@ function SimulationForm() {
 									variant="secondary"
 									onClick={() => {
 										form.reset({
+											kind: "basic",
 											simc_addon_export: "",
 										});
 									}}

@@ -13,11 +13,48 @@ export type HealthResponse = {
  */
 export type SimcAddonExport = string;
 
+export type SimulationOptions = (({
+    kind: 'basic';
+} & SimulationOptionsBasic) | ({
+    kind: 'topGear';
+} & SimulationOptionsTopGear)) & {
+    /**
+     * The kind of simulation to perform. `topGear` simulates all combinations of the specified gear, basic simulates the character using its equipped gear.
+     */
+    kind: 'topGear' | 'basic';
+};
+
 /**
  * Specifies simulation options to send to the API.
  */
-export type SimulationOptions = {
+export type SimulationOptionsBasic = {
     simc_addon_export: SimcAddonExport;
+    kind: 'basic';
+};
+
+/**
+ * Top gear simulation options. The gear which we should try to find some optimal combination of.
+ */
+export type SimulationOptionsTopGear = {
+    character_name: string;
+    /**
+     * The class the character is
+     */
+    class: string;
+    /**
+     * The spec of the character
+     */
+    spec: string;
+    /**
+     * The role of the character
+     */
+    role: unknown;
+    talent_loadout: AddonExportTalentLoadout;
+    /**
+     * The gear to consider in the simulation. We will try to find optimal combinations of these. Must have at least 1 item per slot so it is possible to form a full equipment set.
+     */
+    equipment: Array<AddonExportEquipmentItem>;
+    kind: 'topGear';
 };
 
 export type ParseAddonExportRequest = {
@@ -29,10 +66,16 @@ export const AddonExportEquipmentSource = { EQUIPPED: 'equipped', BAG: 'bag' } a
 export type AddonExportEquipmentSource = typeof AddonExportEquipmentSource[keyof typeof AddonExportEquipmentSource];
 
 /**
- * A saved alternate talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
+ * A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
  */
-export type AddonExportAlternateTalentLoadout = {
-    name: string;
+export type AddonExportTalentLoadout = {
+    /**
+     * The name of the talent loadout.
+     */
+    name?: string;
+    /**
+     * The WoW talent string
+     */
     talents: string;
 };
 
@@ -70,8 +113,7 @@ export type AddonExport = {
     role?: string | null;
     professions?: string | null;
     spec?: string | null;
-    active_talents?: string | null;
-    alternate_talent_loadouts?: Array<AddonExportAlternateTalentLoadout>;
+    talent_loadouts?: Array<AddonExportTalentLoadout>;
     equipment?: Array<AddonExportEquipmentItem>;
     checksum?: string | null;
     header_comment?: string | null;
@@ -203,6 +245,12 @@ export type SimulateErrors = {
      * Returned when the api could not locate a requested resource.
      */
     404: ErrorResponse;
+    /**
+     * Error response returned by API when user input failed semantic
+     */
+    422: {
+        message: string;
+    };
     /**
      * Returned whenever an internal server error occurs. This usually means the cause for the error was out of the control of the caller.
      */

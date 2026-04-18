@@ -5,7 +5,7 @@ package utils
 import (
 	"fmt"
 
-	api "github.com/DomNidy/saint_sim/internal/api"
+	"github.com/DomNidy/saint_sim/internal/api"
 )
 
 type simulationValidationError string
@@ -19,8 +19,9 @@ const (
 	errMissingSimcAddonExport    simulationValidationError = "simc addon export is required"
 )
 
-// ValidateSimOptions validates the user-provided simulation options and reports the first failure.
-func ValidateSimOptions(options *api.SimulationOptions) error {
+// ValidateSimulationOptionsBasic validates the user-provided simulation options and reports the
+// first failure.
+func ValidateSimulationOptionsBasic(options *api.SimulationOptionsBasic) error {
 	if options == nil {
 		return errSimulationOptionsRequired
 	}

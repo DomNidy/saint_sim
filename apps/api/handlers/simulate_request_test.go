@@ -13,25 +13,25 @@ func TestValidateSimulationRequest(t *testing.T) {
 
 	cases := []struct {
 		name       string
-		options    api.SimulationOptions
+		options    api.SimulationOptionsBasic
 		wantStatus int
 		wantOK     bool
 	}{
 		{
 			name: "valid simc addon export",
-			options: api.SimulationOptions{
+			options: api.SimulationOptionsBasic{
 				SimcAddonExport: "priest=\"Example\"\nlevel=80\nspec=shadow",
 			},
 			wantOK: true,
 		},
 		{
 			name:       "missing simc addon export",
-			options:    api.SimulationOptions{},
+			options:    api.SimulationOptionsBasic{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name: "empty simc addon export",
-			options: api.SimulationOptions{
+			options: api.SimulationOptionsBasic{
 				SimcAddonExport: "",
 			},
 			wantStatus: http.StatusBadRequest,
@@ -44,7 +44,7 @@ func TestValidateSimulationRequest(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := validateSimulationRequest(t.Context(), testCase.options)
+			result := validateSimulationRequestBasic(t.Context(), testCase.options)
 			if testCase.wantOK {
 				if result != nil {
 					t.Fatalf("validateSimulationRequest() = %#v, want nil", result)

@@ -14,8 +14,9 @@ export const zSimcAddonExport = z.string().min(1);
 /**
  * Specifies simulation options to send to the API.
  */
-export const zSimulationOptions = z.object({
-    simc_addon_export: zSimcAddonExport
+export const zSimulationOptionsBasic = z.object({
+    simc_addon_export: zSimcAddonExport,
+    kind: z.enum(['basic'])
 });
 
 export const zParseAddonExportRequest = z.object({
@@ -25,10 +26,10 @@ export const zParseAddonExportRequest = z.object({
 export const zAddonExportEquipmentSource = z.enum(['equipped', 'bag']);
 
 /**
- * A saved alternate talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
+ * A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
  */
-export const zAddonExportAlternateTalentLoadout = z.object({
-    name: z.string(),
+export const zAddonExportTalentLoadout = z.object({
+    name: z.string().optional(),
     talents: z.string()
 });
 
@@ -56,6 +57,30 @@ export const zAddonExportEquipmentItem = z.object({
     raw_line: z.string()
 });
 
+/**
+ * Top gear simulation options. The gear which we should try to find some optimal combination of.
+ */
+export const zSimulationOptionsTopGear = z.object({
+    character_name: z.string(),
+    class: z.string(),
+    spec: z.string(),
+    role: z.unknown(),
+    talent_loadout: zAddonExportTalentLoadout,
+    equipment: z.array(zAddonExportEquipmentItem),
+    kind: z.enum(['topGear'])
+});
+
+export const zSimulationOptions = z.intersection(z.union([
+    z.object({
+        kind: z.literal('basic')
+    }).and(zSimulationOptionsBasic),
+    z.object({
+        kind: z.literal('topGear')
+    }).and(zSimulationOptionsTopGear)
+]), z.object({
+    kind: z.enum(['topGear', 'basic'])
+}));
+
 export const zAddonExport = z.object({
     character_name: z.string().nullish(),
     class: z.string().nullish(),
@@ -66,8 +91,7 @@ export const zAddonExport = z.object({
     role: z.string().nullish(),
     professions: z.string().nullish(),
     spec: z.string().nullish(),
-    active_talents: z.string().nullish(),
-    alternate_talent_loadouts: z.array(zAddonExportAlternateTalentLoadout).optional(),
+    talent_loadouts: z.array(zAddonExportTalentLoadout).optional(),
     equipment: z.array(zAddonExportEquipmentItem).optional(),
     checksum: z.string().nullish(),
     header_comment: z.string().nullish(),

@@ -90,10 +90,14 @@ func TestPublishSimulationJob(t *testing.T) {
 				if err := json.Unmarshal(arg.SimConfig, &simOptions); err != nil {
 					t.Fatalf("unmarshal sim config: %v", err)
 				}
-				if simOptions.SimcAddonExport != expectedExport {
+				basicOptions, err := simOptions.AsSimulationOptionsBasic()
+				if err != nil {
+					t.Fatalf("decode basic sim options: %v", err)
+				}
+				if basicOptions.SimcAddonExport != expectedExport {
 					t.Fatalf(
 						"simc_addon_export = %q, want %q",
-						simOptions.SimcAddonExport,
+						basicOptions.SimcAddonExport,
 						expectedExport,
 					)
 				}
@@ -117,10 +121,16 @@ func TestPublishSimulationJob(t *testing.T) {
 			},
 		},
 	)
+	var requestBody api.SimulationOptions
+	if err := json.Unmarshal([]byte(`{
+		"kind":"basic",
+		"simc_addon_export":"priest=\"Example\"\r\nlevel=80\rspec=shadow"
+	}`), &requestBody); err != nil {
+		t.Fatalf("build simulate request body: %v", err)
+	}
+
 	response, err := server.Simulate(ctx, api.SimulateRequestObject{
-		Body: &api.SimulationOptions{
-			SimcAddonExport: "priest=\"Example\"\r\nlevel=80\rspec=shadow",
-		},
+		Body: &requestBody,
 	})
 	if err != nil {
 		t.Fatalf("Simulate() error = %v", err)
