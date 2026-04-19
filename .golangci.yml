@@ -31,6 +31,7 @@ linters:
       - path: _test\.go
         linters:
           - funlen
+          - lll
 
   disable:
     - wsl # replaced by wsl_v5

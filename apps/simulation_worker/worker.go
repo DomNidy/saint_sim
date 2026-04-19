@@ -214,22 +214,40 @@ func (worker simulationWorker) processTopGear(
 	ctx context.Context,
 	request simulationRequest,
 ) error {
+	_ = ctx
+
 	opts, err := request.options.AsSimulationOptionsTopGear()
 	if err != nil {
 		return fmt.Errorf("could not cast to topGear: %w", err)
 	}
 
 	if opts.Equipment == nil {
-		return errors.New("missing equipment")
+		return errTopGearMissingEquipment
 	}
 
-	slotsEquipment := make(map[api.AddonExportEquipmentSlot][]api.AddonExportEquipmentItem)
-
-	for _, eq := range opts.Equipment {
-		slotsEquipment[eq.Slot] = append(slotsEquipment[eq.Slot], eq)
+	profilesetCount, err := countTopGearProfilesets(opts.Equipment)
+	if err != nil {
+		return fmt.Errorf("count top gear profilesets: %w", err)
 	}
 
-	_ = slotsEquipment
+	if profilesetCount > maxGeneratedProfilesets {
+		return fmt.Errorf(
+			"%w: generated %d, max %d",
+			errTopGearProfilesetLimit,
+			profilesetCount,
+			maxGeneratedProfilesets,
+		)
+	}
+
+	profilesets, err := generateTopGearProfilesets(
+		opts.Equipment,
+		opts.TalentLoadout.Talents,
+	)
+	if err != nil {
+		return fmt.Errorf("generate top gear profilesets: %w", err)
+	}
+
+	_ = profilesets
 
 	return nil
 }

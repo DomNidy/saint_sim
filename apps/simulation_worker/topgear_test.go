@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -13,40 +16,329 @@ import (
 
 type stubRunner struct{}
 
-func (sr stubRunner) Run(ctx context.Context, profilePath string) ([]byte, error) {
+func (sr stubRunner) Run(_ context.Context, profilePath string) ([]byte, error) {
+	_ = profilePath
+
 	return nil, nil
 }
-func TestProcessTopGear(t *testing.T) {
-	worker := simulationWorker{
-		runner: stubRunner{},
+
+func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
+	t.Parallel()
+
+	equipment := appendEquipment(
+		mustParseEquippedEquipmentLines(t, baseSingletonLines()...),
+		mustParseEquippedEquipmentLines(
+			t,
+			extraHeadLine(),
+			baseRingLines()[0],
+			baseRingLines()[1],
+			"finger1=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
+		)...,
+	)
+	equipment = appendEquipment(
+		equipment,
+		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...,
+	)
+
+	gotCount, err := countTopGearProfilesets(equipment)
+	if err != nil {
+		t.Fatalf("countTopGearProfilesets() error = %v", err)
+	}
+	if gotCount != 6 {
+		t.Fatalf("countTopGearProfilesets() = %d, want 6", gotCount)
 	}
 
-	// Define simulation options
-	topGearOptions := api.SimulationOptionsTopGear{
-		Kind:          api.SimulationOptionsTopGearKind(api.SimulationOptionsKindTopGear),
-		CharacterName: "Dom",
-		Class:         string(simc.Warrior),
-		Equipment: []api.AddonExportEquipmentItem{
-			{},
+	got, err := generateTopGearProfilesets(equipment, "TALENTS")
+	if err != nil {
+		t.Fatalf("generateTopGearProfilesets() error = %v", err)
+	}
+	if len(got) != gotCount {
+		t.Fatalf("len(generateTopGearProfilesets()) = %d, want %d", len(got), gotCount)
+	}
+
+	want := []struct {
+		name    string
+		head    string
+		finger1 string
+		finger2 string
+		offHand string
+		talents string
+	}{
+		{
+			name:    "Combo1",
+			head:    baseSingletonLines()[0],
+			finger1: baseRingLines()[0],
+			finger2: baseRingLines()[1],
+			offHand: "off_hand=,",
+			talents: "talents=TALENTS",
+		},
+		{
+			name:    "Combo2",
+			head:    baseSingletonLines()[0],
+			finger1: baseRingLines()[0],
+			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
+			offHand: "off_hand=,",
+			talents: "talents=TALENTS",
+		},
+		{
+			name:    "Combo3",
+			head:    baseSingletonLines()[0],
+			finger1: "finger1=,id=256985,gem_id=213491,bonus_id=12778/6652/13668",
+			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
+			offHand: "off_hand=,",
+			talents: "talents=TALENTS",
+		},
+		{
+			name:    "Combo4",
+			head:    extraHeadLine(),
+			finger1: baseRingLines()[0],
+			finger2: baseRingLines()[1],
+			offHand: "off_hand=,",
+			talents: "talents=TALENTS",
+		},
+		{
+			name:    "Combo5",
+			head:    extraHeadLine(),
+			finger1: baseRingLines()[0],
+			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
+			offHand: "off_hand=,",
+			talents: "talents=TALENTS",
+		},
+		{
+			name:    "Combo6",
+			head:    extraHeadLine(),
+			finger1: "finger1=,id=256985,gem_id=213491,bonus_id=12778/6652/13668",
+			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
+			offHand: "off_hand=,",
+			talents: "talents=TALENTS",
 		},
 	}
-	var opts api.SimulationOptions
 
-	// convert the top gear type into the union type
-	err := opts.FromSimulationOptionsTopGear(topGearOptions)
+	type profilesetSummary struct {
+		name    string
+		head    string
+		finger1 string
+		finger2 string
+		offHand string
+		talents string
+	}
+
+	gotSummaries := make([]profilesetSummary, 0, len(got))
+	for _, profile := range got {
+		gotSummaries = append(gotSummaries, profilesetSummary{
+			name:    profile.name,
+			head:    profile.head,
+			finger1: profile.finger1,
+			finger2: profile.finger2,
+			offHand: profile.offHand,
+			talents: profile.talents,
+		})
+	}
+
+	wantSummaries := make([]profilesetSummary, 0, len(want))
+	for _, expected := range want {
+		wantSummaries = append(wantSummaries, profilesetSummary(expected))
+	}
+
+	if !reflect.DeepEqual(gotSummaries, wantSummaries) {
+		t.Fatalf("generateTopGearProfilesets() = %#v, want %#v", gotSummaries, wantSummaries)
+	}
+}
+
+func TestGenerateTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *testing.T) {
+	t.Parallel()
+
+	equipment := appendEquipment(
+		mustParseEquippedEquipmentLines(t, baseSingletonLines()...),
+		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...,
+	)
+	equipment = appendEquipment(
+		equipment,
+		mustParseEquipmentLine(t, api.Equipped, baseRingLines()[0]),
+		mustParseEquipmentLine(
+			t,
+			api.Bag,
+			"finger2=,id=256971,gem_id=240865,bonus_id=12769/6652/13668",
+		),
+	)
+
+	got, err := generateTopGearProfilesets(equipment, "TALENTS")
+	if err != nil {
+		t.Fatalf("generateTopGearProfilesets() error = %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("len(generateTopGearProfilesets()) = %d, want 1", len(got))
+	}
+	if got[0].finger1 != baseRingLines()[0] ||
+		got[0].finger2 != "finger2=,id=256971,gem_id=240865,bonus_id=12769/6652/13668" {
+		t.Fatalf(
+			"ring pair = (%q, %q), want the two distinct copies of the same ring",
+			got[0].finger1,
+			got[0].finger2,
+		)
+	}
+}
+
+func TestCountTopGearProfilesetsRejectsImpossibleLoadout(t *testing.T) {
+	t.Parallel()
+
+	equipment := appendEquipment(
+		mustParseEquippedEquipmentLines(t, baseSingletonLines()...),
+		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...,
+	)
+	equipment = appendEquipment(
+		equipment,
+		mustParseEquipmentLine(t, api.Equipped, baseRingLines()[0]),
+		mustParseEquipmentLine(t, api.Equipped, baseRingLines()[0]),
+	)
+
+	count, err := countTopGearProfilesets(equipment)
+	if err == nil {
+		t.Fatalf("countTopGearProfilesets() = %d, want error", count)
+	}
+	if !strings.Contains(err.Error(), "ring candidates") {
+		t.Fatalf("countTopGearProfilesets() error = %v, want ring-candidate error", err)
+	}
+}
+
+func TestProcessTopGear(t *testing.T) {
+	t.Parallel()
+
+	worker := simulationWorker{
+		runner: stubRunner{},
+		store:  nil,
+	}
+
+	equipment := appendEquipment(
+		mustParseEquippedEquipmentLines(t, baseSingletonLines()...),
+		mustParseEquippedEquipmentLines(t, baseRingLines()...)...,
+	)
+	equipment = appendEquipment(
+		equipment,
+		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...)
+
+	opts, err := topGearOptions(equipment...)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// TODO: do some testing ...
-	worker.processTopGear(context.Background(), simulationRequest{
+	err = worker.processTopGear(t.Context(), simulationRequest{
 		id:      uuid.New(),
 		options: opts,
 	})
+	if err != nil {
+		t.Fatalf("processTopGear() error = %v", err)
+	}
 }
 
-func TestGenerateProfileSets(t *testing.T) {
-	lines := []string{
+func TestProcessTopGearReturnsErrorWhenCombinationCountExceedsLimit(t *testing.T) {
+	t.Parallel()
+
+	worker := simulationWorker{
+		runner: stubRunner{},
+		store:  nil,
+	}
+
+	headLines := make([]string, 0, maxGeneratedProfilesets+1)
+	for headIndex := range maxGeneratedProfilesets + 1 {
+		headLines = append(
+			headLines,
+			"head=,id="+intString(300000+headIndex)+",bonus_id=6652/12667/13577/13333/12787",
+		)
+	}
+
+	equipment := appendEquipment(
+		mustParseEquippedEquipmentLines(t, headLines...),
+		mustParseEquippedEquipmentLines(t, baseSingletonLines()[1:]...)...,
+	)
+	equipment = appendEquipment(
+		equipment,
+		mustParseEquippedEquipmentLines(t, baseRingLines()...)...)
+	equipment = appendEquipment(
+		equipment,
+		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...)
+
+	opts, err := topGearOptions(equipment...)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = worker.processTopGear(t.Context(), simulationRequest{
+		id:      uuid.New(),
+		options: opts,
+	})
+	if err == nil {
+		t.Fatal("processTopGear() error = nil, want max-combination error")
+	}
+	if !strings.Contains(err.Error(), "exceeds max") {
+		t.Fatalf("processTopGear() error = %v, want max-combination error", err)
+	}
+}
+
+func mustParseEquippedEquipmentLines(
+	t *testing.T,
+	lines ...string,
+) []api.AddonExportEquipmentItem {
+	t.Helper()
+
+	items := make([]api.AddonExportEquipmentItem, 0, len(lines))
+	for _, line := range lines {
+		items = append(items, mustParseEquipmentLine(t, api.Equipped, line))
+	}
+
+	return items
+}
+
+func mustParseEquipmentLine(
+	t *testing.T,
+	source api.AddonExportEquipmentSource,
+	line string,
+) api.AddonExportEquipmentItem {
+	t.Helper()
+
+	item, ok := simc.ParseEquipmentItem("", line, source)
+	if !ok {
+		t.Fatalf("failed to parse item line %q", line)
+	}
+
+	return item
+}
+
+func appendEquipment(
+	base []api.AddonExportEquipmentItem,
+	items ...api.AddonExportEquipmentItem,
+) []api.AddonExportEquipmentItem {
+	return append(base, items...)
+}
+
+func topGearOptions(equipment ...api.AddonExportEquipmentItem) (api.SimulationOptions, error) {
+	topGear := api.SimulationOptionsTopGear{
+		Kind:          api.TopGear,
+		CharacterName: "Dom",
+		Class:         "deathknight",
+		Spec:          "unholy",
+		Role:          "attack",
+		Equipment:     equipment,
+		TalentLoadout: api.AddonExportTalentLoadout{
+			Name:    nil,
+			Talents: "CwPAAAAAAAAAAAAAAAAAAAAAA",
+		},
+	}
+
+	var opts api.SimulationOptions
+	if err := opts.FromSimulationOptionsTopGear(topGear); err != nil {
+		return api.SimulationOptions{}, fmt.Errorf("encode top gear options: %w", err)
+	}
+
+	return opts, nil
+}
+
+func intString(value int) string {
+	return strconv.Itoa(value)
+}
+
+func baseSingletonLines() []string {
+	return []string{
 		"head=,id=250458,bonus_id=6652/12667/13577/13333/12787",
 		"neck=,id=249626,gem_id=213494,bonus_id=12793/6652/13668",
 		"shoulder=,id=249968,bonus_id=13574/13340/6652/13574/12793",
@@ -57,63 +349,24 @@ func TestGenerateProfileSets(t *testing.T) {
 		"waist=,id=249659,bonus_id=6652/12667/13578/12770",
 		"legs=,id=257213,bonus_id=13634",
 		"feet=,id=256973,bonus_id=43/13578/12771",
+		"main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652",
+	}
+}
+
+func baseRingLines() []string {
+	return []string{
 		"finger1=,id=256971,gem_id=240865,bonus_id=12769/6652/13668",
 		"finger2=,id=256985,gem_id=213491,bonus_id=12778/6652/13668",
+	}
+}
+
+func baseTrinketLines() []string {
+	return []string{
 		"trinket1=,id=250226,bonus_id=12785/13439/6652/12699",
 		"trinket2=,id=251787,bonus_id=12786/6652",
-		"head=,id=249952,enchant_id=7961,bonus_id=6652/12667/13440/13338/13575/12798",
-		"neck=,id=249626,gem_id=240983,bonus_id=6652/13668/12794",
-		"shoulder=,id=249950,enchant_id=8031,bonus_id=6652/13440/13340/13574/12798",
-		"back=,id=257175,bonus_id=6652/13577/12790",
-		"chest=,id=249955,enchant_id=7987,bonus_id=6652/13440/13336/13575/12798",
-		"shirt=,id=3428",
-		"tabard=,id=69210",
-		"wrist=,id=249326,gem_id=240869,bonus_id=6652/13534/13577/13334/12794",
-		"hands=,id=249953,bonus_id=13334/13337/6652/13574/12795",
-		"waist=,id=249331,bonus_id=6652/12667/13577/13334/12795",
-		"legs=,id=249951,enchant_id=8163,bonus_id=6652/12795/13440/13339/13575/3151",
-		"feet=,id=251169,enchant_id=7963,bonus_id=13440/6652/13577/12699/12798",
-		"finger1=,id=151308,enchant_id=7969,gem_id=240900,bonus_id=12795/13440/42/13668/12699",
-		"finger2=,id=251115,enchant_id=7969,gem_id=240892,bonus_id=12795/13440/6652/13668/12699",
-		"trinket1=,id=252420,bonus_id=12795/13440/42/12699",
-		"trinket2=,id=249342,bonus_id=6652/13333/12790",
-		"main_hand=,id=237846,enchant_id=8039,bonus_id=12214/12497/12066/12693/8960/8793/13622/13667,crafted_stats=36/49,crafting_quality=5",
-		"off_hand=,id=251078,enchant_id=7983,bonus_id=13440/6652/12701/12798",
-		"back=,id=258575,bonus_id=13439/6652/13577/12699/12786",
-		"back=,id=235499,enchant_id=7403,gem_id=238046,bonus_id=12401/9893/12256",
-		"back=,id=193712,bonus_id=12795/13440/6652/13577/12699",
-		"chest=,id=193705,enchant_id=7957,bonus_id=13439/41/13577/12699/12790",
-		"chest=,id=193705,bonus_id=12795/13440/6652/13577/12699",
-		"wrist=,id=151328,bonus_id=13439/6652/12667/13577/12699/12790",
-		"wrist=,id=249660,bonus_id=6652/12667/13577/12790",
-		"hands=,id=251081,bonus_id=12795/13440/6652/13577/12699",
-		"waist=,id=251086,bonus_id=12795/13440/6652/13534/13577/12699",
-		"legs=,id=250457,bonus_id=41/13577/13333/12787",
-		"feet=,id=237917,bonus_id=12249/12248/4785/12496/8960/12384/8793/13620,crafted_stats=49/32,crafting_quality=4",
-		"finger1=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
-		"finger1=,id=251194,enchant_id=8021,gem_id=240885,bonus_id=13439/6652/13668/12699/12782",
-		"finger1=,id=265814,bonus_id=13639",
-		"finger1=,id=251115,enchant_id=8021,gem_id=240885,bonus_id=13439/6652/13668/12699/12782",
-		"trinket1=,id=250227,bonus_id=12795/13440/6652/12699",
 	}
+}
 
-	equipment := make([]api.AddonExportEquipmentItem, 0, len(lines))
-	for _, line := range lines {
-		item, ok := simc.ParseEquipmentItem("", line, api.Equipped)
-		if !ok {
-			t.Fatalf("failed to parse item line: %s", line)
-		}
-		equipment = append(equipment, item)
-	}
-
-	slotsEquipment := make(map[api.AddonExportEquipmentSlot][]api.AddonExportEquipmentItem)
-	for _, eq := range equipment {
-		slotsEquipment[eq.Slot] = append(slotsEquipment[eq.Slot], eq)
-	}
-
-	for slot, items := range slotsEquipment {
-		log.Printf("%v: has %v item(s)", slot, len(items))
-	}
-
-	_ = equipment
+func extraHeadLine() string {
+	return "head=,id=249952,enchant_id=7961,bonus_id=6652/12667/13440/13338/13575/12798"
 }
