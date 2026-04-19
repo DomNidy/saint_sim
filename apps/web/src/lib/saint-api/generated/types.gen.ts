@@ -65,6 +65,29 @@ export const AddonExportEquipmentSource = { EQUIPPED: 'equipped', BAG: 'bag' } a
 
 export type AddonExportEquipmentSource = typeof AddonExportEquipmentSource[keyof typeof AddonExportEquipmentSource];
 
+export const AddonExportEquipmentSlot = {
+    HEAD: 'head',
+    NECK: 'neck',
+    SHOULDER: 'shoulder',
+    BACK: 'back',
+    CHEST: 'chest',
+    WRIST: 'wrist',
+    HANDS: 'hands',
+    WAIST: 'waist',
+    LEGS: 'legs',
+    FEET: 'feet',
+    FINGER1: 'finger1',
+    FINGER2: 'finger2',
+    TRINKET1: 'trinket1',
+    TRINKET2: 'trinket2',
+    MAIN_HAND: 'main_hand',
+    OFF_HAND: 'off_hand',
+    SHIRT: 'shirt',
+    TABARD: 'tabard'
+} as const;
+
+export type AddonExportEquipmentSlot = typeof AddonExportEquipmentSlot[keyof typeof AddonExportEquipmentSlot];
+
 /**
  * A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
  */
@@ -89,7 +112,7 @@ export type AddonExportSlotHighWatermark = {
 
 export type AddonExportEquipmentItem = {
     fingerprint: string;
-    slot: string;
+    slot: AddonExportEquipmentSlot;
     name: string;
     display_name: string;
     item_id: number;
