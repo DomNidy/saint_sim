@@ -12,6 +12,10 @@ import (
 const simcNoArgumentsExitCode = 50
 const simcProfileFileMode = 0o600
 
+type Runner interface {
+	Run(ctx context.Context, profilePath string) ([]byte, error)
+}
+
 type simcRunner struct {
 	// simc binary path
 	binaryPath string

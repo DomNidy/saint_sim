@@ -20,8 +20,8 @@ import (
 )
 
 type simulationWorker struct {
-	runner simcRunner
-	store  SimulationStore
+	runner Runner
+	store  Store
 }
 
 func (worker simulationWorker) Start(
@@ -213,5 +213,6 @@ func (worker simulationWorker) processTopGear(
 	if err != nil {
 		return fmt.Errorf("could not cast to topGear: %w", err)
 	}
+
 	return nil
 }
