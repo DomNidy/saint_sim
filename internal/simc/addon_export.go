@@ -495,9 +495,14 @@ func emptyEquipmentItem() api.AddonExportEquipmentItem {
 	}
 }
 
-func parseEquipmentAssignment(line string) (string, map[string]string, bool) {
-	slot, rest, ok := strings.Cut(line, "=")
-	if !ok || slot == "" {
+func parseEquipmentAssignment(line string) (api.AddonExportEquipmentSlot, map[string]string, bool) {
+	rawSlot, rest, foundAssignment := strings.Cut(line, "=")
+	if !foundAssignment || rawSlot == "" {
+		return "", nil, false
+	}
+
+	slot, recognizedSlot := parseEquipmentSlot(rawSlot)
+	if !recognizedSlot {
 		return "", nil, false
 	}
 
@@ -517,6 +522,32 @@ func parseEquipmentAssignment(line string) (string, map[string]string, bool) {
 	}
 
 	return slot, attributes, true
+}
+
+func parseEquipmentSlot(value string) (api.AddonExportEquipmentSlot, bool) {
+	switch api.AddonExportEquipmentSlot(value) {
+	case api.Back,
+		api.Chest,
+		api.Feet,
+		api.Finger1,
+		api.Finger2,
+		api.Hands,
+		api.Head,
+		api.Legs,
+		api.MainHand,
+		api.Neck,
+		api.OffHand,
+		api.Shirt,
+		api.Shoulder,
+		api.Tabard,
+		api.Trinket1,
+		api.Trinket2,
+		api.Waist,
+		api.Wrist:
+		return api.AddonExportEquipmentSlot(value), true
+	default:
+		return "", false
+	}
 }
 
 func parseItemCommentMetadata(comment string) (string, *int) {

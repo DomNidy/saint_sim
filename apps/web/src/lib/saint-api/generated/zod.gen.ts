@@ -25,6 +25,27 @@ export const zParseAddonExportRequest = z.object({
 
 export const zAddonExportEquipmentSource = z.enum(['equipped', 'bag']);
 
+export const zAddonExportEquipmentSlot = z.enum([
+    'head',
+    'neck',
+    'shoulder',
+    'back',
+    'chest',
+    'wrist',
+    'hands',
+    'waist',
+    'legs',
+    'feet',
+    'finger1',
+    'finger2',
+    'trinket1',
+    'trinket2',
+    'main_hand',
+    'off_hand',
+    'shirt',
+    'tabard'
+]);
+
 /**
  * A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
  */
@@ -43,7 +64,7 @@ export const zAddonExportSlotHighWatermark = z.object({
 
 export const zAddonExportEquipmentItem = z.object({
     fingerprint: z.string(),
-    slot: z.string(),
+    slot: zAddonExportEquipmentSlot,
     name: z.string(),
     display_name: z.string(),
     item_id: z.int(),

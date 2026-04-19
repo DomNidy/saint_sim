@@ -263,6 +263,28 @@ components:
         - equipped
         - bag
 
+    addon_export_equipment_slot:
+      type: string
+      enum:
+        - head
+        - neck
+        - shoulder
+        - back
+        - chest
+        - wrist
+        - hands
+        - waist
+        - legs
+        - feet
+        - finger1
+        - finger2
+        - trinket1
+        - trinket2
+        - main_hand
+        - off_hand
+        - shirt
+        - tabard
+
     addon_export_talent_loadout:
       type: object
       description: A saved talent loadout exported by the SimC addon, pairing the
@@ -304,7 +326,7 @@ components:
         fingerprint:
           type: string
         slot:
-          type: string
+          $ref: "#/components/schemas/addon_export_equipment_slot"
         name:
           type: string
         display_name:

@@ -34,7 +34,10 @@ import {
 	localStorageSet,
 	PREV_SIMC_PROFILE_KEY,
 } from "@/lib/local-storage";
-import type { AddonExportEquipmentItem } from "@/lib/saint-api/generated";
+import type {
+	AddonExportEquipmentItem,
+	AddonExportEquipmentSlot,
+} from "@/lib/saint-api/generated";
 import { zSimulationOptionsBasic } from "@/lib/saint-api/generated/zod.gen";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
 import { cn } from "@/lib/utils";
@@ -338,7 +341,10 @@ function SimulationForm() {
 }
 
 function groupEquipment(items: AddonExportEquipmentItem[]) {
-	const groupsBySlot = new Map<string, AddonExportEquipmentItem[]>();
+	const groupsBySlot = new Map<
+		AddonExportEquipmentSlot,
+		AddonExportEquipmentItem[]
+	>();
 
 	for (const item of items) {
 		const group = groupsBySlot.get(item.slot) ?? [];
@@ -376,7 +382,7 @@ function groupEquipment(items: AddonExportEquipmentItem[]) {
 	});
 }
 
-function slotLabel(slot: string) {
+function slotLabel(slot: AddonExportEquipmentSlot) {
 	const words = slot.split("_");
 	return words
 		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))

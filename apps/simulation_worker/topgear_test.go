@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"testing"
 
 	"github.com/google/uuid"
@@ -103,6 +104,15 @@ func TestGenerateProfileSets(t *testing.T) {
 			t.Fatalf("failed to parse item line: %s", line)
 		}
 		equipment = append(equipment, item)
+	}
+
+	slotsEquipment := make(map[api.AddonExportEquipmentSlot][]api.AddonExportEquipmentItem)
+	for _, eq := range equipment {
+		slotsEquipment[eq.Slot] = append(slotsEquipment[eq.Slot], eq)
+	}
+
+	for slot, items := range slotsEquipment {
+		log.Printf("%v: has %v item(s)", slot, len(items))
 	}
 
 	_ = equipment

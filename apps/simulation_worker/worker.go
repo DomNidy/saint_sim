@@ -214,10 +214,22 @@ func (worker simulationWorker) processTopGear(
 	ctx context.Context,
 	request simulationRequest,
 ) error {
-	_, err := request.options.AsSimulationOptionsTopGear()
+	opts, err := request.options.AsSimulationOptionsTopGear()
 	if err != nil {
 		return fmt.Errorf("could not cast to topGear: %w", err)
 	}
+
+	if opts.Equipment == nil {
+		return errors.New("missing equipment")
+	}
+
+	slotsEquipment := make(map[api.AddonExportEquipmentSlot][]api.AddonExportEquipmentItem)
+
+	for _, eq := range opts.Equipment {
+		slotsEquipment[eq.Slot] = append(slotsEquipment[eq.Slot], eq)
+	}
+
+	_ = slotsEquipment
 
 	return nil
 }
