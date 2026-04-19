@@ -4,10 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	api "github.com/DomNidy/saint_sim/internal/api"
 	dbqueries "github.com/DomNidy/saint_sim/internal/db"
@@ -57,20 +55,4 @@ func (store dbSimulationStore) UpdateSimulation(
 	updateOptions dbqueries.UpdateSimulationParams,
 ) (dbqueries.Simulation, error) {
 	return store.queries.UpdateSimulation(ctx, updateOptions)
-}
-
-func timestampValue(value time.Time) pgtype.Timestamptz {
-	return pgtype.Timestamptz{
-		Time:             value,
-		InfinityModifier: pgtype.Finite,
-		Valid:            true,
-	}
-}
-
-func invalidTimestamp() pgtype.Timestamptz {
-	return pgtype.Timestamptz{
-		Time:             time.Time{},
-		InfinityModifier: pgtype.Finite,
-		Valid:            false,
-	}
 }

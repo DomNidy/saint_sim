@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	pgx "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	amqp091 "github.com/rabbitmq/amqp091-go"
 
 	"github.com/DomNidy/saint_sim/internal/api"
@@ -170,9 +171,13 @@ func (worker simulationWorker) processBasic(
 	simResult := string(result)
 
 	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
-		ID:          request.id,
-		SimResult:   &simResult,
-		CompletedAt: timestampValue(time.Now().UTC()),
+		ID:        request.id,
+		SimResult: &simResult,
+		CompletedAt: pgtype.Timestamptz{
+			Time:             time.Now().UTC(),
+			InfinityModifier: pgtype.Finite,
+			Valid:            true,
+		},
 		Status: db.NullSimulationStatus{
 			SimulationStatus: db.SimulationStatusComplete,
 			Valid:            true,
