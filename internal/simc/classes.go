@@ -4,6 +4,7 @@ package simc
 // a character class.
 type tciClassIdentifier string
 
+// TODO: Move this up into openapi spec & autogenerate it
 const (
 	Warrior     tciClassIdentifier = "warrior"
 	Hunter      tciClassIdentifier = "hunter"

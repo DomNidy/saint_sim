@@ -154,7 +154,7 @@ func parseCommentLine(
 	}
 
 	if state.inBagSection && looksLikeEquipmentLine(comment) {
-		if item, ok := parseEquipmentItem(state.pendingEquipmentName, comment, true); ok {
+		if item, ok := ParseEquipmentItem(state.pendingEquipmentName, comment, api.Bag); ok {
 			*export.Equipment = append(*export.Equipment, item)
 		}
 
@@ -199,7 +199,11 @@ func parseAssignmentLine(
 	}
 
 	if looksLikeEquipmentLine(line) {
-		if item, itemOK := parseEquipmentItem(state.pendingEquipmentName, line, false); itemOK {
+		if item, itemOK := ParseEquipmentItem(
+			state.pendingEquipmentName,
+			line,
+			api.Equipped, // api.Equipped source bc this is an assignment line
+		); itemOK {
 			*export.Equipment = append(*export.Equipment, item)
 		}
 
@@ -426,10 +430,13 @@ func looksLikeExportHeaderComment(comment string) bool {
 	return strings.Count(comment, " - ") >= exportHeaderSeparatorCount
 }
 
-func parseEquipmentItem(
+// ParseEquipmentItem takes a raw TCI line (and optional preceding comment to
+// attempt to extract item name from), and parses it into a structured item
+// representation.
+func ParseEquipmentItem(
 	commentName string,
 	rawLine string,
-	bagItem bool,
+	source api.AddonExportEquipmentSource,
 ) (api.AddonExportEquipmentItem, bool) {
 	slot, attributes, foundAssignment := parseEquipmentAssignment(rawLine)
 	if !foundAssignment {
@@ -453,15 +460,8 @@ func parseEquipmentItem(
 		displayName = fmt.Sprintf("Item %d", itemID)
 	}
 
-	source := api.Equipped
-	sourceName := "equipped"
-	if bagItem {
-		source = api.Bag
-		sourceName = "bag"
-	}
-
 	return api.AddonExportEquipmentItem{
-		Fingerprint:     fingerprintForItem(rawLine, sourceName),
+		Fingerprint:     fingerprintForItem(rawLine, source),
 		Slot:            slot,
 		Name:            displayName,
 		DisplayName:     displayName,
@@ -632,8 +632,8 @@ func firstNonNil(values ...*int) *int {
 	return nil
 }
 
-func fingerprintForItem(rawLine, source string) string {
-	normalized := strings.TrimSpace(strings.ToLower(rawLine)) + "|" + source
+func fingerprintForItem(rawLine string, source api.AddonExportEquipmentSource) string {
+	normalized := strings.TrimSpace(strings.ToLower(rawLine)) + "|" + string(source)
 	hash := sha256.Sum256([]byte(normalized))
 
 	return hex.EncodeToString(hash[:])

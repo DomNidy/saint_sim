@@ -13,7 +13,7 @@ import (
 	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 )
 
-type SimulationStore interface {
+type Store interface {
 	LoadRequest(ctx context.Context, requestID uuid.UUID) (simulationRequest, error)
 	UpdateSimulation(
 		ctx context.Context,
