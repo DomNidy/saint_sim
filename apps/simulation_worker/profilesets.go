@@ -1,4 +1,3 @@
-// Package main hosts the simulation worker executable.
 package main
 
 import (
@@ -13,6 +12,19 @@ import (
 const maxGeneratedProfilesets = 1000
 const minPairedItems = 2
 
+// maxCopiesPerPairedItem caps how many stat‑identical copies of a ring or
+// trinket may enter the candidate pool. Two is the ceiling because there are
+// exactly two finger / two trinket slots; a third copy could never produce a
+// distinct loadout.
+const maxCopiesPerPairedItem = 2
+
+// noItemIndex marks a profileset slot as intentionally empty (currently only
+// off_hand, for two‑handed weapon setups).
+const noItemIndex = -1
+
+// emptyOffHandLine is the simc assignment emitted for an empty off‑hand slot.
+const emptyOffHandLine = "off_hand=,"
+
 var (
 	errTopGearMissingRawLine       = errors.New("top gear equipment item missing raw_line")
 	errTopGearUnsupportedSlot      = errors.New("unsupported top gear slot")
@@ -21,161 +33,230 @@ var (
 	errTopGearInsufficientTrinkets = errors.New("need at least two distinct trinket candidates")
 	errTopGearMissingEquipment     = errors.New("missing top gear equipment")
 	errTopGearProfilesetLimit      = errors.New("top gear profileset count exceeds max")
+	errTopGearTooManyCopies        = errors.New(
+		"more than two copies of the same ring/trinket were provided",
+	)
 )
 
-// profileset is a fully materialized SimulationCraft profileset stanza.
+// profileset is one fully materialized gear loadout.
 //
-// Each field stores the raw assignment line that should be appended to the
-// generated `profileset."Name"+=...` output.
+// Each gear field holds an index into the original []api.EquipmentItem the
+// request was built from. Storing indices (rather than raw simc lines) means
+// the same struct serves two purposes:
+//   - Lines() turns it into the `profileset."ComboN"+=…` text fed to simc.
+//   - SlotIndices() is the compact per‑combo manifest returned to the client,
+//     so the result payload references items instead of duplicating them.
 type profileset struct {
-	// a name to identify this profileset.
-	// should be unique w.r.t other profileset,
-	// names in the simulation. (If a simc file
-	// has multiple profilesets w/ the same name,
-	// not what we want)
-	name     string
-	head     string
-	neck     string
-	shoulder string
-	back     string
-	chest    string
-	wrist    string
-	hands    string
-	waist    string
-	legs     string
-	feet     string
-	finger1  string
-	finger2  string
-	trinket1 string
-	trinket2 string
-	mainHand string
-	offHand  string
-	talents  string
+	// name identifies this profileset within the simc input and is the join
+	// key against simc's json2 profilesets.results[].name.
+	name string
+
+	head     int
+	neck     int
+	shoulder int
+	back     int
+	chest    int
+	wrist    int
+	hands    int
+	waist    int
+	legs     int
+	feet     int
+	finger1  int
+	finger2  int
+	trinket1 int
+	trinket2 int
+	mainHand int
+	offHand  int // may be noItemIndex
+
+	talents string
 }
 
-// Profileset converts the loadout combination into the corresponding
-// lines for the profileset. These lines will be written to the simc profile.
-func (l *profileset) Profileset() []string {
-	fields := []string{
-		l.head,
-		l.neck,
-		l.shoulder,
-		l.back,
-		l.chest,
-		l.wrist,
-		l.hands,
-		l.waist,
-		l.legs,
-		l.feet,
-		l.finger1,
-		l.finger2,
-		l.trinket1,
-		l.trinket2,
-		l.mainHand,
-		l.offHand,
-		l.talents,
+// newProfileset returns a profileset with every gear slot set to noItemIndex
+// so an accidentally‑unset slot is loudly wrong (index ‑1) rather than
+// silently aliasing equipment[0].
+func newProfileset() profileset {
+	return profileset{
+		head: noItemIndex, neck: noItemIndex, shoulder: noItemIndex,
+		back: noItemIndex, chest: noItemIndex, wrist: noItemIndex,
+		hands: noItemIndex, waist: noItemIndex, legs: noItemIndex,
+		feet: noItemIndex, finger1: noItemIndex, finger2: noItemIndex,
+		trinket1: noItemIndex, trinket2: noItemIndex,
+		mainHand: noItemIndex, offHand: noItemIndex,
+	}
+}
+
+// Lines converts the loadout into the `profileset."Name"+=…` lines that will
+// be appended to the simc profile. equipment must be the same slice that
+// buildTopGearCandidatePools was called with.
+func (l *profileset) Lines(equipment []api.EquipmentItem) []string {
+	type slotLine struct {
+		idx      int
+		retarget api.EquipmentSlot // "" => emit RawLine as‑is
 	}
 
-	const exLinesPerProfileset = 17 // 17 lines per profileset (16 for gear, 1 for talent)
+	slots := []slotLine{
+		{l.head, ""}, {l.neck, ""}, {l.shoulder, ""}, {l.back, ""},
+		{l.chest, ""}, {l.wrist, ""}, {l.hands, ""}, {l.waist, ""},
+		{l.legs, ""}, {l.feet, ""},
+		{l.finger1, api.Finger1}, {l.finger2, api.Finger2},
+		{l.trinket1, api.Trinket1}, {l.trinket2, api.Trinket2},
+		{l.mainHand, ""}, {l.offHand, api.OffHand},
+	}
 
+	const exLinesPerProfileset = 17 // 16 gear + 1 talents
 	lines := make([]string, 0, exLinesPerProfileset)
 
-	profilesetLine := func(line string) string {
-		return fmt.Sprintf(`profileset."%s"+=%s`, l.name, line)
+	emit := func(raw string) {
+		lines = append(lines, fmt.Sprintf(`profileset."%s"+=%s`, l.name, raw))
 	}
 
-	for _, field := range fields {
-		lines = append(lines, profilesetLine(field))
+	for _, s := range slots {
+		switch {
+		case s.idx == noItemIndex && s.retarget == api.OffHand:
+			emit(emptyOffHandLine)
+		case s.idx == noItemIndex:
+			// Required slot left unset — this indicates a bug in generation.
+			panic(fmt.Sprintf("profileset %q has unset required slot", l.name))
+		case s.retarget != "":
+			emit(retargetEquipmentLine(equipment[s.idx].RawLine, s.retarget))
+		default:
+			emit(equipment[s.idx].RawLine)
+		}
 	}
+
+	emit("talents=" + l.talents)
 
 	return lines
 }
 
+// SlotIndices returns the equipment‑array index chosen for each slot in this
+// loadout, omitting empty slots. This is the per‑profileset payload for the
+// top‑gear result contract (`{head: int, neck: int, …}`).
+func (l *profileset) SlotIndices() map[api.EquipmentSlot]int {
+	out := map[api.EquipmentSlot]int{
+		api.Head:     l.head,
+		api.Neck:     l.neck,
+		api.Shoulder: l.shoulder,
+		api.Back:     l.back,
+		api.Chest:    l.chest,
+		api.Wrist:    l.wrist,
+		api.Hands:    l.hands,
+		api.Waist:    l.waist,
+		api.Legs:     l.legs,
+		api.Feet:     l.feet,
+		api.Finger1:  l.finger1,
+		api.Finger2:  l.finger2,
+		api.Trinket1: l.trinket1,
+		api.Trinket2: l.trinket2,
+		api.MainHand: l.mainHand,
+	}
+	if l.offHand != noItemIndex {
+		out[api.OffHand] = l.offHand
+	}
+	return out
+}
+
 // topGearCandidatePools is the organized set of gear choices we can build
-// profilesets from.
+// profilesets from. Every entry is an index into the request's equipment slice.
 type topGearCandidatePools struct {
-	head     []string
-	neck     []string
-	shoulder []string
-	back     []string
-	chest    []string
-	wrist    []string
-	hands    []string
-	waist    []string
-	legs     []string
-	feet     []string
-	rings    []string
-	trinkets []string
-	mainHand []string
-	offHand  []string
+	head     []int
+	neck     []int
+	shoulder []int
+	back     []int
+	chest    []int
+	wrist    []int
+	hands    []int
+	waist    []int
+	legs     []int
+	feet     []int
+	rings    []int
+	trinkets []int
+	mainHand []int
+	offHand  []int
 }
 
 // singletonPool represents one normal gear slot where we simply pick one item
 // from the available choices.
 type singletonPool struct {
-	slot  string
-	lines []string
-	set   func(*profileset, string)
+	slot    string
+	indices []int
+	set     func(*profileset, int)
 }
 
-// slotPair is one chosen pair of interchangeable items, like two rings or two
-// trinkets.
+// slotPair is one chosen pair of interchangeable items (rings or trinkets),
+// expressed as equipment indices.
 type slotPair struct {
-	first  string
-	second string
+	first  int
+	second int
+}
+
+// simIdentity returns a canonical key for "same item as far as SimC is
+// concerned". Two EquipmentItems with the same simIdentity will produce
+// identical stats when assigned to the same slot, so the worker treats them as
+// copies of one item.
+//
+// Deliberately excludes:
+//   - Slot prefix (finger1= vs finger2= is an assignment detail, not an item
+//     property)
+//   - Source (equipped vs bag is inventory metadata, irrelevant to simc)
+func simIdentity(item api.EquipmentItem) string {
+	_, attrs, _ := strings.Cut(item.RawLine, "=")
+	return strings.ToLower(strings.TrimSpace(attrs))
 }
 
 // buildTopGearCandidatePools normalizes the API equipment payload into the
 // pools used by counting and generation.
 //
-// The normalization rules are intentionally different for singleton slots vs
-// ring/trinket pools:
-//   - singleton slots are deduplicated by raw line, because picking two copies
-//     of the exact same simc assignment would only create duplicate profilesets
-//   - rings/trinkets are deduplicated by item instance identity so two copies of
-//     the same item can still be paired when they come from different sources
+// Dedup rules:
+//   - Singleton slots: keep one entry per simIdentity. Two items that produce
+//     identical simc assignments would only generate duplicate profilesets.
+//   - Rings/trinkets: keep up to maxCopiesPerPairedItem entries per
+//     simIdentity, so owning two stat‑identical rings still allows an (A, A)
+//     pair. A third copy is rejected — it could never yield a new loadout.
 func buildTopGearCandidatePools(
 	equipment []api.EquipmentItem,
 ) (topGearCandidatePools, error) {
 	var pools topGearCandidatePools
 
-	singletonDestinations := map[api.EquipmentSlot]*[]string{
-		api.Head: &pools.head, api.Neck: &pools.neck, api.Shoulder: &pools.shoulder,
-		api.Back: &pools.back, api.Chest: &pools.chest, api.Wrist: &pools.wrist,
-		api.Hands: &pools.hands, api.Waist: &pools.waist, api.Legs: &pools.legs,
-		api.Feet: &pools.feet, api.MainHand: &pools.mainHand, api.OffHand: &pools.offHand,
+	singletonDestinations := map[api.EquipmentSlot]*[]int{
+		api.Head:     &pools.head,
+		api.Neck:     &pools.neck,
+		api.Shoulder: &pools.shoulder,
+		api.Back:     &pools.back,
+		api.Chest:    &pools.chest,
+		api.Wrist:    &pools.wrist,
+		api.Hands:    &pools.hands,
+		api.Waist:    &pools.waist,
+		api.Legs:     &pools.legs,
+		api.Feet:     &pools.feet,
+		api.MainHand: &pools.mainHand,
+		api.OffHand:  &pools.offHand,
 	}
 
-	// Singleton slots: dedup by raw simc line - identical assignments would
-	// only produce duplicate profilesets.
 	singletonSeen := map[api.EquipmentSlot]*set.Set[string]{}
-	appendSingleton := func(item api.EquipmentItem, dest *[]string) {
+	appendSingleton := func(idx int, item api.EquipmentItem, dest *[]int) {
 		seen, ok := singletonSeen[item.Slot]
 		if !ok {
 			seen = set.New[string]()
 			singletonSeen[item.Slot] = seen
 		}
-		if seen.Add(item.RawLine) {
-			*dest = append(*dest, item.RawLine)
+		if seen.Add(simIdentity(item)) {
+			*dest = append(*dest, idx)
 		}
 	}
 
-	// Paired slots: dedup by *instance identity* so two copies of the same
-	// item from different sources can still be worn together.
-	instanceIdentity := func(item api.EquipmentItem) string {
-		if item.Fingerprint != "" {
-			return item.Fingerprint
+	ringCopies, trinketCopies := map[string]int{}, map[string]int{}
+	appendPaired := func(copies map[string]int, idx int, item api.EquipmentItem, dest *[]int) error {
+		id := simIdentity(item)
+		if copies[id] >= maxCopiesPerPairedItem {
+			return fmt.Errorf("%w: %s", errTopGearTooManyCopies, item.DisplayName)
 		}
-		return item.RawLine + "|" + string(item.Source)
-	}
-	ringsSeen, trinketsSeen := set.New[string](), set.New[string]()
-	appendInstance := func(seen *set.Set[string], item api.EquipmentItem, dest *[]string) {
-		if seen.Add(instanceIdentity(item)) {
-			*dest = append(*dest, item.RawLine)
-		}
+		copies[id]++
+		*dest = append(*dest, idx)
+		return nil
 	}
 
-	for _, item := range equipment {
+	for idx, item := range equipment {
 		if item.RawLine == "" {
 			return topGearCandidatePools{}, fmt.Errorf(
 				"%w: %q",
@@ -186,11 +267,15 @@ func buildTopGearCandidatePools(
 
 		switch {
 		case isRingSlot(item.Slot):
-			appendInstance(ringsSeen, item, &pools.rings)
+			if err := appendPaired(ringCopies, idx, item, &pools.rings); err != nil {
+				return topGearCandidatePools{}, err
+			}
 		case isTrinketSlot(item.Slot):
-			appendInstance(trinketsSeen, item, &pools.trinkets)
+			if err := appendPaired(trinketCopies, idx, item, &pools.trinkets); err != nil {
+				return topGearCandidatePools{}, err
+			}
 		case isIgnoredTopGearSlot(item.Slot):
-			// cosmetic — not part of top-gear generation
+			// cosmetic slots don't participate in top‑gear generation
 		default:
 			dest, ok := singletonDestinations[item.Slot]
 			if !ok {
@@ -200,7 +285,7 @@ func buildTopGearCandidatePools(
 					item.Slot,
 				)
 			}
-			appendSingleton(item, dest)
+			appendSingleton(idx, item, dest)
 		}
 	}
 
@@ -209,17 +294,17 @@ func buildTopGearCandidatePools(
 
 func (p topGearCandidatePools) singletonPools() []singletonPool {
 	return []singletonPool{
-		{slot: "head", lines: p.head, set: setHead},
-		{slot: "neck", lines: p.neck, set: setNeck},
-		{slot: "shoulder", lines: p.shoulder, set: setShoulder},
-		{slot: "back", lines: p.back, set: setBack},
-		{slot: "chest", lines: p.chest, set: setChest},
-		{slot: "wrist", lines: p.wrist, set: setWrist},
-		{slot: "hands", lines: p.hands, set: setHands},
-		{slot: "waist", lines: p.waist, set: setWaist},
-		{slot: "legs", lines: p.legs, set: setLegs},
-		{slot: "feet", lines: p.feet, set: setFeet},
-		{slot: "main_hand", lines: p.mainHand, set: setMainHand},
+		{slot: "head", indices: p.head, set: setHead},
+		{slot: "neck", indices: p.neck, set: setNeck},
+		{slot: "shoulder", indices: p.shoulder, set: setShoulder},
+		{slot: "back", indices: p.back, set: setBack},
+		{slot: "chest", indices: p.chest, set: setChest},
+		{slot: "wrist", indices: p.wrist, set: setWrist},
+		{slot: "hands", indices: p.hands, set: setHands},
+		{slot: "waist", indices: p.waist, set: setWaist},
+		{slot: "legs", indices: p.legs, set: setLegs},
+		{slot: "feet", indices: p.feet, set: setFeet},
+		{slot: "main_hand", indices: p.mainHand, set: setMainHand},
 	}
 }
 
@@ -234,11 +319,10 @@ func countTopGearProfilesets(equipment []api.EquipmentItem) (int, error) {
 	total := 1
 
 	for _, pool := range pools.singletonPools() {
-		if len(pool.lines) == 0 {
+		if len(pool.indices) == 0 {
 			return 0, fmt.Errorf("%w: %q", errTopGearMissingRequiredSlot, pool.slot)
 		}
-
-		total *= len(pool.lines)
+		total *= len(pool.indices)
 	}
 
 	if len(pools.rings) < minPairedItems {
@@ -251,10 +335,8 @@ func countTopGearProfilesets(equipment []api.EquipmentItem) (int, error) {
 	}
 	total *= unorderedPairCount(len(pools.trinkets))
 
-	// off_hand is intentionally optional for two-handed weapon setups.
-	if len(pools.offHand) == 0 {
-		total *= 1
-	} else {
+	// off_hand is intentionally optional for two‑handed weapon setups.
+	if len(pools.offHand) > 0 {
 		total *= len(pools.offHand)
 	}
 
@@ -284,14 +366,15 @@ func generateTopGearProfilesets(
 	trinketPairs := makeUnorderedPairs(pools.trinkets)
 
 	profilesets := make([]profileset, 0, count)
-	var base profileset
-	base.talents = "talents=" + talents
+	base := newProfileset()
+	base.talents = talents
 
-	comboIndex := 1
 	offHandOptions := pools.offHand
 	if len(offHandOptions) == 0 {
-		offHandOptions = []string{"off_hand=,"}
+		offHandOptions = []int{noItemIndex}
 	}
+
+	comboIndex := 1
 
 	var buildSingletons func(poolIndex int, current profileset)
 	buildSingletons = func(poolIndex int, current profileset) {
@@ -304,14 +387,13 @@ func generateTopGearProfilesets(
 				offHandOptions,
 				comboIndex,
 			)
-
 			return
 		}
 
 		pool := singletonPools[poolIndex]
-		for _, line := range pool.lines {
+		for _, idx := range pool.indices {
 			next := current
-			pool.set(&next, line)
+			pool.set(&next, idx)
 			buildSingletons(poolIndex+1, next)
 		}
 	}
@@ -325,30 +407,24 @@ func unorderedPairCount(itemCount int) int {
 	if itemCount < minPairedItems {
 		return 0
 	}
-
 	return itemCount * (itemCount - 1) / minPairedItems
 }
 
-func makeUnorderedPairs(lines []string) []slotPair {
-	pairs := make([]slotPair, 0, unorderedPairCount(len(lines)))
-	for leftIndex := range lines {
-		for rightIndex := leftIndex + 1; rightIndex < len(lines); rightIndex++ {
-			pairs = append(pairs, slotPair{
-				first:  lines[leftIndex],
-				second: lines[rightIndex],
-			})
+func makeUnorderedPairs(indices []int) []slotPair {
+	pairs := make([]slotPair, 0, unorderedPairCount(len(indices)))
+	for left := range indices {
+		for right := left + 1; right < len(indices); right++ {
+			pairs = append(pairs, slotPair{first: indices[left], second: indices[right]})
 		}
 	}
-
 	return pairs
 }
 
 func retargetEquipmentLine(line string, slot api.EquipmentSlot) string {
-	_, rest, foundAssignment := strings.Cut(line, "=")
-	if !foundAssignment {
+	_, rest, found := strings.Cut(line, "=")
+	if !found {
 		return line
 	}
-
 	return string(slot) + "=" + rest
 }
 
@@ -357,23 +433,23 @@ func appendCompletedProfilesets(
 	current profileset,
 	ringPairs []slotPair,
 	trinketPairs []slotPair,
-	offHandOptions []string,
+	offHandOptions []int,
 	startingIndex int,
 ) int {
 	nextComboIndex := startingIndex
 
 	// Rings and trinkets are pooled separately because their slots are
-	// interchangeable. We only emit unordered pairs, so A/B appears once instead
-	// of again as the mirror swap.
+	// interchangeable. We only emit unordered pairs, so A/B appears once
+	// instead of again as the mirror swap.
 	for _, rings := range ringPairs {
 		withRings := current
-		withRings.finger1 = retargetEquipmentLine(rings.first, api.Finger1)
-		withRings.finger2 = retargetEquipmentLine(rings.second, api.Finger2)
+		withRings.finger1 = rings.first
+		withRings.finger2 = rings.second
 
 		for _, trinkets := range trinketPairs {
 			withTrinkets := withRings
-			withTrinkets.trinket1 = retargetEquipmentLine(trinkets.first, api.Trinket1)
-			withTrinkets.trinket2 = retargetEquipmentLine(trinkets.second, api.Trinket2)
+			withTrinkets.trinket1 = trinkets.first
+			withTrinkets.trinket2 = trinkets.second
 
 			for _, offHand := range offHandOptions {
 				complete := withTrinkets
@@ -400,46 +476,14 @@ func isIgnoredTopGearSlot(slot api.EquipmentSlot) bool {
 	return slot == api.Shirt || slot == api.Tabard
 }
 
-func setHead(profile *profileset, line string) {
-	profile.head = line
-}
-
-func setNeck(profile *profileset, line string) {
-	profile.neck = line
-}
-
-func setShoulder(profile *profileset, line string) {
-	profile.shoulder = line
-}
-
-func setBack(profile *profileset, line string) {
-	profile.back = line
-}
-
-func setChest(profile *profileset, line string) {
-	profile.chest = line
-}
-
-func setWrist(profile *profileset, line string) {
-	profile.wrist = line
-}
-
-func setHands(profile *profileset, line string) {
-	profile.hands = line
-}
-
-func setWaist(profile *profileset, line string) {
-	profile.waist = line
-}
-
-func setLegs(profile *profileset, line string) {
-	profile.legs = line
-}
-
-func setFeet(profile *profileset, line string) {
-	profile.feet = line
-}
-
-func setMainHand(profile *profileset, line string) {
-	profile.mainHand = line
-}
+func setHead(p *profileset, i int)     { p.head = i }
+func setNeck(p *profileset, i int)     { p.neck = i }
+func setShoulder(p *profileset, i int) { p.shoulder = i }
+func setBack(p *profileset, i int)     { p.back = i }
+func setChest(p *profileset, i int)    { p.chest = i }
+func setWrist(p *profileset, i int)    { p.wrist = i }
+func setHands(p *profileset, i int)    { p.hands = i }
+func setWaist(p *profileset, i int)    { p.waist = i }
+func setLegs(p *profileset, i int)     { p.legs = i }
+func setFeet(p *profileset, i int)     { p.feet = i }
+func setMainHand(p *profileset, i int) { p.mainHand = i }

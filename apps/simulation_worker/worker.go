@@ -168,7 +168,8 @@ func (worker simulationWorker) processBasic(
 		return fmt.Errorf("run simulation: %w", err)
 	}
 
-	simResult := string(result)
+	simResult := string(result.Stdout)
+	_ = result.JSON2 // TODO: persist to simulation.simc_raw_json2 once the column exists.
 
 	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
 		ID:        request.id,
