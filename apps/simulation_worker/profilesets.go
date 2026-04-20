@@ -41,11 +41,7 @@ var (
 // profileset is one fully materialized gear loadout.
 //
 // Each gear field holds an index into the original []api.EquipmentItem the
-// request was built from. Storing indices (rather than raw simc lines) means
-// the same struct serves two purposes:
-//   - Lines() turns it into the `profileset."ComboN"+=…` text fed to simc.
-//   - SlotIndices() is the compact per‑combo manifest returned to the client,
-//     so the result payload references items instead of duplicating them.
+// request was built from. Storing indices (rather than raw simc lines)
 type profileset struct {
 	// name identifies this profileset within the simc input and is the join
 	// key against simc's json2 profilesets.results[].name.
@@ -458,18 +454,49 @@ func (m *topGearManifest) SimcLines() ([]string, error) {
 
 	var out []string
 
-	// write the base profile just the name, race and level
-	// each profileset we built overrides all slots,
-	// so the base profile doesn't need to have anything else.
+	// write the base profile: name, race and level
+	// we need to take one of the profilesets and use it to "seed"
+	// the base profile with a baseline set of equipment. We'll use the
+	// first profileset for this purpose
 
 	baseLines := []string{
 		fmt.Sprintf(`%s="%s"`, m.characterClass, m.characterName),
 		fmt.Sprintf(`level=%v`, m.level),
 		fmt.Sprintf(`race=%s`, m.race),
 		fmt.Sprintf(`spec=%s`, m.spec),
+		"iterations=5", // for testing purposes
+	}
+
+	seedProfileset := m.profilesets[0]
+
+	baseEquipment := []string{
+		m.equipment[seedProfileset.head].RawLine,
+		m.equipment[seedProfileset.neck].RawLine,
+		m.equipment[seedProfileset.shoulder].RawLine,
+		m.equipment[seedProfileset.back].RawLine,
+		m.equipment[seedProfileset.chest].RawLine,
+		m.equipment[seedProfileset.wrist].RawLine,
+		m.equipment[seedProfileset.hands].RawLine,
+		m.equipment[seedProfileset.waist].RawLine,
+		m.equipment[seedProfileset.legs].RawLine,
+		m.equipment[seedProfileset.feet].RawLine,
+		retargetEquipmentLine(m.equipment[seedProfileset.finger1].RawLine, api.Finger1),
+		retargetEquipmentLine(m.equipment[seedProfileset.finger2].RawLine, api.Finger2),
+		retargetEquipmentLine(m.equipment[seedProfileset.trinket1].RawLine, api.Trinket1),
+		retargetEquipmentLine(m.equipment[seedProfileset.trinket2].RawLine, api.Trinket2),
+		m.equipment[seedProfileset.mainHand].RawLine,
+	}
+	if seedProfileset.offHand == noItemIndex {
+		baseEquipment = append(baseEquipment, emptyOffHandLine)
+	} else {
+		baseEquipment = append(
+			baseEquipment,
+			retargetEquipmentLine(m.equipment[seedProfileset.offHand].RawLine, api.OffHand),
+		)
 	}
 
 	out = append(out, baseLines...)
+	out = append(out, baseEquipment...)
 
 	// then, add all of the profileset lines!
 	for i := range m.profilesets {

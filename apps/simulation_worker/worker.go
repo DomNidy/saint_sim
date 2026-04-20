@@ -256,12 +256,15 @@ func (worker simulationWorker) processTopGear(
 		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
 	}
 
-	profileText, err := manifest.SimcLines()
+	profileLines, err := manifest.SimcLines()
 	if err != nil {
 		return fmt.Errorf("build top gear profile text: %w", err)
 	}
 
-	run, err := worker.runSimcOnProfile(ctx, strings.Join(profileText, "\n"))
+	profileText := strings.Join(profileLines, "\n")
+	log.Printf(profileText[:1500])
+
+	run, err := worker.runSimcOnProfile(ctx, profileText)
 	if err != nil {
 		return fmt.Errorf("run simulation: %w", err)
 	}
