@@ -11,6 +11,22 @@ export const zHealthResponse = z.object({
  */
 export const zSimcAddonExport = z.string().min(1);
 
+export const zCharacterClass = z.enum([
+    'warrior',
+    'hunter',
+    'monk',
+    'paladin',
+    'rogue',
+    'shaman',
+    'mage',
+    'warlock',
+    'druid',
+    'deathknight',
+    'priest',
+    'demonhunter',
+    'evoker'
+]);
+
 /**
  * Specifies simulation options to send to the API.
  */
@@ -25,7 +41,7 @@ export const zParseAddonExportRequest = z.object({
 
 export const zAddonExportEquipmentSource = z.enum(['equipped', 'bag']);
 
-export const zAddonExportEquipmentSlot = z.enum([
+export const zEquipmentSlot = z.enum([
     'head',
     'neck',
     'shoulder',
@@ -62,9 +78,9 @@ export const zAddonExportSlotHighWatermark = z.object({
     max_item_level: z.int()
 });
 
-export const zAddonExportEquipmentItem = z.object({
+export const zEquipmentItem = z.object({
     fingerprint: z.string(),
-    slot: zAddonExportEquipmentSlot,
+    slot: zEquipmentSlot,
     name: z.string(),
     display_name: z.string(),
     item_id: z.int(),
@@ -83,11 +99,11 @@ export const zAddonExportEquipmentItem = z.object({
  */
 export const zSimulationOptionsTopGear = z.object({
     character_name: z.string(),
-    class: z.string(),
+    class: zCharacterClass,
     spec: z.string(),
     role: z.unknown(),
     talent_loadout: zAddonExportTalentLoadout,
-    equipment: z.array(zAddonExportEquipmentItem),
+    equipment: z.array(zEquipmentItem),
     kind: z.enum(['topGear'])
 });
 
@@ -104,7 +120,7 @@ export const zSimulationOptions = z.intersection(z.union([
 
 export const zAddonExport = z.object({
     character_name: z.string().nullish(),
-    class: z.string().nullish(),
+    class: zCharacterClass.optional(),
     level: z.string().nullish(),
     race: z.string().nullish(),
     region: z.string().nullish(),
@@ -113,7 +129,7 @@ export const zAddonExport = z.object({
     professions: z.string().nullish(),
     spec: z.string().nullish(),
     talent_loadouts: z.array(zAddonExportTalentLoadout).optional(),
-    equipment: z.array(zAddonExportEquipmentItem).optional(),
+    equipment: z.array(zEquipmentItem).optional(),
     checksum: z.string().nullish(),
     header_comment: z.string().nullish(),
     simc_addon_comment: z.string().nullish(),

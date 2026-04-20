@@ -16,7 +16,7 @@ func TestParse(t *testing.T) {
 		{Name: strPtr("M+"), Talents: "MPLUS_TALENTS"},
 		{Name: strPtr("RAID"), Talents: "RAID_TALENTS"},
 	}
-	equipment := []api.AddonExportEquipmentItem{
+	equipment := []api.EquipmentItem{
 		{
 			Fingerprint: fingerprintForItem(
 				"head=,id=250458,bonus_id=6652/12667/13577/13333/12787,crafted_stats=40/49,crafting_quality=5",
@@ -154,7 +154,7 @@ main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652
 
 	want := api.AddonExport{
 		CharacterName:       strPtr("Gubulgi"),
-		Class:               strPtr("deathknight"),
+		Class:               classPtr(api.Deathknight),
 		Level:               strPtr("90"),
 		Race:                strPtr("maghar_orc"),
 		Region:              strPtr("us"),
@@ -206,6 +206,10 @@ func TestHasRecognizedData(t *testing.T) {
 }
 
 func intPtr(value int) *int {
+	return &value
+}
+
+func classPtr(value api.CharacterClass) *api.CharacterClass {
 	return &value
 }
 

@@ -33,7 +33,7 @@ const exportHeaderSeparatorCount = 2
 // AddonExport API model.
 func Parse(tciString string) api.AddonExport {
 	talentLoadouts := []api.AddonExportTalentLoadout{}
-	equipment := []api.AddonExportEquipmentItem{}
+	equipment := []api.EquipmentItem{}
 	catalystCurrencies := map[string]int{}
 	slotHighWatermarks := map[string]api.AddonExportSlotHighWatermark{}
 	upgradeAchievements := []int{}
@@ -182,8 +182,7 @@ func parseAssignmentLine(
 		return
 	}
 
-	if isClassIdentifier(key) {
-		classValue := string(tciClassIdentifier(key))
+	if classValue, ok := parseClassIdentifier(key); ok {
 		export.Class = &classValue
 
 		characterName := strings.Trim(value, "\"")
@@ -374,27 +373,6 @@ func parseMetadataAssignment(
 	return true
 }
 
-func isClassIdentifier(value string) bool {
-	switch tciClassIdentifier(value) {
-	case Warrior,
-		Hunter,
-		Monk,
-		Paladin,
-		Rogue,
-		Shaman,
-		Mage,
-		Warlock,
-		Druid,
-		DeathKnight,
-		Priest,
-		DemonHunter,
-		Evoker:
-		return true
-	default:
-		return false
-	}
-}
-
 func looksLikeEquipmentLine(line string) bool {
 	key, value, ok := strings.Cut(line, "=")
 	if !ok || key == "" {
@@ -437,7 +415,7 @@ func ParseEquipmentItem(
 	commentName string,
 	rawLine string,
 	source api.AddonExportEquipmentSource,
-) (api.AddonExportEquipmentItem, bool) {
+) (api.EquipmentItem, bool) {
 	slot, attributes, foundAssignment := parseEquipmentAssignment(rawLine)
 	if !foundAssignment {
 		return emptyEquipmentItem(), false
@@ -460,7 +438,7 @@ func ParseEquipmentItem(
 		displayName = fmt.Sprintf("Item %d", itemID)
 	}
 
-	return api.AddonExportEquipmentItem{
+	return api.EquipmentItem{
 		Fingerprint:     fingerprintForItem(rawLine, source),
 		Slot:            slot,
 		Name:            displayName,
@@ -477,8 +455,8 @@ func ParseEquipmentItem(
 	}, true
 }
 
-func emptyEquipmentItem() api.AddonExportEquipmentItem {
-	return api.AddonExportEquipmentItem{
+func emptyEquipmentItem() api.EquipmentItem {
+	return api.EquipmentItem{
 		Fingerprint:     "",
 		Slot:            "",
 		Name:            "",
@@ -495,7 +473,7 @@ func emptyEquipmentItem() api.AddonExportEquipmentItem {
 	}
 }
 
-func parseEquipmentAssignment(line string) (api.AddonExportEquipmentSlot, map[string]string, bool) {
+func parseEquipmentAssignment(line string) (api.EquipmentSlot, map[string]string, bool) {
 	rawSlot, rest, foundAssignment := strings.Cut(line, "=")
 	if !foundAssignment || rawSlot == "" {
 		return "", nil, false
@@ -524,8 +502,8 @@ func parseEquipmentAssignment(line string) (api.AddonExportEquipmentSlot, map[st
 	return slot, attributes, true
 }
 
-func parseEquipmentSlot(value string) (api.AddonExportEquipmentSlot, bool) {
-	switch api.AddonExportEquipmentSlot(value) {
+func parseEquipmentSlot(value string) (api.EquipmentSlot, bool) {
+	switch api.EquipmentSlot(value) {
 	case api.Back,
 		api.Chest,
 		api.Feet,
@@ -544,7 +522,7 @@ func parseEquipmentSlot(value string) (api.AddonExportEquipmentSlot, bool) {
 		api.Trinket2,
 		api.Waist,
 		api.Wrist:
-		return api.AddonExportEquipmentSlot(value), true
+		return api.EquipmentSlot(value), true
 	default:
 		return "", false
 	}

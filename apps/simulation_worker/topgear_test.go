@@ -278,10 +278,10 @@ func TestProcessTopGearReturnsErrorWhenCombinationCountExceedsLimit(t *testing.T
 func mustParseEquippedEquipmentLines(
 	t *testing.T,
 	lines ...string,
-) []api.AddonExportEquipmentItem {
+) []api.EquipmentItem {
 	t.Helper()
 
-	items := make([]api.AddonExportEquipmentItem, 0, len(lines))
+	items := make([]api.EquipmentItem, 0, len(lines))
 	for _, line := range lines {
 		items = append(items, mustParseEquipmentLine(t, api.Equipped, line))
 	}
@@ -293,7 +293,7 @@ func mustParseEquipmentLine(
 	t *testing.T,
 	source api.AddonExportEquipmentSource,
 	line string,
-) api.AddonExportEquipmentItem {
+) api.EquipmentItem {
 	t.Helper()
 
 	item, ok := simc.ParseEquipmentItem("", line, source)
@@ -305,17 +305,17 @@ func mustParseEquipmentLine(
 }
 
 func appendEquipment(
-	base []api.AddonExportEquipmentItem,
-	items ...api.AddonExportEquipmentItem,
-) []api.AddonExportEquipmentItem {
+	base []api.EquipmentItem,
+	items ...api.EquipmentItem,
+) []api.EquipmentItem {
 	return append(base, items...)
 }
 
-func topGearOptions(equipment ...api.AddonExportEquipmentItem) (api.SimulationOptions, error) {
+func topGearOptions(equipment ...api.EquipmentItem) (api.SimulationOptions, error) {
 	topGear := api.SimulationOptionsTopGear{
 		Kind:          api.TopGear,
 		CharacterName: "Dom",
-		Class:         "deathknight",
+		Class:         api.Deathknight,
 		Spec:          "unholy",
 		Role:          "attack",
 		Equipment:     equipment,

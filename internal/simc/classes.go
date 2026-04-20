@@ -1,22 +1,24 @@
 package simc
 
-// tciClassIdentifier represents a string that TCI interprets as
-// a character class.
-type tciClassIdentifier string
+import api "github.com/DomNidy/saint_sim/internal/api"
 
-// TODO: Move this up into openapi spec & autogenerate it
-const (
-	Warrior     tciClassIdentifier = "warrior"
-	Hunter      tciClassIdentifier = "hunter"
-	Monk        tciClassIdentifier = "monk"
-	Paladin     tciClassIdentifier = "paladin"
-	Rogue       tciClassIdentifier = "rogue"
-	Shaman      tciClassIdentifier = "shaman"
-	Mage        tciClassIdentifier = "mage"
-	Warlock     tciClassIdentifier = "warlock"
-	Druid       tciClassIdentifier = "druid"
-	DeathKnight tciClassIdentifier = "deathknight"
-	Priest      tciClassIdentifier = "priest"
-	DemonHunter tciClassIdentifier = "demonhunter"
-	Evoker      tciClassIdentifier = "evoker"
-)
+func parseClassIdentifier(value string) (api.CharacterClass, bool) {
+	switch api.CharacterClass(value) {
+	case api.Warrior,
+		api.Hunter,
+		api.Monk,
+		api.Paladin,
+		api.Rogue,
+		api.Shaman,
+		api.Mage,
+		api.Warlock,
+		api.Druid,
+		api.Deathknight,
+		api.Priest,
+		api.Demonhunter,
+		api.Evoker:
+		return api.CharacterClass(value), true
+	default:
+		return "", false
+	}
+}

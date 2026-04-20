@@ -34,10 +34,7 @@ import {
 	localStorageSet,
 	PREV_SIMC_PROFILE_KEY,
 } from "@/lib/local-storage";
-import type {
-	AddonExportEquipmentItem,
-	AddonExportEquipmentSlot,
-} from "@/lib/saint-api/generated";
+import type { EquipmentItem, EquipmentSlot } from "@/lib/saint-api/generated";
 import { zSimulationOptionsBasic } from "@/lib/saint-api/generated/zod.gen";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
 import { cn } from "@/lib/utils";
@@ -340,11 +337,8 @@ function SimulationForm() {
 	);
 }
 
-function groupEquipment(items: AddonExportEquipmentItem[]) {
-	const groupsBySlot = new Map<
-		AddonExportEquipmentSlot,
-		AddonExportEquipmentItem[]
-	>();
+function groupEquipment(items: EquipmentItem[]) {
+	const groupsBySlot = new Map<EquipmentSlot, EquipmentItem[]>();
 
 	for (const item of items) {
 		const group = groupsBySlot.get(item.slot) ?? [];
@@ -382,7 +376,7 @@ function groupEquipment(items: AddonExportEquipmentItem[]) {
 	});
 }
 
-function slotLabel(slot: AddonExportEquipmentSlot) {
+function slotLabel(slot: EquipmentSlot) {
 	const words = slot.split("_");
 	return words
 		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -393,7 +387,7 @@ function buildWowheadUrl(itemId: number) {
 	return `https://www.wowhead.com/item=${itemId}`;
 }
 
-function buildWowheadData(item: AddonExportEquipmentItem) {
+function buildWowheadData(item: EquipmentItem) {
 	const pairs = [`item=${item.item_id}`];
 
 	if ((item.bonus_ids ?? []).length > 0) {
