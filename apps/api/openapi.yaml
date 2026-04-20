@@ -332,7 +332,6 @@ components:
     equipment_item:
       type: object
       required:
-        - fingerprint
         - slot
         - name
         - display_name
@@ -340,8 +339,6 @@ components:
         - source
         - raw_line
       properties:
-        fingerprint:
-          type: string
         slot:
           $ref: "#/components/schemas/equipment_slot"
         name:
@@ -453,23 +450,191 @@ components:
         addon_export:
           $ref: "#/components/schemas/addon_export"
 
+    # ──────────────────────────────────────────────────────────────────────
+    # Simulation result envelope
+    #
+    # `simulation` is the polling envelope: id + status + (eventually) a
+    # typed result. The result is absent while the job is queued/running and
+    # populated once status = complete. `kind` on the envelope is always set
+    # so the client can pick the right renderer before the result arrives.
+    # ──────────────────────────────────────────────────────────────────────
     simulation:
       type: object
-      description: All details & data about a simulation.
+      description: Polling envelope for a simulation job.
+      required:
+        - id
+        - kind
+        - status
       properties:
         id:
           type: string
-          description: ID for the simulation operation
+          format: uuid
+          description: ID for the simulation operation.
           example: "41e9a22f-d2c1-48b2-b234-15db461049d4"
-        simulation_status:
-          $ref: "#/components/schemas/simulation_status"
-        sim_result:
+        kind:
+          description: >
+            Which simulation variant this job is. Determines the concrete shape
+            of `result` once the job completes. Mirrors the `kind` submitted in
+            simulation_options.
           type: string
-          description: The raw output / result of the simulation operation
-          example: "..."
+          enum:
+            - basic
+            - topGear
+        status:
+          $ref: "#/components/schemas/simulation_status"
         error_text:
           type: string
-          description: Error message for the simulation job (if one occurred)
+          description: Populated when status = error.
+        result:
+          description: >
+            Present only when status = complete. The concrete variant is
+            selected by `kind` on this envelope (and repeated inside the result
+            object as the union discriminator).
+          $ref: "#/components/schemas/simulation_result"
+
+    simulation_result:
+      description: >
+        Typed output of a completed simulation. This is the value the worker
+        writes to `simulation.sim_result` in the database and the API returns
+        verbatim; the API does not recompute it on read.
+      oneOf:
+        - $ref: "#/components/schemas/simulation_result_basic"
+        - $ref: "#/components/schemas/simulation_result_top_gear"
+      discriminator:
+        propertyName: kind
+        mapping:
+          basic: "#/components/schemas/simulation_result_basic"
+          topGear: "#/components/schemas/simulation_result_top_gear"
+
+    simulation_result_basic:
+      type: object
+      description: >
+        Result of a `basic` simulation — a single actor simmed with their
+        equipped gear. For now this just surfaces the headline DPS and the raw
+        simc log; it will grow structured stats later.
+      required:
+        - kind
+        - dps
+      properties:
+        kind:
+          type: string
+          enum: [ basic ]
+        dps:
+          type: number
+          format: double
+          description: Mean DPS of the simmed actor.
+        raw_log:
+          type: string
+          description: >
+            Human-readable stdout from simc. Optional; may be truncated or
+            omitted for large runs.
+
+    simulation_result_top_gear:
+      type: object
+      description: >
+        Result of a `topGear` simulation.
+
+        To keep payload size bounded when many profilesets are generated, items
+        are sent once in `equipment` and each profileset references them by
+        index. A profileset's `head: 3` means "the item at equipment[3]".
+        Indices are stable for the lifetime of this result object; they are NOT
+        indices into the request's equipment array (the worker may have
+        reordered/deduplicated).
+      required:
+        - kind
+        - metric
+        - equipment
+        - profilesets
+      properties:
+        kind:
+          type: string
+          enum: [ topGear ]
+        metric:
+          type: string
+          description: >
+            The statistic `mean` on each profileset refers to. Copied from
+            simc's `sim.profilesets.metric` — usually "dps".
+          example: dps
+        equipment:
+          type: array
+          description: >
+            Item table for this result. Every integer slot value inside
+            `profilesets[*].items` is an index into this array.
+          items:
+            $ref: "#/components/schemas/equipment_item"
+        profilesets:
+          type: array
+          description: >
+            All simmed loadouts, sorted by `mean` descending (best first).
+          items:
+            $ref: "#/components/schemas/top_gear_profileset_result"
+
+    top_gear_profileset_result:
+      type: object
+      description: One simmed loadout and its headline metric.
+      required:
+        - name
+        - mean
+        - items
+      properties:
+        name:
+          type: string
+          description: >
+            Profileset label as generated by the worker (e.g. "Combo7"). Matches
+            `sim.profilesets.results[].name` in the raw simc json2 blob, which
+            is how the worker joins metrics to loadouts.
+        mean:
+          type: number
+          format: double
+          description: Mean of `metric` (typically DPS) for this loadout.
+        mean_error:
+          type: number
+          format: double
+          description: simc's reported error bound on `mean`.
+        items:
+          $ref: "#/components/schemas/top_gear_profileset_items"
+
+    top_gear_profileset_items:
+      type: object
+      description: >
+        Per-slot equipment selection for a single loadout. Every value is an
+        index into the parent result's `equipment` array. `off_hand` is omitted
+        when the loadout uses a two-handed weapon.
+      required:
+        - head
+        - neck
+        - shoulder
+        - back
+        - chest
+        - wrist
+        - hands
+        - waist
+        - legs
+        - feet
+        - finger1
+        - finger2
+        - trinket1
+        - trinket2
+        - main_hand
+      properties:
+        head: { type: integer }
+        neck: { type: integer }
+        shoulder: { type: integer }
+        back: { type: integer }
+        chest: { type: integer }
+        wrist: { type: integer }
+        hands: { type: integer }
+        waist: { type: integer }
+        legs: { type: integer }
+        feet: { type: integer }
+        finger1: { type: integer }
+        finger2: { type: integer }
+        trinket1: { type: integer }
+        trinket2: { type: integer }
+        main_hand: { type: integer }
+        off_hand:
+          type: integer
+          description: Absent when this loadout has no off-hand (two-hander).
 
     simulation_status:
       type: string
