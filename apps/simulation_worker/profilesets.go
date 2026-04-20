@@ -85,33 +85,6 @@ func newProfileset() profileset {
 	}
 }
 
-// SlotIndices returns the equipment‑array index chosen for each slot in this
-// loadout, omitting empty slots. This is the per‑profileset payload for the
-// top‑gear result contract (`{head: int, neck: int, …}`).
-func (l *profileset) SlotIndices() map[api.EquipmentSlot]int {
-	out := map[api.EquipmentSlot]int{
-		api.Head:     l.head,
-		api.Neck:     l.neck,
-		api.Shoulder: l.shoulder,
-		api.Back:     l.back,
-		api.Chest:    l.chest,
-		api.Wrist:    l.wrist,
-		api.Hands:    l.hands,
-		api.Waist:    l.waist,
-		api.Legs:     l.legs,
-		api.Feet:     l.feet,
-		api.Finger1:  l.finger1,
-		api.Finger2:  l.finger2,
-		api.Trinket1: l.trinket1,
-		api.Trinket2: l.trinket2,
-		api.MainHand: l.mainHand,
-	}
-	if l.offHand != noItemIndex {
-		out[api.OffHand] = l.offHand
-	}
-	return out
-}
-
 // topGearCandidatePools is the organized set of gear choices we can build
 // profilesets from. Every entry is an index into the request's equipment slice.
 type topGearCandidatePools struct {
@@ -157,6 +130,7 @@ type slotPair struct {
 //   - Source (equipped vs bag is inventory metadata, irrelevant to simc)
 func simIdentity(item api.EquipmentItem) string {
 	_, attrs, _ := strings.Cut(item.RawLine, "=")
+
 	return strings.ToLower(strings.TrimSpace(attrs))
 }
 
@@ -299,10 +273,17 @@ func countTopGearProfilesets(equipment []api.EquipmentItem) (int, error) {
 	return total, nil
 }
 
-// topGearManifest binds generated profilesets to the equipment table their
+// topGearManifest is an abstraction over a topgear sim job.
+// it binds generated profilesets to the equipment table their
 // slot indices reference. Indices are only meaningful against this exact
 // slice, so the two are never exposed separately.
 type topGearManifest struct {
+	characterName  string // name of the character being simmed
+	level          int    // level of the character being simmed
+	race           string // race of the character being simmed
+	characterClass api.CharacterClass
+	spec           string
+
 	equipment   []api.EquipmentItem // defensive copy of the request payload
 	profilesets []profileset
 }
@@ -455,19 +436,43 @@ func setLegs(p *profileset, i int)     { p.legs = i }
 func setFeet(p *profileset, i int)     { p.feet = i }
 func setMainHand(p *profileset, i int) { p.mainHand = i }
 
-// SimcLines renders every profileset as `profileset."ComboN"+=…` text, ready
-// to append to the base simc profile.
-func (m *topGearManifest) SimcLines() []string {
+// SimcLines renders the manifest to a complete simc profile.
+//
+// We define the base profile, and then append the lines of all profilesets:
+// `profileset."ComboN"+=…`
+func (m *topGearManifest) SimcLines() ([]string, error) {
+	if m.profilesets == nil {
+		return nil, errManifestHasNilProfilesets
+	}
+
+	if len(m.profilesets) == 0 {
+		return nil, errManifestHasNoProfilesets
+	}
+
 	var out []string
+
+	// write the base profile just the name, race and level
+	// each profileset we built overrides all slots,
+	// so the base profile doesn't need to have anything else.
+
+	baseLines := []string{
+		fmt.Sprintf(`%s="%s"`, m.characterClass, m.characterName),
+		fmt.Sprintf(`level=%s`, m.level),
+		fmt.Sprintf(`race=%s`, m.race),
+		fmt.Sprint(`spec=%s`, m.spec),
+	}
+
+	out = append(out, baseLines...)
+
+	// then, add all of the profileset lines!
 	for i := range m.profilesets {
 		out = append(out, m.profilesets[i].lines(m.equipment)...)
 	}
-	return out
+	return out, nil
 }
 
 func (m *topGearManifest) Equipment() []api.EquipmentItem { return m.equipment }
 func (m *topGearManifest) Len() int                       { return len(m.profilesets) }
-func (m *topGearManifest) Name(i int) string              { return m.profilesets[i].name }
 
 // lines converts the loadout into the `profileset."Name"+=…` lines that will
 // be appended to the simc profile. equipment must be the same slice that
