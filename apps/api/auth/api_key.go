@@ -27,9 +27,9 @@ func (validator *APIKeyAuthenticator) Authenticate(
 	ctx context.Context,
 	rawAPIKey string,
 ) (AuthContext, error) {
-	secretPortion, ok := sliceSecretFromAPIKey(rawAPIKey)
-	if !ok {
-		return AuthContext{}, errInvalidAPIKey
+	secretPortion, err := sliceSecretFromAPIKey(rawAPIKey)
+	if err != nil {
+		return AuthContext{}, err
 	}
 
 	hashedAPIKey := api_utils.HashAPIKey(secretPortion)
@@ -57,14 +57,14 @@ func (validator *APIKeyAuthenticator) Authenticate(
 
 // sliceSecretFromAPIKey extracts the "secret" portion a raw API key string.
 // example: "sk_test_12345" -> "12345" is returned.
-func sliceSecretFromAPIKey(rawAPIKey string) (string, bool) {
+func sliceSecretFromAPIKey(rawAPIKey string) (string, error) {
 	lastIndex := strings.LastIndex(rawAPIKey, "_")
 
 	if lastIndex == -1 || lastIndex == len(rawAPIKey)-1 {
-		return "", false
+		return "", errMalformedAPIKey
 	}
 
 	secretPart := rawAPIKey[lastIndex+1:]
 
-	return secretPart, true
+	return secretPart, nil
 }

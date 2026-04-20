@@ -35,6 +35,33 @@ type stubSimulationStore struct {
 	getSimulation    func(context.Context, uuid.UUID) (db.Simulation, error)
 }
 
+const topGearSimulationRequestBody = `{
+	"kind":"topGear",
+	"character_name":"Gubulgi",
+	"class":"deathknight",
+	"spec":"unholy",
+	"role":"attack",
+	"talent_loadout":{"name":"Active","talents":"ACTIVE_TALENTS"},
+	"equipment":[
+		{
+			"slot":"head",
+			"name":"Host Commander's Casque",
+			"display_name":"Host Commander's Casque",
+			"item_id":250458,
+			"source":"equipped",
+			"raw_line":"head=,id=250458,bonus_id=6652/12667/13577/13333/12787"
+		},
+		{
+			"slot":"main_hand",
+			"name":"Gnarlroot Spinecleaver",
+			"display_name":"Gnarlroot Spinecleaver",
+			"item_id":249671,
+			"source":"equipped",
+			"raw_line":"main_hand=,id=249671,enchant_id=3368,bonus_id=12786/6652"
+		}
+	]
+}`
+
 func (s stubSimulationStore) CreateSimulation(
 	ctx context.Context,
 	arg db.CreateSimulationParams,
@@ -55,6 +82,54 @@ func (s stubSimulationStore) GetSimulation(
 	}
 
 	return db.Simulation{}, nil
+}
+
+func decodeTopGearSimulationRequestBody(t *testing.T) api.SimulationOptions {
+	t.Helper()
+
+	var requestBody api.SimulationOptions
+	if err := json.Unmarshal([]byte(topGearSimulationRequestBody), &requestBody); err != nil {
+		t.Fatalf("build top gear simulate request body: %v", err)
+	}
+
+	return requestBody
+}
+
+func assertTopGearCreateSimulationParams(t *testing.T, arg db.CreateSimulationParams) {
+	t.Helper()
+
+	if arg.Kind != db.SimulationKindTopGear {
+		t.Fatalf("kind = %q, want %q", arg.Kind, db.SimulationKindTopGear)
+	}
+
+	var topGearOptions api.SimulationOptionsTopGear
+	if err := json.Unmarshal(arg.SimConfig, &topGearOptions); err != nil {
+		t.Fatalf("unmarshal top gear sim config: %v", err)
+	}
+
+	if topGearOptions.CharacterName != "Gubulgi" {
+		t.Fatalf(
+			"character_name = %q, want %q",
+			topGearOptions.CharacterName,
+			"Gubulgi",
+		)
+	}
+	if topGearOptions.Class != api.Deathknight {
+		t.Fatalf("class = %q, want %q", topGearOptions.Class, api.Deathknight)
+	}
+	if topGearOptions.Spec != "unholy" {
+		t.Fatalf("spec = %q, want %q", topGearOptions.Spec, "unholy")
+	}
+	if topGearOptions.TalentLoadout.Talents != "ACTIVE_TALENTS" {
+		t.Fatalf(
+			"talents = %q, want %q",
+			topGearOptions.TalentLoadout.Talents,
+			"ACTIVE_TALENTS",
+		)
+	}
+	if len(topGearOptions.Equipment) != 2 {
+		t.Fatalf("equipment len = %d, want %d", len(topGearOptions.Equipment), 2)
+	}
 }
 
 //nolint:cyclop
@@ -158,6 +233,86 @@ func TestPublishSimulationJob(t *testing.T) {
 	}
 }
 
+func TestPublishTopGearSimulationJob(t *testing.T) {
+	t.Parallel()
+	gin.SetMode(gin.TestMode)
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	auth.SetAuthContext(ctx, auth.AuthContext{
+		Scheme: auth.AuthSchemeBearer,
+		UserID: "user-123",
+	})
+
+	didWriteToStore := false
+	didPublishToQueue := false
+	simulationID := uuid.New()
+
+	server := NewServer(
+		&stubSimulationStore{
+			createSimulation: func(
+				_ context.Context,
+				arg db.CreateSimulationParams,
+			) (db.Simulation, error) {
+				if didPublishToQueue {
+					t.Fatal(
+						"created simulation after published to queue. " +
+							"this is incorrect order, want: create simulation, then publish to queue",
+					)
+				}
+
+				assertTopGearCreateSimulationParams(t, arg)
+
+				didWriteToStore = true
+
+				return db.Simulation{ID: simulationID}, nil
+			},
+		},
+		&stubQueue{
+			publish: func(_ utils.SimulationJobMessage) error {
+				if !didWriteToStore {
+					t.Fatal(
+						"got: published to queue before we created sim in store, want: create sim in store, then publish to queue",
+					)
+				}
+
+				didPublishToQueue = true
+
+				return nil
+			},
+		},
+	)
+
+	requestBody := decodeTopGearSimulationRequestBody(t)
+
+	response, err := server.Simulate(ctx, api.SimulateRequestObject{
+		Body: &requestBody,
+	})
+	if err != nil {
+		t.Fatalf("Simulate() error = %v", err)
+	}
+
+	if !didPublishToQueue {
+		t.Fatal("Simulate did not publish top gear job to queue")
+	}
+	if !didWriteToStore {
+		t.Fatal("Simulate did not write top gear simulation to store")
+	}
+
+	acceptedResponse, ok := response.(api.Simulate202JSONResponse)
+	if !ok {
+		t.Fatalf("response type = %T, want %T", response, api.Simulate202JSONResponse{})
+	}
+	if acceptedResponse.SimulationId == nil ||
+		*acceptedResponse.SimulationId != simulationID.String() {
+		t.Fatalf(
+			"simulation id = %v, want %s",
+			acceptedResponse.SimulationId,
+			simulationID.String(),
+		)
+	}
+}
+
 func TestSimulationOwnerID(t *testing.T) {
 	t.Parallel()
 
@@ -200,8 +355,6 @@ func TestSimulationOwnerID(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		test := test
-
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
