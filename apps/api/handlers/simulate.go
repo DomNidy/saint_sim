@@ -149,6 +149,7 @@ func createSimulationRequestBasic(
 		db.CreateSimulationParams{
 			SimConfig: simOptionsJSON,
 			OwnerID:   simulationOwnerID(authContext),
+			Kind:      db.SimulationKindBasic,
 		},
 	)
 	if err != nil {

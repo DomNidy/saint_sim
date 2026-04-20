@@ -54,6 +54,48 @@ func (ns NullPrincipalType) Value() (driver.Value, error) {
 	return string(ns.PrincipalType), nil
 }
 
+type SimulationKind string
+
+const (
+	SimulationKindBasic   SimulationKind = "basic"
+	SimulationKindTopGear SimulationKind = "topGear"
+)
+
+func (e *SimulationKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SimulationKind(s)
+	case string:
+		*e = SimulationKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SimulationKind: %T", src)
+	}
+	return nil
+}
+
+type NullSimulationKind struct {
+	SimulationKind SimulationKind
+	Valid          bool // Valid is true if SimulationKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSimulationKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.SimulationKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SimulationKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSimulationKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SimulationKind), nil
+}
+
 type SimulationStatus string
 
 const (
@@ -157,15 +199,17 @@ type Session struct {
 }
 
 type Simulation struct {
-	ID          uuid.UUID
-	OwnerID     *string
-	Status      SimulationStatus
-	SimConfig   []byte
-	SimResult   *string
-	ErrorText   *string
-	CreatedAt   pgtype.Timestamptz
-	StartedAt   pgtype.Timestamptz
-	CompletedAt pgtype.Timestamptz
+	ID           uuid.UUID
+	OwnerID      *string
+	Status       SimulationStatus
+	Kind         SimulationKind
+	SimConfig    []byte
+	SimResult    []byte
+	SimcRawJson2 []byte
+	ErrorText    *string
+	CreatedAt    pgtype.Timestamptz
+	StartedAt    pgtype.Timestamptz
+	CompletedAt  pgtype.Timestamptz
 }
 
 type User struct {

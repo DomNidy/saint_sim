@@ -73,6 +73,12 @@ const (
 	Wrist    EquipmentSlot = "wrist"
 )
 
+// Defines values for SimulationKind.
+const (
+	SimulationKindBasic   SimulationKind = "basic"
+	SimulationKindTopGear SimulationKind = "topGear"
+)
+
 // Defines values for SimulationOptionsKind.
 const (
 	SimulationOptionsKindBasic   SimulationOptionsKind = "basic"
@@ -86,7 +92,17 @@ const (
 
 // Defines values for SimulationOptionsTopGearKind.
 const (
-	TopGear SimulationOptionsTopGearKind = "topGear"
+	SimulationOptionsTopGearKindTopGear SimulationOptionsTopGearKind = "topGear"
+)
+
+// Defines values for SimulationResultBasicKind.
+const (
+	SimulationResultBasicKindBasic SimulationResultBasicKind = "basic"
+)
+
+// Defines values for SimulationResultTopGearKind.
+const (
+	SimulationResultTopGearKindTopGear SimulationResultTopGearKind = "topGear"
 )
 
 // Defines values for SimulationStatus.
@@ -149,7 +165,6 @@ type EquipmentItem struct {
 	CraftingQuality *int                       `json:"crafting_quality"`
 	DisplayName     string                     `json:"display_name"`
 	EnchantId       *int                       `json:"enchant_id"`
-	Fingerprint     string                     `json:"fingerprint"`
 	GemIds          *[]int                     `json:"gem_ids,omitempty"`
 	ItemId          int                        `json:"item_id"`
 	ItemLevel       *int                       `json:"item_level"`
@@ -187,18 +202,24 @@ type ParseAddonExportResponse struct {
 // SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
 type SimcAddonExport = string
 
-// Simulation All details & data about a simulation.
+// Simulation Polling envelope for a simulation job.
 type Simulation struct {
-	// ErrorText Error message for the simulation job (if one occurred)
+	// ErrorText Populated when status = error.
 	ErrorText *string `json:"error_text,omitempty"`
 
-	// Id ID for the simulation operation
-	Id *string `json:"id,omitempty"`
+	// Id ID for the simulation operation.
+	Id openapi_types.UUID `json:"id"`
 
-	// SimResult The raw output / result of the simulation operation
-	SimResult        *string           `json:"sim_result,omitempty"`
-	SimulationStatus *SimulationStatus `json:"simulation_status,omitempty"`
+	// Kind Which simulation variant this job is. Determines the concrete shape of `result` once the job completes. Mirrors the `kind` submitted in simulation_options.
+	Kind SimulationKind `json:"kind"`
+
+	// Result Typed output of a completed simulation. This is the value the worker writes to `simulation.sim_result` in the database and the API returns verbatim; the API does not recompute it on read.
+	Result *SimulationResult `json:"result,omitempty"`
+	Status SimulationStatus  `json:"status"`
 }
+
+// SimulationKind Which simulation variant this job is. Determines the concrete shape of `result` once the job completes. Mirrors the `kind` submitted in simulation_options.
+type SimulationKind string
 
 // SimulationOptions Specifies simulation options to send to the API.
 type SimulationOptions struct {
@@ -243,8 +264,80 @@ type SimulationOptionsTopGear struct {
 // SimulationOptionsTopGearKind defines model for SimulationOptionsTopGear.Kind.
 type SimulationOptionsTopGearKind string
 
+// SimulationResult Typed output of a completed simulation. This is the value the worker writes to `simulation.sim_result` in the database and the API returns verbatim; the API does not recompute it on read.
+type SimulationResult struct {
+	union json.RawMessage
+}
+
+// SimulationResultBasic Result of a `basic` simulation — a single actor simmed with their equipped gear. For now this just surfaces the headline DPS and the raw simc log; it will grow structured stats later.
+type SimulationResultBasic struct {
+	// Dps Mean DPS of the simmed actor.
+	Dps  float64                   `json:"dps"`
+	Kind SimulationResultBasicKind `json:"kind"`
+
+	// RawLog Human-readable stdout from simc. Optional; may be truncated or omitted for large runs.
+	RawLog *string `json:"raw_log,omitempty"`
+}
+
+// SimulationResultBasicKind defines model for SimulationResultBasic.Kind.
+type SimulationResultBasicKind string
+
+// SimulationResultTopGear Result of a `topGear` simulation.
+// To keep payload size bounded when many profilesets are generated, items are sent once in `equipment` and each profileset references them by index. A profileset's `head: 3` means "the item at equipment[3]". Indices are stable for the lifetime of this result object; they are NOT indices into the request's equipment array (the worker may have reordered/deduplicated).
+type SimulationResultTopGear struct {
+	// Equipment Item table for this result. Every integer slot value inside `profilesets[*].items` is an index into this array.
+	Equipment []EquipmentItem             `json:"equipment"`
+	Kind      SimulationResultTopGearKind `json:"kind"`
+
+	// Metric The statistic `mean` on each profileset refers to. Copied from simc's `sim.profilesets.metric` — usually "dps".
+	Metric string `json:"metric"`
+
+	// Profilesets All simmed loadouts, sorted by `mean` descending (best first).
+	Profilesets []TopGearProfilesetResult `json:"profilesets"`
+}
+
+// SimulationResultTopGearKind defines model for SimulationResultTopGear.Kind.
+type SimulationResultTopGearKind string
+
 // SimulationStatus defines model for simulation_status.
 type SimulationStatus string
+
+// TopGearProfilesetItems Per-slot equipment selection for a single loadout. Every value is an index into the parent result's `equipment` array. `off_hand` is omitted when the loadout uses a two-handed weapon.
+type TopGearProfilesetItems struct {
+	Back     int `json:"back"`
+	Chest    int `json:"chest"`
+	Feet     int `json:"feet"`
+	Finger1  int `json:"finger1"`
+	Finger2  int `json:"finger2"`
+	Hands    int `json:"hands"`
+	Head     int `json:"head"`
+	Legs     int `json:"legs"`
+	MainHand int `json:"main_hand"`
+	Neck     int `json:"neck"`
+
+	// OffHand Absent when this loadout has no off-hand (two-hander).
+	OffHand  *int `json:"off_hand,omitempty"`
+	Shoulder int  `json:"shoulder"`
+	Trinket1 int  `json:"trinket1"`
+	Trinket2 int  `json:"trinket2"`
+	Waist    int  `json:"waist"`
+	Wrist    int  `json:"wrist"`
+}
+
+// TopGearProfilesetResult One simmed loadout and its headline metric.
+type TopGearProfilesetResult struct {
+	// Items Per-slot equipment selection for a single loadout. Every value is an index into the parent result's `equipment` array. `off_hand` is omitted when the loadout uses a two-handed weapon.
+	Items TopGearProfilesetItems `json:"items"`
+
+	// Mean Mean of `metric` (typically DPS) for this loadout.
+	Mean float64 `json:"mean"`
+
+	// MeanError simc's reported error bound on `mean`.
+	MeanError *float64 `json:"mean_error,omitempty"`
+
+	// Name Profileset label as generated by the worker (e.g. "Combo7"). Matches `sim.profilesets.results[].name` in the raw simc json2 blob, which is how the worker joins metrics to loadouts.
+	Name string `json:"name"`
+}
 
 // BadRequestError Error response returned by API when something goes wrong
 type BadRequestError = ErrorResponse
@@ -389,6 +482,95 @@ func (t *SimulationOptions) UnmarshalJSON(b []byte) error {
 		}
 	}
 
+	return err
+}
+
+// AsSimulationResultBasic returns the union data inside the SimulationResult as a SimulationResultBasic
+func (t SimulationResult) AsSimulationResultBasic() (SimulationResultBasic, error) {
+	var body SimulationResultBasic
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSimulationResultBasic overwrites any union data inside the SimulationResult as the provided SimulationResultBasic
+func (t *SimulationResult) FromSimulationResultBasic(v SimulationResultBasic) error {
+	v.Kind = "basic"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSimulationResultBasic performs a merge with any union data inside the SimulationResult, using the provided SimulationResultBasic
+func (t *SimulationResult) MergeSimulationResultBasic(v SimulationResultBasic) error {
+	v.Kind = "basic"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsSimulationResultTopGear returns the union data inside the SimulationResult as a SimulationResultTopGear
+func (t SimulationResult) AsSimulationResultTopGear() (SimulationResultTopGear, error) {
+	var body SimulationResultTopGear
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromSimulationResultTopGear overwrites any union data inside the SimulationResult as the provided SimulationResultTopGear
+func (t *SimulationResult) FromSimulationResultTopGear(v SimulationResultTopGear) error {
+	v.Kind = "topGear"
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeSimulationResultTopGear performs a merge with any union data inside the SimulationResult, using the provided SimulationResultTopGear
+func (t *SimulationResult) MergeSimulationResultTopGear(v SimulationResultTopGear) error {
+	v.Kind = "topGear"
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t SimulationResult) Discriminator() (string, error) {
+	var discriminator struct {
+		Discriminator string `json:"kind"`
+	}
+	err := json.Unmarshal(t.union, &discriminator)
+	return discriminator.Discriminator, err
+}
+
+func (t SimulationResult) ValueByDiscriminator() (interface{}, error) {
+	discriminator, err := t.Discriminator()
+	if err != nil {
+		return nil, err
+	}
+	switch discriminator {
+	case "basic":
+		return t.AsSimulationResultBasic()
+	case "topGear":
+		return t.AsSimulationResultTopGear()
+	default:
+		return nil, errors.New("unknown discriminator value: " + discriminator)
+	}
+}
+
+func (t SimulationResult) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *SimulationResult) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
 	return err
 }
 
@@ -827,52 +1009,70 @@ func (sh *strictHandler) GetSimulation(ctx *gin.Context, id openapi_types.UUID) 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"AA==",
+	"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",
+	"hIN8B+o3qPGnxqzN5v8DAAD//97mk3lNOAAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

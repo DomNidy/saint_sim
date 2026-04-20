@@ -79,7 +79,6 @@ export const zAddonExportSlotHighWatermark = z.object({
 });
 
 export const zEquipmentItem = z.object({
-    fingerprint: z.string(),
     slot: zEquipmentSlot,
     name: z.string(),
     display_name: z.string(),
@@ -145,6 +144,74 @@ export const zParseAddonExportResponse = z.object({
     addon_export: zAddonExport
 });
 
+/**
+ * Result of a `basic` simulation — a single actor simmed with their equipped gear. For now this just surfaces the headline DPS and the raw simc log; it will grow structured stats later.
+ *
+ */
+export const zSimulationResultBasic = z.object({
+    kind: z.enum(['basic']),
+    dps: z.number(),
+    raw_log: z.string().optional()
+});
+
+/**
+ * Per-slot equipment selection for a single loadout. Every value is an index into the parent result's `equipment` array. `off_hand` is omitted when the loadout uses a two-handed weapon.
+ *
+ */
+export const zTopGearProfilesetItems = z.object({
+    head: z.int(),
+    neck: z.int(),
+    shoulder: z.int(),
+    back: z.int(),
+    chest: z.int(),
+    wrist: z.int(),
+    hands: z.int(),
+    waist: z.int(),
+    legs: z.int(),
+    feet: z.int(),
+    finger1: z.int(),
+    finger2: z.int(),
+    trinket1: z.int(),
+    trinket2: z.int(),
+    main_hand: z.int(),
+    off_hand: z.int().optional()
+});
+
+/**
+ * One simmed loadout and its headline metric.
+ */
+export const zTopGearProfilesetResult = z.object({
+    name: z.string(),
+    mean: z.number(),
+    mean_error: z.number().optional(),
+    items: zTopGearProfilesetItems
+});
+
+/**
+ * Result of a `topGear` simulation.
+ * To keep payload size bounded when many profilesets are generated, items are sent once in `equipment` and each profileset references them by index. A profileset's `head: 3` means "the item at equipment[3]". Indices are stable for the lifetime of this result object; they are NOT indices into the request's equipment array (the worker may have reordered/deduplicated).
+ *
+ */
+export const zSimulationResultTopGear = z.object({
+    kind: z.enum(['topGear']),
+    metric: z.string(),
+    equipment: z.array(zEquipmentItem),
+    profilesets: z.array(zTopGearProfilesetResult)
+});
+
+/**
+ * Typed output of a completed simulation. This is the value the worker writes to `simulation.sim_result` in the database and the API returns verbatim; the API does not recompute it on read.
+ *
+ */
+export const zSimulationResult = z.union([
+    z.object({
+        kind: z.literal('basic')
+    }).and(zSimulationResultBasic),
+    z.object({
+        kind: z.literal('topGear')
+    }).and(zSimulationResultTopGear)
+]);
+
 export const zSimulationStatus = z.enum([
     'in_progress',
     'in_queue',
@@ -153,13 +220,14 @@ export const zSimulationStatus = z.enum([
 ]);
 
 /**
- * All details & data about a simulation.
+ * Polling envelope for a simulation job.
  */
 export const zSimulation = z.object({
-    id: z.string().optional(),
-    simulation_status: zSimulationStatus.optional(),
-    sim_result: z.string().optional(),
-    error_text: z.string().optional()
+    id: z.uuid(),
+    kind: z.enum(['basic', 'topGear']),
+    status: zSimulationStatus,
+    error_text: z.string().optional(),
+    result: zSimulationResult.optional()
 });
 
 /**

@@ -439,7 +439,6 @@ func ParseEquipmentItem(
 	}
 
 	return api.EquipmentItem{
-		Fingerprint:     fingerprintForItem(rawLine, source),
 		Slot:            slot,
 		Name:            displayName,
 		DisplayName:     displayName,
@@ -457,7 +456,6 @@ func ParseEquipmentItem(
 
 func emptyEquipmentItem() api.EquipmentItem {
 	return api.EquipmentItem{
-		Fingerprint:     "",
 		Slot:            "",
 		Name:            "",
 		DisplayName:     "",

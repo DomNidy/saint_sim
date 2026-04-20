@@ -275,20 +275,21 @@ function SimulationForm() {
 									{group.label}
 								</h4>
 								<div className="grid gap-2 md:grid-cols-2">
-									{group.items.map((item) => {
-										const isSelected = selectedItems.has(item.fingerprint);
+									{group.items.map((item, idx) => {
+										const fp = `${item.raw_line}${idx}`;
+										const isSelected = selectedItems.has(fp);
 
 										return (
 											<button
-												key={item.fingerprint}
+												key={fp}
 												type="button"
 												onClick={() => {
 													setSelectedItems((current) => {
 														const next = new Set(current);
-														if (next.has(item.fingerprint)) {
-															next.delete(item.fingerprint);
+														if (next.has(fp)) {
+															next.delete(fp);
 														} else {
-															next.add(item.fingerprint);
+															next.add(fp);
 														}
 
 														return next;

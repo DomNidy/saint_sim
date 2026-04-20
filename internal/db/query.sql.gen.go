@@ -13,25 +13,29 @@ import (
 )
 
 const createSimulation = `-- name: CreateSimulation :one
-INSERT INTO public.simulation (sim_config, owner_id)
-VALUES ($1, $2)
-RETURNING id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at
+INSERT INTO public.simulation(kind, sim_config, owner_id)
+    VALUES ($1, $2, $3)
+RETURNING
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at
 `
 
 type CreateSimulationParams struct {
+	Kind      SimulationKind
 	SimConfig []byte
 	OwnerID   *string
 }
 
 func (q *Queries) CreateSimulation(ctx context.Context, arg CreateSimulationParams) (Simulation, error) {
-	row := q.db.QueryRow(ctx, createSimulation, arg.SimConfig, arg.OwnerID)
+	row := q.db.QueryRow(ctx, createSimulation, arg.Kind, arg.SimConfig, arg.OwnerID)
 	var i Simulation
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,
 		&i.Status,
+		&i.Kind,
 		&i.SimConfig,
 		&i.SimResult,
+		&i.SimcRawJson2,
 		&i.ErrorText,
 		&i.CreatedAt,
 		&i.StartedAt,
@@ -50,7 +54,9 @@ SELECT
 FROM
     public.api_keys
     INNER JOIN public.principals ON principals.id = api_keys.principal_id
-WHERE secret_hash = $1 LIMIT 1
+WHERE
+    secret_hash = $1
+LIMIT 1
 `
 
 type GetApiKeyRow struct {
@@ -75,9 +81,13 @@ func (q *Queries) GetApiKey(ctx context.Context, secretHash string) (GetApiKeyRo
 }
 
 const getJwkByID = `-- name: GetJwkByID :one
-SELECT id, "publicKey", "privateKey", "createdAt", "expiresAt"
-FROM public.jwks
-WHERE id = $1 LIMIT 1
+SELECT
+    id, "publicKey", "privateKey", "createdAt", "expiresAt"
+FROM
+    public.jwks
+WHERE
+    id = $1
+LIMIT 1
 `
 
 func (q *Queries) GetJwkByID(ctx context.Context, id string) (Jwk, error) {
@@ -94,9 +104,12 @@ func (q *Queries) GetJwkByID(ctx context.Context, id string) (Jwk, error) {
 }
 
 const getSimulation = `-- name: GetSimulation :one
-SELECT id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at
-FROM public.simulation
-WHERE id = $1
+SELECT
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at
+FROM
+    public.simulation
+WHERE
+    id = $1
 `
 
 func (q *Queries) GetSimulation(ctx context.Context, id uuid.UUID) (Simulation, error) {
@@ -106,8 +119,10 @@ func (q *Queries) GetSimulation(ctx context.Context, id uuid.UUID) (Simulation, 
 		&i.ID,
 		&i.OwnerID,
 		&i.Status,
+		&i.Kind,
 		&i.SimConfig,
 		&i.SimResult,
+		&i.SimcRawJson2,
 		&i.ErrorText,
 		&i.CreatedAt,
 		&i.StartedAt,
@@ -117,9 +132,12 @@ func (q *Queries) GetSimulation(ctx context.Context, id uuid.UUID) (Simulation, 
 }
 
 const getSimulationOptions = `-- name: GetSimulationOptions :one
-SELECT sim_config 
-FROM public.simulation
-WHERE id = $1
+SELECT
+    sim_config
+FROM
+    public.simulation
+WHERE
+    id = $1
 LIMIT 1
 `
 
@@ -140,42 +158,50 @@ func (q *Queries) ListenNewSimulationData(ctx context.Context) error {
 }
 
 const updateSimulation = `-- name: UpdateSimulation :one
-UPDATE public.simulation
+UPDATE
+    public.simulation
 SET
-    sim_result = COALESCE($1, sim_result),
-    error_text = COALESCE($2, error_text),
-    started_at = COALESCE($3, started_at),
-    completed_at = COALESCE($4, completed_at),
-    status = COALESCE($5, status)
-WHERE id = $6
-RETURNING id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at
+    sim_result = COALESCE($2, sim_result),
+    simc_raw_json2 = COALESCE($3, simc_raw_json2),
+    error_text = COALESCE($4, error_text),
+    started_at = COALESCE($5, started_at),
+    completed_at = COALESCE($6, completed_at),
+    status = COALESCE($7, status)
+WHERE
+    id = $1
+RETURNING
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at
 `
 
 type UpdateSimulationParams struct {
-	SimResult   *string
-	ErrorText   *string
-	StartedAt   pgtype.Timestamptz
-	CompletedAt pgtype.Timestamptz
-	Status      NullSimulationStatus
-	ID          uuid.UUID
+	ID           uuid.UUID
+	SimResult    []byte
+	SimcRawJson2 []byte
+	ErrorText    *string
+	StartedAt    pgtype.Timestamptz
+	CompletedAt  pgtype.Timestamptz
+	Status       NullSimulationStatus
 }
 
 func (q *Queries) UpdateSimulation(ctx context.Context, arg UpdateSimulationParams) (Simulation, error) {
 	row := q.db.QueryRow(ctx, updateSimulation,
+		arg.ID,
 		arg.SimResult,
+		arg.SimcRawJson2,
 		arg.ErrorText,
 		arg.StartedAt,
 		arg.CompletedAt,
 		arg.Status,
-		arg.ID,
 	)
 	var i Simulation
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,
 		&i.Status,
+		&i.Kind,
 		&i.SimConfig,
 		&i.SimResult,
+		&i.SimcRawJson2,
 		&i.ErrorText,
 		&i.CreatedAt,
 		&i.StartedAt,

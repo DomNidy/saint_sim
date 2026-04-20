@@ -84,13 +84,10 @@ func simulationResponseFromRecord(simulation db.Simulation) api.Simulation {
 
 	status := simulationStatusFromRecord(simulation)
 
-	simulationID := simulation.ID.String()
-	response.Id = &simulationID
-	response.SimulationStatus = &status
-
-	if simulation.SimResult != nil {
-		response.SimResult = simulation.SimResult
-	}
+	response.Kind = api.SimulationKind(simulation.Kind)
+	response.Id = simulation.ID
+	response.Status = status
+	// response.Result = simulation.SimResult
 
 	if simulation.ErrorText != nil {
 		response.ErrorText = simulation.ErrorText

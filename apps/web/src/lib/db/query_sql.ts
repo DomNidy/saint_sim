@@ -14,7 +14,9 @@ SELECT
 FROM
     public.api_keys
     INNER JOIN public.principals ON principals.id = api_keys.principal_id
-WHERE secret_hash = $1 LIMIT 1`;
+WHERE
+    secret_hash = $1
+LIMIT 1`;
 
 export interface GetApiKeyArgs {
     secretHash: string;
@@ -48,9 +50,13 @@ export async function getApiKey(client: Client, args: GetApiKeyArgs): Promise<Ge
 }
 
 export const getJwkByIDQuery = `-- name: GetJwkByID :one
-SELECT id, "publicKey", "privateKey", "createdAt", "expiresAt"
-FROM public.jwks
-WHERE id = $1 LIMIT 1`;
+SELECT
+    id, "publicKey", "privateKey", "createdAt", "expiresAt"
+FROM
+    public.jwks
+WHERE
+    id = $1
+LIMIT 1`;
 
 export interface GetJwkByIDArgs {
     id: string;
@@ -84,11 +90,13 @@ export async function getJwkByID(client: Client, args: GetJwkByIDArgs): Promise<
 }
 
 export const createSimulationQuery = `-- name: CreateSimulation :one
-INSERT INTO public.simulation (sim_config, owner_id)
-VALUES ($1, $2)
-RETURNING id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at`;
+INSERT INTO public.simulation(kind, sim_config, owner_id)
+    VALUES ($1, $2, $3)
+RETURNING
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at`;
 
 export interface CreateSimulationArgs {
+    kind: string;
     simConfig: any;
     ownerId: string | null;
 }
@@ -97,8 +105,10 @@ export interface CreateSimulationRow {
     id: string;
     ownerId: string | null;
     status: string;
+    kind: string;
     simConfig: any;
-    simResult: string | null;
+    simResult: any | null;
+    simcRawJson2: any | null;
     errorText: string | null;
     createdAt: Date;
     startedAt: Date | null;
@@ -108,7 +118,7 @@ export interface CreateSimulationRow {
 export async function createSimulation(client: Client, args: CreateSimulationArgs): Promise<CreateSimulationRow | null> {
     const result = await client.query({
         text: createSimulationQuery,
-        values: [args.simConfig, args.ownerId],
+        values: [args.kind, args.simConfig, args.ownerId],
         rowMode: "array"
     });
     if (result.rows.length !== 1) {
@@ -119,41 +129,50 @@ export async function createSimulation(client: Client, args: CreateSimulationArg
         id: row[0],
         ownerId: row[1],
         status: row[2],
-        simConfig: row[3],
-        simResult: row[4],
-        errorText: row[5],
-        createdAt: row[6],
-        startedAt: row[7],
-        completedAt: row[8]
+        kind: row[3],
+        simConfig: row[4],
+        simResult: row[5],
+        simcRawJson2: row[6],
+        errorText: row[7],
+        createdAt: row[8],
+        startedAt: row[9],
+        completedAt: row[10]
     };
 }
 
 export const updateSimulationQuery = `-- name: UpdateSimulation :one
-UPDATE public.simulation
+UPDATE
+    public.simulation
 SET
-    sim_result = COALESCE($1, sim_result),
-    error_text = COALESCE($2, error_text),
-    started_at = COALESCE($3, started_at),
-    completed_at = COALESCE($4, completed_at),
-    status = COALESCE($5, status)
-WHERE id = $6
-RETURNING id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at`;
+    sim_result = COALESCE($2, sim_result),
+    simc_raw_json2 = COALESCE($3, simc_raw_json2),
+    error_text = COALESCE($4, error_text),
+    started_at = COALESCE($5, started_at),
+    completed_at = COALESCE($6, completed_at),
+    status = COALESCE($7, status)
+WHERE
+    id = $1
+RETURNING
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at`;
 
 export interface UpdateSimulationArgs {
-    simResult: string | null;
+    id: string;
+    simResult: any | null;
+    simcRawJson2: any | null;
     errorText: string | null;
     startedAt: Date | null;
     completedAt: Date | null;
     status: string | null;
-    id: string;
 }
 
 export interface UpdateSimulationRow {
     id: string;
     ownerId: string | null;
     status: string;
+    kind: string;
     simConfig: any;
-    simResult: string | null;
+    simResult: any | null;
+    simcRawJson2: any | null;
     errorText: string | null;
     createdAt: Date;
     startedAt: Date | null;
@@ -163,7 +182,7 @@ export interface UpdateSimulationRow {
 export async function updateSimulation(client: Client, args: UpdateSimulationArgs): Promise<UpdateSimulationRow | null> {
     const result = await client.query({
         text: updateSimulationQuery,
-        values: [args.simResult, args.errorText, args.startedAt, args.completedAt, args.status, args.id],
+        values: [args.id, args.simResult, args.simcRawJson2, args.errorText, args.startedAt, args.completedAt, args.status],
         rowMode: "array"
     });
     if (result.rows.length !== 1) {
@@ -174,19 +193,24 @@ export async function updateSimulation(client: Client, args: UpdateSimulationArg
         id: row[0],
         ownerId: row[1],
         status: row[2],
-        simConfig: row[3],
-        simResult: row[4],
-        errorText: row[5],
-        createdAt: row[6],
-        startedAt: row[7],
-        completedAt: row[8]
+        kind: row[3],
+        simConfig: row[4],
+        simResult: row[5],
+        simcRawJson2: row[6],
+        errorText: row[7],
+        createdAt: row[8],
+        startedAt: row[9],
+        completedAt: row[10]
     };
 }
 
 export const getSimulationOptionsQuery = `-- name: GetSimulationOptions :one
-SELECT sim_config 
-FROM public.simulation
-WHERE id = $1
+SELECT
+    sim_config
+FROM
+    public.simulation
+WHERE
+    id = $1
 LIMIT 1`;
 
 export interface GetSimulationOptionsArgs {
@@ -213,9 +237,12 @@ export async function getSimulationOptions(client: Client, args: GetSimulationOp
 }
 
 export const getSimulationQuery = `-- name: GetSimulation :one
-SELECT id, owner_id, status, sim_config, sim_result, error_text, created_at, started_at, completed_at
-FROM public.simulation
-WHERE id = $1`;
+SELECT
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at
+FROM
+    public.simulation
+WHERE
+    id = $1`;
 
 export interface GetSimulationArgs {
     id: string;
@@ -225,8 +252,10 @@ export interface GetSimulationRow {
     id: string;
     ownerId: string | null;
     status: string;
+    kind: string;
     simConfig: any;
-    simResult: string | null;
+    simResult: any | null;
+    simcRawJson2: any | null;
     errorText: string | null;
     createdAt: Date;
     startedAt: Date | null;
@@ -247,12 +276,14 @@ export async function getSimulation(client: Client, args: GetSimulationArgs): Pr
         id: row[0],
         ownerId: row[1],
         status: row[2],
-        simConfig: row[3],
-        simResult: row[4],
-        errorText: row[5],
-        createdAt: row[6],
-        startedAt: row[7],
-        completedAt: row[8]
+        kind: row[3],
+        simConfig: row[4],
+        simResult: row[5],
+        simcRawJson2: row[6],
+        errorText: row[7],
+        createdAt: row[8],
+        startedAt: row[9],
+        completedAt: row[10]
     };
 }
 

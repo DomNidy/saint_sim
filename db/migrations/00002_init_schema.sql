@@ -50,6 +50,14 @@ CREATE TYPE simulation_status AS ENUM(
     'complete'
 );
 
+-- Mirrors simulation_options.kind in the OpenAPI spec. Stored as its own
+-- column (rather than only inside sim_config) so the read path can pick the
+-- correct result shape without unmarshalling the whole config blob.
+CREATE TYPE simulation_kind AS ENUM(
+    'basic',
+    'topGear'
+);
+
 -- services principal table. Each row here represents
 -- a backend service.
 CREATE TABLE public.services(
@@ -90,8 +98,21 @@ CREATE TABLE public.simulation(
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id text,
     status simulation_status NOT NULL DEFAULT 'in_queue',
+    -- Discriminator for sim_config and sim_result. Duplicates
+    -- sim_config->>'kind' but lets GetSimulation branch without parsing JSON.
+    kind simulation_kind NOT NULL,
+    -- The SimulationOptions union exactly as received from the client,
+    -- marshalled by the API handler. The worker re-hydrates this to run.
     sim_config jsonb NOT NULL,
-    sim_result text,
+    -- API-shaped result: a marshalled `simulation_result` (discriminated by
+    -- kind). Produced by the worker after it has joined simc output with the
+    -- loadout manifest. This is what GET /simulation/{id} returns verbatim.
+    -- NULL until status = 'complete'.
+    sim_result jsonb,
+    -- Untouched `json2=` report from the simc binary. Kept for debugging and
+    -- so sim_result can be recomputed if the response contract changes,
+    -- without re-running simc. Never served to clients directly.
+    simc_raw_json2 jsonb,
     error_text text,
     created_at timestamptz NOT NULL DEFAULT now(),
     started_at timestamptz,
@@ -178,10 +199,15 @@ DROP TABLE IF EXISTS public.principals;
 
 DROP TABLE IF EXISTS public.services;
 
+DROP TYPE IF EXISTS simulation_kind;
+
 DROP TYPE IF EXISTS principal_type;
+
+DROP TYPE IF EXISTS simulation_status;
 
 DROP FUNCTION IF EXISTS public.update_timestamp();
 
 DROP FUNCTION IF EXISTS public.notify_simulation_data();
 
 DROP FUNCTION IF EXISTS public.notify_sim_result();
+
