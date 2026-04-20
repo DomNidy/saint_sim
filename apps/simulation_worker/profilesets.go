@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/DomNidy/saint_sim/apps/simulation_worker/set"
 	"github.com/DomNidy/saint_sim/internal/api"
 )
 
@@ -134,58 +135,44 @@ type slotPair struct {
 //   - rings/trinkets are deduplicated by item instance identity so two copies of
 //     the same item can still be paired when they come from different sources
 func buildTopGearCandidatePools(
-	equipment []api.AddonExportEquipmentItem,
+	equipment []api.EquipmentItem,
 ) (topGearCandidatePools, error) {
 	var pools topGearCandidatePools
 
-	singletonSeen := map[api.AddonExportEquipmentSlot]map[string]struct{}{}
-	instanceSeen := map[api.AddonExportEquipmentSlot]map[string]struct{}{}
-	singletonDestinations := map[api.AddonExportEquipmentSlot]*[]string{
-		api.Head:     &pools.head,
-		api.Neck:     &pools.neck,
-		api.Shoulder: &pools.shoulder,
-		api.Back:     &pools.back,
-		api.Chest:    &pools.chest,
-		api.Wrist:    &pools.wrist,
-		api.Hands:    &pools.hands,
-		api.Waist:    &pools.waist,
-		api.Legs:     &pools.legs,
-		api.Feet:     &pools.feet,
-		api.MainHand: &pools.mainHand,
-		api.OffHand:  &pools.offHand,
+	singletonDestinations := map[api.EquipmentSlot]*[]string{
+		api.Head: &pools.head, api.Neck: &pools.neck, api.Shoulder: &pools.shoulder,
+		api.Back: &pools.back, api.Chest: &pools.chest, api.Wrist: &pools.wrist,
+		api.Hands: &pools.hands, api.Waist: &pools.waist, api.Legs: &pools.legs,
+		api.Feet: &pools.feet, api.MainHand: &pools.mainHand, api.OffHand: &pools.offHand,
 	}
 
-	appendSingleton := func(item api.AddonExportEquipmentItem, dest *[]string) {
-		slot := item.Slot
-		line := item.RawLine
-
-		if singletonSeen[slot] == nil {
-			singletonSeen[slot] = map[string]struct{}{}
+	// Singleton slots: dedup by raw simc line - identical assignments would
+	// only produce duplicate profilesets.
+	singletonSeen := map[api.EquipmentSlot]*set.Set[string]{}
+	appendSingleton := func(item api.EquipmentItem, dest *[]string) {
+		seen, ok := singletonSeen[item.Slot]
+		if !ok {
+			seen = set.New[string]()
+			singletonSeen[item.Slot] = seen
 		}
-		if _, exists := singletonSeen[slot][line]; exists {
-			return
+		if seen.Add(item.RawLine) {
+			*dest = append(*dest, item.RawLine)
 		}
-
-		singletonSeen[slot][line] = struct{}{}
-		*dest = append(*dest, line)
 	}
 
-	appendDistinctInstance := func(slot api.AddonExportEquipmentSlot, item api.AddonExportEquipmentItem, dest *[]string) {
-		if instanceSeen[slot] == nil {
-			instanceSeen[slot] = map[string]struct{}{}
+	// Paired slots: dedup by *instance identity* so two copies of the same
+	// item from different sources can still be worn together.
+	instanceIdentity := func(item api.EquipmentItem) string {
+		if item.Fingerprint != "" {
+			return item.Fingerprint
 		}
-
-		identity := item.Fingerprint
-		if identity == "" {
-			identity = item.RawLine + "|" + string(item.Source)
+		return item.RawLine + "|" + string(item.Source)
+	}
+	ringsSeen, trinketsSeen := set.New[string](), set.New[string]()
+	appendInstance := func(seen *set.Set[string], item api.EquipmentItem, dest *[]string) {
+		if seen.Add(instanceIdentity(item)) {
+			*dest = append(*dest, item.RawLine)
 		}
-
-		if _, exists := instanceSeen[slot][identity]; exists {
-			return
-		}
-
-		instanceSeen[slot][identity] = struct{}{}
-		*dest = append(*dest, item.RawLine)
 	}
 
 	for _, item := range equipment {
@@ -197,31 +184,24 @@ func buildTopGearCandidatePools(
 			)
 		}
 
-		if dest, found := singletonDestinations[item.Slot]; found {
+		switch {
+		case isRingSlot(item.Slot):
+			appendInstance(ringsSeen, item, &pools.rings)
+		case isTrinketSlot(item.Slot):
+			appendInstance(trinketsSeen, item, &pools.trinkets)
+		case isIgnoredTopGearSlot(item.Slot):
+			// cosmetic — not part of top-gear generation
+		default:
+			dest, ok := singletonDestinations[item.Slot]
+			if !ok {
+				return topGearCandidatePools{}, fmt.Errorf(
+					"%w: %q",
+					errTopGearUnsupportedSlot,
+					item.Slot,
+				)
+			}
 			appendSingleton(item, dest)
-
-			continue
 		}
-
-		if isRingSlot(item.Slot) {
-			appendDistinctInstance(api.Finger1, item, &pools.rings)
-
-			continue
-		}
-
-		if isTrinketSlot(item.Slot) {
-			appendDistinctInstance(api.Trinket1, item, &pools.trinkets)
-
-			continue
-		}
-
-		if isIgnoredTopGearSlot(item.Slot) {
-			// profileset does not model cosmetic slots, so they do not participate
-			// in top-gear combination generation.
-			continue
-		}
-
-		return topGearCandidatePools{}, fmt.Errorf("%w: %q", errTopGearUnsupportedSlot, item.Slot)
 	}
 
 	return pools, nil
@@ -245,7 +225,7 @@ func (p topGearCandidatePools) singletonPools() []singletonPool {
 
 // countTopGearProfilesets computes the number of valid profilesets implied by
 // the equipment payload without allocating the final profileset slice.
-func countTopGearProfilesets(equipment []api.AddonExportEquipmentItem) (int, error) {
+func countTopGearProfilesets(equipment []api.EquipmentItem) (int, error) {
 	pools, err := buildTopGearCandidatePools(equipment)
 	if err != nil {
 		return 0, err
@@ -286,7 +266,7 @@ func countTopGearProfilesets(equipment []api.AddonExportEquipmentItem) (int, err
 // generated order remains intuitive: earlier input candidates appear earlier in
 // the resulting Combo1/Combo2/... sequence.
 func generateTopGearProfilesets(
-	equipment []api.AddonExportEquipmentItem,
+	equipment []api.EquipmentItem,
 	talents string,
 ) ([]profileset, error) {
 	pools, err := buildTopGearCandidatePools(equipment)
@@ -363,7 +343,7 @@ func makeUnorderedPairs(lines []string) []slotPair {
 	return pairs
 }
 
-func retargetEquipmentLine(line string, slot api.AddonExportEquipmentSlot) string {
+func retargetEquipmentLine(line string, slot api.EquipmentSlot) string {
 	_, rest, foundAssignment := strings.Cut(line, "=")
 	if !foundAssignment {
 		return line
@@ -408,15 +388,15 @@ func appendCompletedProfilesets(
 	return nextComboIndex
 }
 
-func isRingSlot(slot api.AddonExportEquipmentSlot) bool {
+func isRingSlot(slot api.EquipmentSlot) bool {
 	return slot == api.Finger1 || slot == api.Finger2
 }
 
-func isTrinketSlot(slot api.AddonExportEquipmentSlot) bool {
+func isTrinketSlot(slot api.EquipmentSlot) bool {
 	return slot == api.Trinket1 || slot == api.Trinket2
 }
 
-func isIgnoredTopGearSlot(slot api.AddonExportEquipmentSlot) bool {
+func isIgnoredTopGearSlot(slot api.EquipmentSlot) bool {
 	return slot == api.Shirt || slot == api.Tabard
 }
 

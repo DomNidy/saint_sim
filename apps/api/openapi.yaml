@@ -174,6 +174,23 @@ components:
         spec=shadow
       minLength: 1
 
+    character_class:
+      type: string
+      enum:
+        - warrior
+        - hunter
+        - monk
+        - paladin
+        - rogue
+        - shaman
+        - mage
+        - warlock
+        - druid
+        - deathknight
+        - priest
+        - demonhunter
+        - evoker
+
     simulation_options:
       type: object
       properties:
@@ -228,7 +245,7 @@ components:
           type: string
         class:
           description: The class the character is
-          type: string
+          $ref: "#/components/schemas/character_class"
         spec:
           description: The spec of the character
           type: string
@@ -243,7 +260,7 @@ components:
             possible to form a full equipment set.
           type: array
           items:
-            $ref: "#/components/schemas/addon_export_equipment_item"
+            $ref: "#/components/schemas/equipment_item"
         kind:
           type: string
           enum:
@@ -263,7 +280,7 @@ components:
         - equipped
         - bag
 
-    addon_export_equipment_slot:
+    equipment_slot:
       type: string
       enum:
         - head
@@ -312,7 +329,7 @@ components:
         max_item_level:
           type: integer
 
-    addon_export_equipment_item:
+    equipment_item:
       type: object
       required:
         - fingerprint
@@ -326,7 +343,7 @@ components:
         fingerprint:
           type: string
         slot:
-          $ref: "#/components/schemas/addon_export_equipment_slot"
+          $ref: "#/components/schemas/equipment_slot"
         name:
           type: string
         display_name:
@@ -366,7 +383,7 @@ components:
           type: string
           nullable: true
         class:
-          type: string
+          $ref: "#/components/schemas/character_class"
           nullable: true
         level:
           type: string
@@ -396,7 +413,7 @@ components:
         equipment:
           type: array
           items:
-            $ref: "#/components/schemas/addon_export_equipment_item"
+            $ref: "#/components/schemas/equipment_item"
         checksum:
           type: string
           nullable: true

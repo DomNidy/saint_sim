@@ -13,6 +13,24 @@ export type HealthResponse = {
  */
 export type SimcAddonExport = string;
 
+export const CharacterClass = {
+    WARRIOR: 'warrior',
+    HUNTER: 'hunter',
+    MONK: 'monk',
+    PALADIN: 'paladin',
+    ROGUE: 'rogue',
+    SHAMAN: 'shaman',
+    MAGE: 'mage',
+    WARLOCK: 'warlock',
+    DRUID: 'druid',
+    DEATHKNIGHT: 'deathknight',
+    PRIEST: 'priest',
+    DEMONHUNTER: 'demonhunter',
+    EVOKER: 'evoker'
+} as const;
+
+export type CharacterClass = typeof CharacterClass[keyof typeof CharacterClass];
+
 export type SimulationOptions = (({
     kind: 'basic';
 } & SimulationOptionsBasic) | ({
@@ -37,10 +55,7 @@ export type SimulationOptionsBasic = {
  */
 export type SimulationOptionsTopGear = {
     character_name: string;
-    /**
-     * The class the character is
-     */
-    class: string;
+    class: CharacterClass;
     /**
      * The spec of the character
      */
@@ -53,7 +68,7 @@ export type SimulationOptionsTopGear = {
     /**
      * The gear to consider in the simulation. We will try to find optimal combinations of these. Must have at least 1 item per slot so it is possible to form a full equipment set.
      */
-    equipment: Array<AddonExportEquipmentItem>;
+    equipment: Array<EquipmentItem>;
     kind: 'topGear';
 };
 
@@ -65,7 +80,7 @@ export const AddonExportEquipmentSource = { EQUIPPED: 'equipped', BAG: 'bag' } a
 
 export type AddonExportEquipmentSource = typeof AddonExportEquipmentSource[keyof typeof AddonExportEquipmentSource];
 
-export const AddonExportEquipmentSlot = {
+export const EquipmentSlot = {
     HEAD: 'head',
     NECK: 'neck',
     SHOULDER: 'shoulder',
@@ -86,7 +101,7 @@ export const AddonExportEquipmentSlot = {
     TABARD: 'tabard'
 } as const;
 
-export type AddonExportEquipmentSlot = typeof AddonExportEquipmentSlot[keyof typeof AddonExportEquipmentSlot];
+export type EquipmentSlot = typeof EquipmentSlot[keyof typeof EquipmentSlot];
 
 /**
  * A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
@@ -110,9 +125,9 @@ export type AddonExportSlotHighWatermark = {
     max_item_level: number;
 };
 
-export type AddonExportEquipmentItem = {
+export type EquipmentItem = {
     fingerprint: string;
-    slot: AddonExportEquipmentSlot;
+    slot: EquipmentSlot;
     name: string;
     display_name: string;
     item_id: number;
@@ -128,7 +143,7 @@ export type AddonExportEquipmentItem = {
 
 export type AddonExport = {
     character_name?: string | null;
-    class?: string | null;
+    class?: CharacterClass;
     level?: string | null;
     race?: string | null;
     region?: string | null;
@@ -137,7 +152,7 @@ export type AddonExport = {
     professions?: string | null;
     spec?: string | null;
     talent_loadouts?: Array<AddonExportTalentLoadout>;
-    equipment?: Array<AddonExportEquipmentItem>;
+    equipment?: Array<EquipmentItem>;
     checksum?: string | null;
     header_comment?: string | null;
     simc_addon_comment?: string | null;

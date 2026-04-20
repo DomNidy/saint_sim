@@ -28,32 +28,49 @@ const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 )
 
-// Defines values for AddonExportEquipmentSlot.
-const (
-	Back     AddonExportEquipmentSlot = "back"
-	Chest    AddonExportEquipmentSlot = "chest"
-	Feet     AddonExportEquipmentSlot = "feet"
-	Finger1  AddonExportEquipmentSlot = "finger1"
-	Finger2  AddonExportEquipmentSlot = "finger2"
-	Hands    AddonExportEquipmentSlot = "hands"
-	Head     AddonExportEquipmentSlot = "head"
-	Legs     AddonExportEquipmentSlot = "legs"
-	MainHand AddonExportEquipmentSlot = "main_hand"
-	Neck     AddonExportEquipmentSlot = "neck"
-	OffHand  AddonExportEquipmentSlot = "off_hand"
-	Shirt    AddonExportEquipmentSlot = "shirt"
-	Shoulder AddonExportEquipmentSlot = "shoulder"
-	Tabard   AddonExportEquipmentSlot = "tabard"
-	Trinket1 AddonExportEquipmentSlot = "trinket1"
-	Trinket2 AddonExportEquipmentSlot = "trinket2"
-	Waist    AddonExportEquipmentSlot = "waist"
-	Wrist    AddonExportEquipmentSlot = "wrist"
-)
-
 // Defines values for AddonExportEquipmentSource.
 const (
 	Bag      AddonExportEquipmentSource = "bag"
 	Equipped AddonExportEquipmentSource = "equipped"
+)
+
+// Defines values for CharacterClass.
+const (
+	Deathknight CharacterClass = "deathknight"
+	Demonhunter CharacterClass = "demonhunter"
+	Druid       CharacterClass = "druid"
+	Evoker      CharacterClass = "evoker"
+	Hunter      CharacterClass = "hunter"
+	Mage        CharacterClass = "mage"
+	Monk        CharacterClass = "monk"
+	Paladin     CharacterClass = "paladin"
+	Priest      CharacterClass = "priest"
+	Rogue       CharacterClass = "rogue"
+	Shaman      CharacterClass = "shaman"
+	Warlock     CharacterClass = "warlock"
+	Warrior     CharacterClass = "warrior"
+)
+
+// Defines values for EquipmentSlot.
+const (
+	Back     EquipmentSlot = "back"
+	Chest    EquipmentSlot = "chest"
+	Feet     EquipmentSlot = "feet"
+	Finger1  EquipmentSlot = "finger1"
+	Finger2  EquipmentSlot = "finger2"
+	Hands    EquipmentSlot = "hands"
+	Head     EquipmentSlot = "head"
+	Legs     EquipmentSlot = "legs"
+	MainHand EquipmentSlot = "main_hand"
+	Neck     EquipmentSlot = "neck"
+	OffHand  EquipmentSlot = "off_hand"
+	Shirt    EquipmentSlot = "shirt"
+	Shoulder EquipmentSlot = "shoulder"
+	Tabard   EquipmentSlot = "tabard"
+	Trinket1 EquipmentSlot = "trinket1"
+	Trinket2 EquipmentSlot = "trinket2"
+	Waist    EquipmentSlot = "waist"
+	Wrist    EquipmentSlot = "wrist"
 )
 
 // Defines values for SimulationOptionsKind.
@@ -85,8 +102,8 @@ type AddonExport struct {
 	CatalystCurrencies  *map[string]int                          `json:"catalyst_currencies,omitempty"`
 	CharacterName       *string                                  `json:"character_name"`
 	Checksum            *string                                  `json:"checksum"`
-	Class               *string                                  `json:"class"`
-	Equipment           *[]AddonExportEquipmentItem              `json:"equipment,omitempty"`
+	Class               *CharacterClass                          `json:"class,omitempty"`
+	Equipment           *[]EquipmentItem                         `json:"equipment,omitempty"`
 	HeaderComment       *string                                  `json:"header_comment"`
 	Level               *string                                  `json:"level"`
 	LootSpec            *string                                  `json:"loot_spec"`
@@ -103,26 +120,6 @@ type AddonExport struct {
 	UpgradeAchievements *[]int                                   `json:"upgrade_achievements,omitempty"`
 	WowBuildComment     *string                                  `json:"wow_build_comment"`
 }
-
-// AddonExportEquipmentItem defines model for addon_export_equipment_item.
-type AddonExportEquipmentItem struct {
-	BonusIds        *[]int                     `json:"bonus_ids,omitempty"`
-	CraftedStats    *[]int                     `json:"crafted_stats,omitempty"`
-	CraftingQuality *int                       `json:"crafting_quality"`
-	DisplayName     string                     `json:"display_name"`
-	EnchantId       *int                       `json:"enchant_id"`
-	Fingerprint     string                     `json:"fingerprint"`
-	GemIds          *[]int                     `json:"gem_ids,omitempty"`
-	ItemId          int                        `json:"item_id"`
-	ItemLevel       *int                       `json:"item_level"`
-	Name            string                     `json:"name"`
-	RawLine         string                     `json:"raw_line"`
-	Slot            AddonExportEquipmentSlot   `json:"slot"`
-	Source          AddonExportEquipmentSource `json:"source"`
-}
-
-// AddonExportEquipmentSlot defines model for addon_export_equipment_slot.
-type AddonExportEquipmentSlot string
 
 // AddonExportEquipmentSource defines model for addon_export_equipment_source.
 type AddonExportEquipmentSource string
@@ -141,6 +138,29 @@ type AddonExportTalentLoadout struct {
 	// Talents The WoW talent string
 	Talents string `json:"talents"`
 }
+
+// CharacterClass defines model for character_class.
+type CharacterClass string
+
+// EquipmentItem defines model for equipment_item.
+type EquipmentItem struct {
+	BonusIds        *[]int                     `json:"bonus_ids,omitempty"`
+	CraftedStats    *[]int                     `json:"crafted_stats,omitempty"`
+	CraftingQuality *int                       `json:"crafting_quality"`
+	DisplayName     string                     `json:"display_name"`
+	EnchantId       *int                       `json:"enchant_id"`
+	Fingerprint     string                     `json:"fingerprint"`
+	GemIds          *[]int                     `json:"gem_ids,omitempty"`
+	ItemId          int                        `json:"item_id"`
+	ItemLevel       *int                       `json:"item_level"`
+	Name            string                     `json:"name"`
+	RawLine         string                     `json:"raw_line"`
+	Slot            EquipmentSlot              `json:"slot"`
+	Source          AddonExportEquipmentSource `json:"source"`
+}
+
+// EquipmentSlot defines model for equipment_slot.
+type EquipmentSlot string
 
 // ErrorResponse Error response returned by API when something goes wrong
 type ErrorResponse struct {
@@ -203,13 +223,11 @@ type SimulationOptionsBasicKind string
 
 // SimulationOptionsTopGear Top gear simulation options. The gear which we should try to find some optimal combination of.
 type SimulationOptionsTopGear struct {
-	CharacterName string `json:"character_name"`
-
-	// Class The class the character is
-	Class string `json:"class"`
+	CharacterName string         `json:"character_name"`
+	Class         CharacterClass `json:"class"`
 
 	// Equipment The gear to consider in the simulation. We will try to find optimal combinations of these. Must have at least 1 item per slot so it is possible to form a full equipment set.
-	Equipment []AddonExportEquipmentItem   `json:"equipment"`
+	Equipment []EquipmentItem              `json:"equipment"`
 	Kind      SimulationOptionsTopGearKind `json:"kind"`
 
 	// Role The role of the character
@@ -809,50 +827,52 @@ func (sh *strictHandler) GetSimulation(ctx *gin.Context, id openapi_types.UUID) 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
+	"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",
+	"AA==",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
