@@ -6,14 +6,25 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
 const simcNoArgumentsExitCode = 50
 const simcProfileFileMode = 0o600
 
+// RunResult holds the artifacts produced by a single simc invocation.
+type RunResult struct {
+	// Stdout is the human‑readable log simc writes to standard output.
+	Stdout []byte
+
+	// JSON2 is the raw contents of the file produced by passing `json2=<path>`
+	// to simc — its structured report. Parse with simc.ParseJSON2.
+	JSON2 []byte
+}
+
 type Runner interface {
-	Run(ctx context.Context, profilePath string) ([]byte, error)
+	Run(ctx context.Context, profilePath string) (RunResult, error)
 }
 
 type simcRunner struct {
@@ -26,12 +37,10 @@ func (runner simcRunner) Version(ctx context.Context) (string, error) {
 	command := exec.CommandContext(ctx, runner.binaryPath)
 
 	var output bytes.Buffer
-
 	command.Stdout = &output
 
 	err := command.Run()
 	exitCode := -1
-
 	if command.ProcessState != nil {
 		exitCode = command.ProcessState.ExitCode()
 	}
@@ -43,20 +52,35 @@ func (runner simcRunner) Version(ctx context.Context) (string, error) {
 	return strings.TrimSpace(output.String()), nil
 }
 
-func (runner simcRunner) Run(ctx context.Context, profilePath string) ([]byte, error) {
+func (runner simcRunner) Run(ctx context.Context, profilePath string) (RunResult, error) {
+	// Write the structured report next to the profile so the caller's temp‑dir
+	// cleanup (os.RemoveAll) sweeps it up automatically.
+	jsonPath := filepath.Join(filepath.Dir(profilePath), "output.json")
+
 	// #nosec G204 -- the binary path comes from deployment configuration and the
-	// profile path is created locally.
-	command := exec.CommandContext(ctx, runner.binaryPath, profilePath)
+	// profile/json paths are created locally by the worker.
+	command := exec.CommandContext(
+		ctx,
+		runner.binaryPath,
+		profilePath,
+		"json2="+jsonPath,
+	)
 
-	var output bytes.Buffer
-
-	command.Stdout = &output
+	var stdout bytes.Buffer
+	command.Stdout = &stdout
 	command.Stderr = os.Stderr
 
-	err := command.Run()
-	if err != nil {
-		return nil, fmt.Errorf("execute simc binary: %w", err)
+	if err := command.Run(); err != nil {
+		return RunResult{}, fmt.Errorf("execute simc binary: %w", err)
 	}
 
-	return output.Bytes(), nil
+	jsonBytes, err := os.ReadFile(jsonPath) // #nosec G304 -- path constructed above
+	if err != nil {
+		return RunResult{}, fmt.Errorf("read simc json2 output %q: %w", jsonPath, err)
+	}
+
+	return RunResult{
+		Stdout: stdout.Bytes(),
+		JSON2:  jsonBytes,
+	}, nil
 }
