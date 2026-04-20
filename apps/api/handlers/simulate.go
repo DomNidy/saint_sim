@@ -30,8 +30,9 @@ func (server *Server) Simulate(
 		}, nil
 	}
 
-	authContext, ok := auth.ResolveAuthFromContext(ctx)
-	if !ok {
+	authContext, authResolved := auth.ResolveAuthFromContext(ctx)
+	if !authResolved {
+		log.Printf("simulate unauthorized: auth context missing from request context")
 		return api.Simulate401JSONResponse{
 			Message: utils.StrPtr("Unauthorized"),
 		}, nil
@@ -39,8 +40,8 @@ func (server *Server) Simulate(
 
 	simOptions := *request.Body
 
-	options, err := simOptions.ValueByDiscriminator()
-	if err != nil {
+	options, ok := simulationOptionsByDiscriminator(simOptions)
+	if !ok {
 		return api.Simulate422JSONResponse{
 			MalformedRequestJSONResponse: api.MalformedRequestJSONResponse{
 				Message: "Invalid or malformed input",
@@ -49,11 +50,7 @@ func (server *Server) Simulate(
 	}
 
 	if topGearOptions, ok := options.(api.SimulationOptionsTopGear); ok {
-		log.Printf("got a topgear sim, but not implemented yet: %v", topGearOptions)
-
-		return api.Simulate202JSONResponse{
-			SimulationId: utils.StrPtr("not_implemented_yet_id_123"),
-		}, nil
+		return server.handleSimulationOptionsTopGear(ctx, authContext, topGearOptions)
 	}
 
 	if basicSimOptions, ok := options.(api.SimulationOptionsBasic); ok {
@@ -81,7 +78,13 @@ func (server *Server) handleSimulationOptionsBasic(
 		return api.Simulate400JSONResponse(validationFailure.response), nil
 	}
 
-	simulationID, err := createSimulationRequestBasic(ctx, authContext, server.dbClient, simOptions)
+	simulationID, err := createSimulationRequest(
+		ctx,
+		authContext,
+		server.dbClient,
+		db.SimulationKindBasic,
+		simOptions,
+	)
 	if err != nil {
 		log.Printf("Error creating simulation request: %v", err)
 
@@ -114,6 +117,59 @@ func (server *Server) handleSimulationOptionsBasic(
 	}, nil
 }
 
+func (server *Server) handleSimulationOptionsTopGear(
+	ctx context.Context,
+	authContext auth.AuthContext,
+	simOptions api.SimulationOptionsTopGear,
+) (api.SimulateResponseObject, error) {
+	simulationID, err := createSimulationRequest(
+		ctx,
+		authContext,
+		server.dbClient,
+		db.SimulationKindTopGear,
+		simOptions,
+	)
+	if err != nil {
+		log.Printf("Error creating top gear simulation request: %v", err)
+
+		return api.Simulate500JSONResponse{
+			InternalErrorJSONResponse: api.InternalErrorJSONResponse{
+				Message: utils.StrPtr("Internal server error"),
+			},
+		}, nil
+	}
+
+	simulationJobMessage := utils.SimulationJobMessage{
+		SimulationID: simulationID,
+	}
+
+	err = server.simQueue.Publish(simulationJobMessage)
+	if err != nil {
+		log.Printf("ERROR: Failed to publish simulation message to queue: %v", err)
+
+		return api.Simulate500JSONResponse{
+			InternalErrorJSONResponse: api.InternalErrorJSONResponse{
+				Message: utils.StrPtr("An internal server error occurred. Please try again later."),
+			},
+		}, nil
+	}
+
+	log.Printf(" [x] Sent %v\n", simulationJobMessage)
+
+	return api.Simulate202JSONResponse{
+		SimulationId: &simulationID,
+	}, nil
+}
+
+func simulationOptionsByDiscriminator(simOptions api.SimulationOptions) (interface{}, bool) {
+	options, err := simOptions.ValueByDiscriminator()
+	if err != nil {
+		return nil, false
+	}
+
+	return options, true
+}
+
 func validateSimulationRequestBasic(
 	ctx context.Context,
 	simOptions api.SimulationOptionsBasic,
@@ -133,11 +189,12 @@ func validateSimulationRequestBasic(
 	return nil
 }
 
-func createSimulationRequestBasic(
+func createSimulationRequest[T any](
 	ctx context.Context,
 	authContext auth.AuthContext,
 	dbClient simulationCreator,
-	simOptions api.SimulationOptionsBasic,
+	kind db.SimulationKind,
+	simOptions T,
 ) (string, error) {
 	simOptionsJSON, err := json.Marshal(simOptions)
 	if err != nil {
@@ -149,7 +206,7 @@ func createSimulationRequestBasic(
 		db.CreateSimulationParams{
 			SimConfig: simOptionsJSON,
 			OwnerID:   simulationOwnerID(authContext),
-			Kind:      db.SimulationKindBasic,
+			Kind:      kind,
 		},
 	)
 	if err != nil {

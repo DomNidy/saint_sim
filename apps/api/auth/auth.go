@@ -33,6 +33,7 @@ const (
 var (
 	errAPIKeySanityCheckFail       = errors.New("api key sanity check failed")
 	errInvalidAPIKey               = errors.New("invalid api key")
+	errMalformedAPIKey             = errors.New("malformed api key")
 	errInvalidBearerToken          = errors.New("invalid bearer token")
 	errMalformedAuthorizationValue = errors.New("malformed authorization header")
 	errMissingCredentials          = errors.New("missing credentials")
@@ -163,7 +164,7 @@ func authenticateRequest(
 		switch {
 		case err == nil:
 			return authContext, nil
-		case errors.Is(err, errInvalidAPIKey):
+		case errors.Is(err, errInvalidAPIKey), errors.Is(err, errMalformedAPIKey):
 			invalidCredentialErrors = append(invalidCredentialErrors, err)
 		default:
 			internalErrors = append(internalErrors, err)

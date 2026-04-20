@@ -1,3 +1,4 @@
+// Package middleware wires shared HTTP middleware for the API server.
 package middleware
 
 import (
@@ -14,6 +15,8 @@ import (
 	"github.com/DomNidy/saint_sim/apps/api/auth"
 	"github.com/DomNidy/saint_sim/internal/api"
 )
+
+const authorizationHeaderSplitParts = 2
 
 // OpenAPIValidation returns a handler that validates requests against the
 // embedded swagger spec and performs per-scheme authentication for secured
@@ -69,6 +72,7 @@ func OpenAPIValidation(
 
 func openAPIErrorHandler(ginContext *gin.Context, message string, statusCode int) {
 	if strings.Contains(message, "openapi3filter.SecurityRequirementsError") {
+		logUnauthorizedRequest(ginContext, message)
 		abortWithError(ginContext, http.StatusUnauthorized, "Unauthorized")
 
 		return
@@ -81,6 +85,41 @@ func openAPIErrorHandler(ginContext *gin.Context, message string, statusCode int
 	}
 
 	abortWithError(ginContext, statusCode, message)
+}
+
+func logUnauthorizedRequest(ginContext *gin.Context, message string) {
+	if ginContext == nil || ginContext.Request == nil {
+		log.Printf("unauthorized request: message=%q", message)
+
+		return
+	}
+
+	request := ginContext.Request
+	authorizationValue := strings.TrimSpace(request.Header.Get("Authorization"))
+	apiKey := strings.TrimSpace(request.Header.Get("Api-Key"))
+	authorizationScheme := ""
+	if authorizationValue != "" {
+		authorizationScheme = strings.TrimSpace(
+			strings.SplitN(authorizationValue, " ", authorizationHeaderSplitParts)[0],
+		)
+	}
+
+	log.Printf(
+		"unauthorized request:"+
+			" method=%s path=%s client_ip=%s"+
+			" authorization_present=%t authorization_scheme=%q"+
+			" api_key_present=%t api_key_length=%d"+
+			" user_agent=%q auth_error=%q",
+		request.Method,
+		request.URL.Path,
+		ginContext.ClientIP(),
+		authorizationValue != "",
+		authorizationScheme,
+		apiKey != "",
+		len(apiKey),
+		request.UserAgent(),
+		message,
+	)
 }
 
 func abortWithError(ginContext *gin.Context, statusCode int, message string) {

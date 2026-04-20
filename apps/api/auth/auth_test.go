@@ -1,4 +1,4 @@
-//nolint:testpackage,exhaustruct,varnamelen
+//nolint:testpackage,exhaustruct
 package auth
 
 import (
@@ -45,6 +45,18 @@ type stubJWTKeyLookup struct {
 
 func (stub stubJWTKeyLookup) GetJwkByID(ctx context.Context, id string) (dbqueries.Jwk, error) {
 	return stub.get(ctx, id)
+}
+
+type stubAPIKeyLookup struct {
+	getAPIKey func(context.Context, string) (dbqueries.GetApiKeyRow, error)
+}
+
+//nolint:revive // method name must match the production interface
+func (stub stubAPIKeyLookup) GetApiKey(
+	ctx context.Context,
+	apiKey string,
+) (dbqueries.GetApiKeyRow, error) {
+	return stub.getAPIKey(ctx, apiKey)
 }
 
 func TestJWTAuthenticatorRejectsWrongAudience(t *testing.T) {
@@ -105,7 +117,7 @@ func TestSliceSecretFromApiKey(t *testing.T) {
 	type expectedResult struct {
 		input  string
 		secret string
-		ok     bool
+		err    error
 	}
 
 	// #nosec G101 -- test fixture
@@ -113,22 +125,27 @@ func TestSliceSecretFromApiKey(t *testing.T) {
 		{
 			input:  "sk_live_ae2313f129305104310",
 			secret: "ae2313f129305104310",
-			ok:     true,
+			err:    nil,
 		},
 		{
 			input:  "sk_org_live_test_12345abc",
 			secret: "12345abc",
-			ok:     true,
+			err:    nil,
 		},
 		{
 			input:  "sk_test_",
 			secret: "",
-			ok:     false,
+			err:    errMalformedAPIKey,
+		},
+		{
+			input:  "171c2edc4bf65b068537e593d0650f86ead7fa1f0cd4255e8d2cec1022a32cd9",
+			secret: "",
+			err:    errMalformedAPIKey,
 		},
 	}
 
 	for _, testCase := range cases {
-		secret, ok := sliceSecretFromAPIKey(testCase.input)
+		secret, err := sliceSecretFromAPIKey(testCase.input)
 		if secret != testCase.secret {
 			t.Fatalf(
 				"Extracted secret '%s' did not match expected '%s'. Input: '%s'",
@@ -137,14 +154,49 @@ func TestSliceSecretFromApiKey(t *testing.T) {
 				testCase.input,
 			)
 		}
-		if ok != testCase.ok {
+		if !errors.Is(err, testCase.err) {
 			t.Fatalf(
-				"Expected %v, but got %v. Input: '%v'",
-				testCase.ok,
-				ok,
+				"Expected error %v, but got %v. Input: '%v'",
+				testCase.err,
+				err,
 				testCase.input,
 			)
 		}
+	}
+}
+
+func TestAPIKeyAuthenticatorRejectsMalformedAPIKey(t *testing.T) {
+	t.Parallel()
+
+	authenticator := NewAPIKeyAuthenticator(stubAPIKeyLookup{
+		getAPIKey: func(context.Context, string) (dbqueries.GetApiKeyRow, error) {
+			t.Fatal("GetApiKey should not be called for malformed keys")
+
+			return dbqueries.GetApiKeyRow{}, nil
+		},
+	})
+
+	_, err := authenticator.Authenticate(
+		t.Context(),
+		"171c2edc4bf65b068537e593d0650f86ead7fa1f0cd4255e8d2cec1022a32cd9",
+	)
+	if !errors.Is(err, errMalformedAPIKey) {
+		t.Fatalf("expected malformed api key, got %v", err)
+	}
+}
+
+func TestAPIKeyAuthenticatorRejectsUnknownWellFormedAPIKey(t *testing.T) {
+	t.Parallel()
+
+	authenticator := NewAPIKeyAuthenticator(stubAPIKeyLookup{
+		getAPIKey: func(context.Context, string) (dbqueries.GetApiKeyRow, error) {
+			return dbqueries.GetApiKeyRow{}, pgx.ErrNoRows
+		},
+	})
+
+	_, err := authenticator.Authenticate(t.Context(), "sk_test_12345abc")
+	if !errors.Is(err, errInvalidAPIKey) {
+		t.Fatalf("expected invalid api key, got %v", err)
 	}
 }
 
@@ -194,8 +246,6 @@ func TestEffectiveUserID(t *testing.T) {
 	}
 
 	for _, testCase := range cases {
-		testCase := testCase
-
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
