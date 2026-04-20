@@ -48,7 +48,7 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 		t.Fatalf("countTopGearProfilesets() = %d, want 6", gotCount)
 	}
 
-	got, err := generateTopGearProfilesets(equipment, "TALENTS")
+	got, err := generateTopGearManifest(equipment, "TALENTS")
 	if err != nil {
 		t.Fatalf("generateTopGearProfilesets() error = %v", err)
 	}
@@ -162,7 +162,7 @@ func TestGenerateTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *te
 		),
 	)
 
-	got, err := generateTopGearProfilesets(equipment, "TALENTS")
+	got, err := generateTopGearManifest(equipment, "TALENTS")
 	if err != nil {
 		t.Fatalf("generateTopGearProfilesets() error = %v", err)
 	}

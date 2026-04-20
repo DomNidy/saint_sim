@@ -288,20 +288,19 @@ type topGearManifest struct {
 	profilesets []profileset
 }
 
-// generateTopGearProfilesets expands the equipment pools into deterministic
+// generateTopGearManifest expands the equipment pools into deterministic
 // profilesets. The recursive singleton walk mirrors the counting logic so the
 // generated order remains intuitive: earlier input candidates appear earlier in
 // the resulting Combo1/Combo2/... sequence.
-func generateTopGearProfilesets(
-	equipment []api.EquipmentItem,
-	talents string,
+func generateTopGearManifest(
+	opts api.SimulationOptionsTopGear,
 ) (topGearManifest, error) {
-	pools, err := buildTopGearCandidatePools(equipment)
+	pools, err := buildTopGearCandidatePools(opts.Equipment)
 	if err != nil {
 		return topGearManifest{}, err
 	}
 
-	count, err := countTopGearProfilesets(equipment)
+	count, err := countTopGearProfilesets(opts.Equipment)
 	if err != nil {
 		return topGearManifest{}, err
 	}
@@ -312,7 +311,7 @@ func generateTopGearProfilesets(
 
 	profilesets := make([]profileset, 0, count)
 	base := newProfileset()
-	base.talents = talents
+	base.talents = opts.TalentLoadout.Talents
 
 	offHandOptions := pools.offHand
 	if len(offHandOptions) == 0 {
@@ -345,10 +344,18 @@ func generateTopGearProfilesets(
 
 	buildSingletons(0, base)
 
-	eqCopy := make([]api.EquipmentItem, len(equipment))
-	copy(eqCopy, equipment)
+	eqCopy := make([]api.EquipmentItem, len(opts.Equipment))
+	copy(eqCopy, opts.Equipment)
 
-	return topGearManifest{profilesets: profilesets, equipment: eqCopy}, nil
+	return topGearManifest{
+		profilesets:    profilesets,
+		equipment:      eqCopy,
+		characterName:  opts.CharacterName,
+		level:          90,      /* TODO: assuming 90 for now, thread it through the api later */
+		race:           "human", /*TODO: assuming human for now, thread through api */
+		characterClass: opts.Class,
+		spec:           opts.Spec,
+	}, nil
 }
 
 func unorderedPairCount(itemCount int) int {
@@ -457,9 +464,9 @@ func (m *topGearManifest) SimcLines() ([]string, error) {
 
 	baseLines := []string{
 		fmt.Sprintf(`%s="%s"`, m.characterClass, m.characterName),
-		fmt.Sprintf(`level=%s`, m.level),
+		fmt.Sprintf(`level=%v`, m.level),
 		fmt.Sprintf(`race=%s`, m.race),
-		fmt.Sprint(`spec=%s`, m.spec),
+		fmt.Sprintf(`spec=%s`, m.spec),
 	}
 
 	out = append(out, baseLines...)
