@@ -85,50 +85,6 @@ func newProfileset() profileset {
 	}
 }
 
-// Lines converts the loadout into the `profileset."Name"+=…` lines that will
-// be appended to the simc profile. equipment must be the same slice that
-// buildTopGearCandidatePools was called with.
-func (l *profileset) Lines(equipment []api.EquipmentItem) []string {
-	type slotLine struct {
-		idx      int
-		retarget api.EquipmentSlot // "" => emit RawLine as‑is
-	}
-
-	slots := []slotLine{
-		{l.head, ""}, {l.neck, ""}, {l.shoulder, ""}, {l.back, ""},
-		{l.chest, ""}, {l.wrist, ""}, {l.hands, ""}, {l.waist, ""},
-		{l.legs, ""}, {l.feet, ""},
-		{l.finger1, api.Finger1}, {l.finger2, api.Finger2},
-		{l.trinket1, api.Trinket1}, {l.trinket2, api.Trinket2},
-		{l.mainHand, ""}, {l.offHand, api.OffHand},
-	}
-
-	const exLinesPerProfileset = 17 // 16 gear + 1 talents
-	lines := make([]string, 0, exLinesPerProfileset)
-
-	emit := func(raw string) {
-		lines = append(lines, fmt.Sprintf(`profileset."%s"+=%s`, l.name, raw))
-	}
-
-	for _, s := range slots {
-		switch {
-		case s.idx == noItemIndex && s.retarget == api.OffHand:
-			emit(emptyOffHandLine)
-		case s.idx == noItemIndex:
-			// Required slot left unset — this indicates a bug in generation.
-			panic(fmt.Sprintf("profileset %q has unset required slot", l.name))
-		case s.retarget != "":
-			emit(retargetEquipmentLine(equipment[s.idx].RawLine, s.retarget))
-		default:
-			emit(equipment[s.idx].RawLine)
-		}
-	}
-
-	emit("talents=" + l.talents)
-
-	return lines
-}
-
 // SlotIndices returns the equipment‑array index chosen for each slot in this
 // loadout, omitting empty slots. This is the per‑profileset payload for the
 // top‑gear result contract (`{head: int, neck: int, …}`).
@@ -343,6 +299,14 @@ func countTopGearProfilesets(equipment []api.EquipmentItem) (int, error) {
 	return total, nil
 }
 
+// topGearManifest binds generated profilesets to the equipment table their
+// slot indices reference. Indices are only meaningful against this exact
+// slice, so the two are never exposed separately.
+type topGearManifest struct {
+	equipment   []api.EquipmentItem // defensive copy of the request payload
+	profilesets []profileset
+}
+
 // generateTopGearProfilesets expands the equipment pools into deterministic
 // profilesets. The recursive singleton walk mirrors the counting logic so the
 // generated order remains intuitive: earlier input candidates appear earlier in
@@ -350,15 +314,15 @@ func countTopGearProfilesets(equipment []api.EquipmentItem) (int, error) {
 func generateTopGearProfilesets(
 	equipment []api.EquipmentItem,
 	talents string,
-) ([]profileset, error) {
+) (topGearManifest, error) {
 	pools, err := buildTopGearCandidatePools(equipment)
 	if err != nil {
-		return nil, err
+		return topGearManifest{}, err
 	}
 
 	count, err := countTopGearProfilesets(equipment)
 	if err != nil {
-		return nil, err
+		return topGearManifest{}, err
 	}
 
 	singletonPools := pools.singletonPools()
@@ -400,7 +364,10 @@ func generateTopGearProfilesets(
 
 	buildSingletons(0, base)
 
-	return profilesets, nil
+	eqCopy := make([]api.EquipmentItem, len(equipment))
+	copy(eqCopy, equipment)
+
+	return topGearManifest{profilesets: profilesets, equipment: eqCopy}, nil
 }
 
 func unorderedPairCount(itemCount int) int {
@@ -487,3 +454,61 @@ func setWaist(p *profileset, i int)    { p.waist = i }
 func setLegs(p *profileset, i int)     { p.legs = i }
 func setFeet(p *profileset, i int)     { p.feet = i }
 func setMainHand(p *profileset, i int) { p.mainHand = i }
+
+// SimcLines renders every profileset as `profileset."ComboN"+=…` text, ready
+// to append to the base simc profile.
+func (m *topGearManifest) SimcLines() []string {
+	var out []string
+	for i := range m.profilesets {
+		out = append(out, m.profilesets[i].lines(m.equipment)...)
+	}
+	return out
+}
+
+func (m *topGearManifest) Equipment() []api.EquipmentItem { return m.equipment }
+func (m *topGearManifest) Len() int                       { return len(m.profilesets) }
+func (m *topGearManifest) Name(i int) string              { return m.profilesets[i].name }
+
+// lines converts the loadout into the `profileset."Name"+=…` lines that will
+// be appended to the simc profile. equipment must be the same slice that
+// buildTopGearCandidatePools was called with.
+func (l *profileset) lines(equipment []api.EquipmentItem) []string {
+	type slotLine struct {
+		idx      int
+		retarget api.EquipmentSlot // "" => emit RawLine as‑is
+	}
+
+	slots := []slotLine{
+		{l.head, ""}, {l.neck, ""}, {l.shoulder, ""}, {l.back, ""},
+		{l.chest, ""}, {l.wrist, ""}, {l.hands, ""}, {l.waist, ""},
+		{l.legs, ""}, {l.feet, ""},
+		{l.finger1, api.Finger1}, {l.finger2, api.Finger2},
+		{l.trinket1, api.Trinket1}, {l.trinket2, api.Trinket2},
+		{l.mainHand, ""}, {l.offHand, api.OffHand},
+	}
+
+	const exLinesPerProfileset = 17 // 16 gear + 1 talents
+	lines := make([]string, 0, exLinesPerProfileset)
+
+	emit := func(raw string) {
+		lines = append(lines, fmt.Sprintf(`profileset."%s"+=%s`, l.name, raw))
+	}
+
+	for _, s := range slots {
+		switch {
+		case s.idx == noItemIndex && s.retarget == api.OffHand:
+			emit(emptyOffHandLine)
+		case s.idx == noItemIndex:
+			// Required slot left unset — this indicates a bug in generation.
+			panic(fmt.Sprintf("profileset %q has unset required slot", l.name))
+		case s.retarget != "":
+			emit(retargetEquipmentLine(equipment[s.idx].RawLine, s.retarget))
+		default:
+			emit(equipment[s.idx].RawLine)
+		}
+	}
+
+	emit("talents=" + l.talents)
+
+	return lines
+}

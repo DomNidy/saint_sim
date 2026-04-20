@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -240,7 +241,7 @@ func (worker simulationWorker) processTopGear(
 		)
 	}
 
-	profilesets, err := generateTopGearProfilesets(
+	manifest, err := generateTopGearProfilesets(
 		opts.Equipment,
 		opts.TalentLoadout.Talents,
 	)
@@ -248,7 +249,9 @@ func (worker simulationWorker) processTopGear(
 		return fmt.Errorf("generate top gear profilesets: %w", err)
 	}
 
-	_ = profilesets
+	profileText := strings.Join(manifest.SimcLines(), "\n")
+
+	_ = profileText
 
 	return nil
 }
