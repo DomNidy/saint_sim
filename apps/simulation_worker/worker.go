@@ -109,7 +109,7 @@ func (worker simulationWorker) handleDelivery(
 	case api.SimulationOptionsKindTopGear:
 		err = worker.processTopGear(ctx, request)
 		if err != nil {
-			log.Printf("got error cast to basic sim options, ignoring this job: %v", err)
+			log.Printf("failed to process topGear simulation: %v", err)
 			markSimErrored(requestID)
 		}
 
@@ -239,7 +239,7 @@ func (worker simulationWorker) processTopGear(
 		)
 	}
 
-	manifest, err := generateTopGearProfilesets(opts.Equipment, opts.TalentLoadout.Talents)
+	manifest, err := generateTopGearManifest(opts)
 	if err != nil {
 		return fmt.Errorf("generate top gear profilesets: %w", err)
 	}
