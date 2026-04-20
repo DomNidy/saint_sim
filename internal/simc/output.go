@@ -15,9 +15,34 @@ type JSON2Output struct {
 }
 
 type JSON2Sim struct {
+	// Players contains one entry per simmed actor. Basic sims have exactly
+	// one player; top‑gear sims also emit the player node (the "baseline"
+	// actor) in addition to Profilesets.
+	Players []JSON2Player `json:"players,omitempty"`
+
 	// Profilesets is only present when the input profile contained
-	// `profileset."…"` stanzas (i.e. top‑gear runs). Basic sims omit it.
+	// `profileset."…"` stanzas (top‑gear runs). Basic sims omit it.
 	Profilesets *JSON2Profilesets `json:"profilesets,omitempty"`
+}
+
+type JSON2Player struct {
+	Name          string             `json:"name"`
+	CollectedData JSON2CollectedData `json:"collected_data"`
+}
+
+// JSON2CollectedData is the per‑actor statistics block. Only DPS is consumed
+// today; HPS / tmi / etc. can be added if the result contracts grow.
+type JSON2CollectedData struct {
+	DPS JSON2Statistic `json:"dps"`
+}
+
+// JSON2Statistic is simc's shape for a single sampled metric.
+type JSON2Statistic struct {
+	Mean   float64 `json:"mean"`
+	Min    float64 `json:"min"`
+	Max    float64 `json:"max"`
+	Stddev float64 `json:"stddev"`
+	Median float64 `json:"median"`
 }
 
 type JSON2Profilesets struct {
@@ -50,6 +75,5 @@ func ParseJSON2(raw []byte) (JSON2Output, error) {
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return JSON2Output{}, fmt.Errorf("decode simc json2 output: %w", err)
 	}
-
 	return out, nil
 }

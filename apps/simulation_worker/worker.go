@@ -18,6 +18,7 @@ import (
 
 	"github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
+	"github.com/DomNidy/saint_sim/internal/simc"
 	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
@@ -120,76 +121,6 @@ func (worker simulationWorker) handleDelivery(
 	}
 }
 
-func (worker simulationWorker) processBasic(
-	ctx context.Context,
-	request simulationRequest,
-) error {
-	options, err := request.options.AsSimulationOptionsBasic()
-	if err != nil {
-		return fmt.Errorf("could not cast to basic: %w", err)
-	}
-
-	err = utils.ValidateSimulationOptionsBasic(&options)
-	if err != nil {
-		return fmt.Errorf("validate simulation options: %w", err)
-	}
-
-	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
-		ID: request.id,
-		Status: db.NullSimulationStatus{
-			SimulationStatus: db.SimulationStatusInProgress,
-			Valid:            true,
-		},
-	})
-	if err != nil {
-		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
-	}
-
-	tempDir, err := os.MkdirTemp("", "saint-simc-*")
-	if err != nil {
-		return fmt.Errorf("create simc temp dir: %w", err)
-	}
-
-	defer func() {
-		removeErr := os.RemoveAll(tempDir)
-		if removeErr != nil {
-			fmt.Fprintf(os.Stderr, "remove simc temp dir: %v\n", removeErr)
-		}
-	}()
-
-	profilePath := filepath.Join(tempDir, "input.simc")
-
-	err = os.WriteFile(profilePath, []byte(options.SimcAddonExport), simcProfileFileMode)
-	if err != nil {
-		return fmt.Errorf("write simc profile: %w", err)
-	}
-
-	result, err := worker.runner.Run(ctx, profilePath)
-	if err != nil {
-		return fmt.Errorf("run simulation: %w", err)
-	}
-
-	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
-		ID:           request.id,
-		SimResult:    result.Stdout,
-		SimcRawJson2: result.JSON2,
-		CompletedAt: pgtype.Timestamptz{
-			Time:             time.Now().UTC(),
-			InfinityModifier: pgtype.Finite,
-			Valid:            true,
-		},
-		Status: db.NullSimulationStatus{
-			SimulationStatus: db.SimulationStatusComplete,
-			Valid:            true,
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("persist simulation result: %w", err)
-	}
-
-	return nil
-}
-
 func parseSimulationRequestID(msg amqp091.Delivery) (uuid.UUID, error) {
 	var simRequestMsg utils.SimulationJobMessage
 
@@ -210,12 +141,81 @@ func parseSimulationRequestID(msg amqp091.Delivery) (uuid.UUID, error) {
 	return requestID, nil
 }
 
+// nowTimestamptz returns a pgtype.Timestamptz for the current UTC instant.
+func nowTimestamptz() pgtype.Timestamptz {
+	return pgtype.Timestamptz{
+		Time:             time.Now().UTC(),
+		InfinityModifier: pgtype.Finite,
+		Valid:            true,
+	}
+}
+
+func (worker simulationWorker) processBasic(
+	ctx context.Context,
+	request simulationRequest,
+) error {
+	options, err := request.options.AsSimulationOptionsBasic()
+	if err != nil {
+		return fmt.Errorf("could not cast to basic: %w", err)
+	}
+
+	if err := utils.ValidateSimulationOptionsBasic(&options); err != nil {
+		return fmt.Errorf("validate simulation options: %w", err)
+	}
+
+	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
+		ID:        request.id,
+		StartedAt: nowTimestamptz(),
+		Status: db.NullSimulationStatus{
+			SimulationStatus: db.SimulationStatusInProgress,
+			Valid:            true,
+		},
+	})
+	if err != nil {
+		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
+	}
+
+	run, err := worker.runSimcOnProfile(ctx, options.SimcAddonExport)
+	if err != nil {
+		return fmt.Errorf("run simulation: %w", err)
+	}
+
+	parsed, err := simc.ParseJSON2(run.JSON2)
+	if err != nil {
+		return fmt.Errorf("parse simc json2 output: %w", err)
+	}
+
+	basicResult, err := buildBasicResult(run, parsed)
+	if err != nil {
+		return fmt.Errorf("build basic result: %w", err)
+	}
+
+	simResultBytes, err := marshalResultAsBasic(basicResult)
+	if err != nil {
+		return fmt.Errorf("marshal basic result: %w", err)
+	}
+
+	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
+		ID:           request.id,
+		SimResult:    simResultBytes,
+		SimcRawJson2: run.JSON2,
+		CompletedAt:  nowTimestamptz(),
+		Status: db.NullSimulationStatus{
+			SimulationStatus: db.SimulationStatusComplete,
+			Valid:            true,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("persist simulation result: %w", err)
+	}
+
+	return nil
+}
+
 func (worker simulationWorker) processTopGear(
 	ctx context.Context,
 	request simulationRequest,
 ) error {
-	_ = ctx
-
 	opts, err := request.options.AsSimulationOptionsTopGear()
 	if err != nil {
 		return fmt.Errorf("could not cast to topGear: %w", err)
@@ -239,17 +239,106 @@ func (worker simulationWorker) processTopGear(
 		)
 	}
 
-	manifest, err := generateTopGearProfilesets(
-		opts.Equipment,
-		opts.TalentLoadout.Talents,
-	)
+	manifest, err := generateTopGearProfilesets(opts.Equipment, opts.TalentLoadout.Talents)
 	if err != nil {
 		return fmt.Errorf("generate top gear profilesets: %w", err)
 	}
 
-	profileText := strings.Join(manifest.SimcLines(), "\n")
+	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
+		ID:        request.id,
+		StartedAt: nowTimestamptz(),
+		Status: db.NullSimulationStatus{
+			SimulationStatus: db.SimulationStatusInProgress,
+			Valid:            true,
+		},
+	})
+	if err != nil {
+		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
+	}
 
-	_ = profileText
+	profileText, err := manifest.SimcLines()
+	if err != nil {
+		return fmt.Errorf("build top gear profile text: %w", err)
+	}
+
+	run, err := worker.runSimcOnProfile(ctx, strings.Join(profileText, "\n"))
+	if err != nil {
+		return fmt.Errorf("run simulation: %w", err)
+	}
+
+	parsed, err := simc.ParseJSON2(run.JSON2)
+	if err != nil {
+		return fmt.Errorf("parse simc json2 output: %w", err)
+	}
+
+	topGearResult, err := buildTopGearResult(&manifest, parsed)
+	if err != nil {
+		return fmt.Errorf("build top gear result: %w", err)
+	}
+
+	simResultBytes, err := marshalResultAsTopGear(topGearResult)
+	if err != nil {
+		return fmt.Errorf("marshal top gear result: %w", err)
+	}
+
+	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
+		ID:           request.id,
+		SimResult:    simResultBytes,
+		SimcRawJson2: run.JSON2,
+		CompletedAt:  nowTimestamptz(),
+		Status: db.NullSimulationStatus{
+			SimulationStatus: db.SimulationStatusComplete,
+			Valid:            true,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("persist simulation result: %w", err)
+	}
 
 	return nil
+}
+
+// runSimcOnProfile is the temp-dir / write / exec dance shared by both
+// processBasic and processTopGear. Lives here rather than on Runner because
+// it's scoped to how the worker consumes the runner.
+func (worker simulationWorker) runSimcOnProfile(
+	ctx context.Context,
+	profileText string,
+) (RunResult, error) {
+	tempDir, err := os.MkdirTemp("", "saint-simc-*")
+	if err != nil {
+		return RunResult{}, fmt.Errorf("create simc temp dir: %w", err)
+	}
+	defer func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			fmt.Fprintf(os.Stderr, "remove simc temp dir: %v\n", removeErr)
+		}
+	}()
+
+	profilePath := filepath.Join(tempDir, "input.simc")
+	if err := os.WriteFile(profilePath, []byte(profileText), simcProfileFileMode); err != nil {
+		return RunResult{}, fmt.Errorf("write simc profile: %w", err)
+	}
+
+	return worker.runner.Run(ctx, profilePath)
+}
+
+// marshalResultAsBasic wraps a basic result in the SimulationResult union
+// and returns the canonical on‑wire / on‑disk bytes. The union's custom
+// MarshalJSON emits only the inner variant (with kind embedded) — that's
+// exactly the shape we want in the `sim_result` column.
+func marshalResultAsBasic(r api.SimulationResultBasic) ([]byte, error) {
+	var u api.SimulationResult
+	if err := u.FromSimulationResultBasic(r); err != nil {
+		return nil, fmt.Errorf("wrap basic result: %w", err)
+	}
+	return json.Marshal(u)
+}
+
+func marshalResultAsTopGear(r api.SimulationResultTopGear) ([]byte, error) {
+	var u api.SimulationResult
+	if err := u.FromSimulationResultTopGear(r); err != nil {
+		return nil, fmt.Errorf("wrap top gear result: %w", err)
+	}
+	return json.Marshal(u)
 }

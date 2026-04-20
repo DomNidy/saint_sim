@@ -13,7 +13,11 @@ import (
 	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
-// GetSimulation returns the current state or completed result for a simulation.
+// GetSimulation returns the current state of a simulation job. The response
+// is the polling envelope: status + kind + (when complete) the typed result
+// as written by the worker. The API never recomputes the result — it
+// returns `simulation.sim_result` verbatim, rehydrated from jsonb into the
+// discriminated union.
 func (server *Server) GetSimulation(
 	ctx context.Context,
 	request api.GetSimulationRequestObject,
@@ -33,7 +37,14 @@ func (server *Server) GetSimulation(
 		return errorResponse, nil
 	}
 
-	return api.GetSimulation200JSONResponse(simulationResponseFromRecord(simulation)), nil
+	response, err := simulationResponseFromRecord(simulation)
+	if err != nil {
+		log.Printf("Error building simulation response %s: %v", request.Id.String(), err)
+
+		return internalErrorResponse(), nil
+	}
+
+	return api.GetSimulation200JSONResponse(response), nil
 }
 
 func parseSimulationID(rawSimulationID string) (uuid.UUID, bool) {
@@ -51,7 +62,7 @@ func loadSimulation(
 	rawSimulationID string,
 	simulationID uuid.UUID,
 ) (db.Simulation, api.GetSimulationResponseObject) {
-	var emptySimulation db.Simulation
+	var empty db.Simulation
 
 	simulation, err := dbClient.GetSimulation(ctx, simulationID)
 	if err == nil {
@@ -59,16 +70,11 @@ func loadSimulation(
 	}
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		return emptySimulation, simulationNotFoundResponse()
+		return empty, simulationNotFoundResponse()
 	}
 
 	log.Printf("Error loading simulation %s: %v", rawSimulationID, err)
-
-	return emptySimulation, api.GetSimulation500JSONResponse{
-		InternalErrorJSONResponse: api.InternalErrorJSONResponse{
-			Message: utils.StrPtr("Internal server error"),
-		},
-	}
+	return empty, internalErrorResponse()
 }
 
 func simulationNotFoundResponse() api.GetSimulation404JSONResponse {
@@ -79,35 +85,34 @@ func simulationNotFoundResponse() api.GetSimulation404JSONResponse {
 	}
 }
 
-func simulationResponseFromRecord(simulation db.Simulation) api.Simulation {
-	var response api.Simulation
-
-	status := simulationStatusFromRecord(simulation)
-
-	response.Kind = api.SimulationKind(simulation.Kind)
-	response.Id = simulation.ID
-	response.Status = status
-	// response.Result = simulation.SimResult
-
-	if simulation.ErrorText != nil {
-		response.ErrorText = simulation.ErrorText
+func internalErrorResponse() api.GetSimulation500JSONResponse {
+	return api.GetSimulation500JSONResponse{
+		InternalErrorJSONResponse: api.InternalErrorJSONResponse{
+			Message: utils.StrPtr("Internal server error"),
+		},
 	}
-
-	return response
 }
 
-func simulationStatusFromRecord(simulation db.Simulation) api.SimulationStatus {
-	if simulation.ErrorText != nil {
-		return api.Error
+// simulationResponseFromRecord projects a simulation row into the API
+// envelope. When sim_result is populated (status == complete) it's
+// rehydrated into the SimulationResult union via its generated
+// UnmarshalJSON, which just stores the bytes — the client does the actual
+// discriminated‑union decoding on the other side.
+func simulationResponseFromRecord(s db.Simulation) (api.Simulation, error) {
+	response := api.Simulation{
+		Id:        s.ID,
+		Kind:      api.SimulationKind(s.Kind),
+		Status:    api.SimulationStatus(s.Status),
+		ErrorText: s.ErrorText,
 	}
 
-	if simulation.CompletedAt.Valid {
-		return api.Complete
+	if len(s.SimResult) > 0 {
+		var result api.SimulationResult
+		if err := result.UnmarshalJSON(s.SimResult); err != nil {
+			return api.Simulation{}, err
+		}
+		response.Result = &result
 	}
 
-	if simulation.StartedAt.Valid {
-		return api.InProgress
-	}
-
-	return api.InQueue
+	return response, nil
 }
