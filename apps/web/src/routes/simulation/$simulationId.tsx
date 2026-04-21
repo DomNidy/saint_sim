@@ -21,9 +21,11 @@ export const Route = createFileRoute("/simulation/$simulationId")({
 const SimulationLogViewer = ({ sim }: { sim: GetSimulationResponse }) => {
 	return (
 		<div>
-			<p>Status: {sim?.simulation_status ?? "unknown"}</p>
-			{sim?.simulation_status === "error" && <code>{sim?.error_text}</code>}
-			{sim?.simulation_status === "complete" && <code>{sim?.sim_result}</code>}
+			<p>Status: {sim?.status ?? "unknown"}</p>
+			{sim?.status === "error" && <code>{sim?.error_text}</code>}
+			{sim?.status === "complete" && (
+				<code>{JSON.stringify(sim?.result ?? "{}")}</code>
+			)}
 		</div>
 	);
 };
@@ -35,8 +37,8 @@ function RouteComponent() {
 		...simulationQueryOptions(simulationId),
 		initialData: initialSimulation,
 		refetchInterval: (query) =>
-			query.state.data?.simulation_status === "in_queue" ||
-			query.state.data?.simulation_status === "in_progress"
+			query.state.data?.status === "in_queue" ||
+			query.state.data?.status === "in_progress"
 				? 2_000
 				: false,
 	});
