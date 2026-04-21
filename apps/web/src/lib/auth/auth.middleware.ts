@@ -10,9 +10,9 @@ import { auth } from "@/lib/auth/auth";
  *
  * NOTE: This is a request middleware (default option when calling
  * `createMiddleware`)
- * 
+ *
  * Tanstack start offers two middleware types:
- * 
+ *
  * - Request middleware (customize the behavior of ANY
  * server request that passes through it, including
  * server routes, SSR, and server functions)
@@ -20,20 +20,20 @@ import { auth } from "@/lib/auth/auth";
  * - Server function middleware that run only on
  * server functions (you can configure which server
  * functions use a middleware w/ .middleware([mw1,...]))
- * 
+ *
  * DOCS: https://tanstack.com/start/latest/docs/framework/react/guide/middleware#request-middleware
  */
-export const requireAuthMiddleware = createMiddleware().
-	server(async ({ next }) => {
+export const requireAuthMiddleware = createMiddleware().server(
+	async ({ next }) => {
 		// get headers of req so we can extract
 		// better auth session token from 'Cookie' header
-		const headers = getRequest().headers
+		const headers = getRequest().headers;
 
 		// better auth checks that the session token
 		// is valid, looking up the token in database,
 		// and resolving to a session w/ data if so
 		const session = await auth.api.getSession({
-			headers: headers
+			headers: headers,
 		});
 
 		if (!session?.user) {
@@ -48,4 +48,5 @@ export const requireAuthMiddleware = createMiddleware().
 				user: session.user,
 			},
 		});
-	});
+	},
+);
