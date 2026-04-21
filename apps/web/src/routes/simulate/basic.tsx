@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-router";
 import { LoaderCircle } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { type SubmitHandler, useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import type z from "zod";
 import { EquipmentDisplayGroup } from "@/components/equipment-display-group/equipment-display-group";
 import { SimulationForm } from "@/components/simulation-form/simulation-form";
@@ -44,7 +44,7 @@ declare global {
 const WOWHEAD_CONFIG_SCRIPT =
 	"window.whTooltips={colorLinks:true,iconizeLinks:false,renameLinks:false};";
 
-export const Route = createFileRoute("/simulate")({
+export const Route = createFileRoute("/simulate/basic")({
 	head: () => ({
 		scripts: [
 			{
@@ -107,15 +107,6 @@ function SimulationPage() {
 		},
 	});
 
-	const submitHandler: SubmitHandler<
-		z.infer<typeof zSimulationOptionsBasic>
-	> = (values) => {
-		void submitMutation.mutateAsync({ data: values });
-		if (hydrated) {
-			localStorageSet(PREV_SIMC_PROFILE_KEY, values.simc_addon_export);
-		}
-	};
-
 	// auto-parse addon export from form to display gear list
 	const parseQuery = useParseAddonExport(simcExport, true);
 	const previewGroups = useMemo(
@@ -144,7 +135,17 @@ function SimulationPage() {
 					<SimulationForm
 						form={form}
 						isSubmitPending={submitMutation.isPending}
-						submitHandler={submitHandler}
+						submitHandler={(values) => {
+							void submitMutation.mutateAsync({ data: values });
+							// write to local storage so users can see the profile again
+							// whenever they visit the site/refresh
+							if (hydrated) {
+								localStorageSet(
+									PREV_SIMC_PROFILE_KEY,
+									values.simc_addon_export,
+								);
+							}
+						}}
 					/>
 
 					{/* Display list of all parsed gear */}

@@ -14,15 +14,29 @@ function App() {
 		<section className="w-full pb-8 pt-14">
 			<Card>
 				<CardHeader>
-					<CardTitle>Simulate</CardTitle>
+					<CardTitle>Basic</CardTitle>
 					<CardDescription>Simulate your WoW Character</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<Link
-						to="/simulate"
+						to="/simulate/basic"
 						className="text-sm font-medium  underline underline-offset-4 transition-opacity hover:opacity-80"
 					>
-						Go to simulation
+						Perform a basic simulation
+					</Link>
+				</CardContent>
+			</Card>
+			<Card>
+				<CardHeader>
+					<CardTitle>Top Gear</CardTitle>
+					<CardDescription>Simulate your WoW Character</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Link
+						to="/simulate/top-gear"
+						className="text-sm font-medium  underline underline-offset-4 transition-opacity hover:opacity-80"
+					>
+						Perform a top gear simulation
 					</Link>
 				</CardContent>
 			</Card>
