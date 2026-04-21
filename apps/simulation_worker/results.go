@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/DomNidy/saint_sim/internal/api"
-	"github.com/DomNidy/saint_sim/internal/simc"
 )
 
 var (
@@ -31,7 +30,7 @@ var (
 // `simulation_result_basic` DTO. The raw stdout is carried through as the
 // optional raw_log so clients can still render simc's human‑readable report;
 // DPS is read from the structured json2 block.
-func buildBasicResult(run RunResult, out simc.JSON2Output) (api.SimulationResultBasic, error) {
+func buildBasicResult(run RunResult, out JSON2Output) (api.SimulationResultBasic, error) {
 	if len(out.Sim.Players) == 0 {
 		return api.SimulationResultBasic{}, errSimcNoPlayerResult
 	}
@@ -56,7 +55,7 @@ func buildBasicResult(run RunResult, out simc.JSON2Output) (api.SimulationResult
 // sim.profilesets.results[].name.
 func buildTopGearResult(
 	manifest *topGearManifest,
-	out simc.JSON2Output,
+	out JSON2Output,
 ) (api.SimulationResultTopGear, error) {
 	if out.Sim.Profilesets == nil {
 		return api.SimulationResultTopGear{}, errSimcNoProfilesetsSection
@@ -76,7 +75,7 @@ func buildTopGearResult(
 
 	// Index simc's results for O(1) lookup. Map size is bounded by
 	// maxGeneratedProfilesets, so allocation is trivial.
-	byName := make(map[string]simc.JSON2ProfilesetResult, len(out.Sim.Profilesets.Results))
+	byName := make(map[string]JSON2ProfilesetResult, len(out.Sim.Profilesets.Results))
 	for _, r := range out.Sim.Profilesets.Results {
 		byName[r.Name] = r
 	}

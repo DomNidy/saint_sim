@@ -19,7 +19,7 @@ type RunResult struct {
 	Stdout []byte
 
 	// JSON2 is the raw contents of the file produced by passing `json2=<path>`
-	// to simc — its structured report. Parse with simc.ParseJSON2.
+	// to simc — its structured report. Parse with ParseJSON2.
 	JSON2 []byte
 }
 
