@@ -10,7 +10,6 @@ import (
 	"github.com/DomNidy/saint_sim/apps/api/auth"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
-	"github.com/DomNidy/saint_sim/internal/simc"
 	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
@@ -71,7 +70,7 @@ func (server *Server) handleSimulationOptionsBasic(
 	authContext auth.AuthContext,
 	simOptions api.SimulationOptionsBasic,
 ) (api.SimulateResponseObject, error) {
-	simOptions.SimcAddonExport = simc.NormalizeLineEndings(simOptions.SimcAddonExport)
+	simOptions.SimcAddonExport = NormalizeLineEndings(simOptions.SimcAddonExport)
 
 	validationFailure := validateSimulationRequestBasic(ctx, simOptions)
 	if validationFailure != nil {

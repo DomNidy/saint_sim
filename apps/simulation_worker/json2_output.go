@@ -1,4 +1,4 @@
-package simc
+package main
 
 import (
 	"encoding/json"

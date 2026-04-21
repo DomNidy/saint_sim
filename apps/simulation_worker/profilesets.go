@@ -41,7 +41,7 @@ var (
 // profileset is one fully materialized gear loadout.
 //
 // Each gear field holds an index into the original []api.EquipmentItem the
-// request was built from. Storing indices (rather than raw simc lines)
+// request was built from. Storing indices (rather than raw simc lines).
 type profileset struct {
 	// name identifies this profileset within the simc input and is the join
 	// key against simc's json2 profilesets.results[].name.

@@ -18,7 +18,6 @@ import (
 
 	"github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
-	"github.com/DomNidy/saint_sim/internal/simc"
 	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
@@ -180,7 +179,7 @@ func (worker simulationWorker) processBasic(
 		return fmt.Errorf("run simulation: %w", err)
 	}
 
-	parsed, err := simc.ParseJSON2(run.JSON2)
+	parsed, err := ParseJSON2(run.JSON2)
 	if err != nil {
 		return fmt.Errorf("parse simc json2 output: %w", err)
 	}
@@ -269,7 +268,7 @@ func (worker simulationWorker) processTopGear(
 		return fmt.Errorf("run simulation: %w", err)
 	}
 
-	parsed, err := simc.ParseJSON2(run.JSON2)
+	parsed, err := ParseJSON2(run.JSON2)
 	if err != nil {
 		return fmt.Errorf("parse simc json2 output: %w", err)
 	}

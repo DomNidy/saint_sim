@@ -20,7 +20,6 @@ The Go code in this repository uses a single root module defined by [`go.mod`](.
   - `/internal/api_types`: Automatically generated Go types from the OpenAPI schema
   - `/internal/db`: Generated Go database access code from `sqlc`
   - `/internal/secrets`: Utility for reading secrets into memory
-  - `/internal/simc`: Shared SimC parsing and validation helpers
   - `/internal/utils`: Miscellaneous shared utilities
   - `/apps/web/src/lib/db`: `sqlc`-generated TypeScript query bindings for the web app
   - `/apps/web/src/lib/saint-api/generated`: OpenAPI-derived TypeScript types, SDK functions, Fetch client, and Zod schemas for the web app

@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/DomNidy/saint_sim/internal/api"
-	"github.com/DomNidy/saint_sim/internal/simc"
 )
 
 type stubRunner struct{}
@@ -296,7 +295,7 @@ func mustParseEquipmentLine(
 ) api.EquipmentItem {
 	t.Helper()
 
-	item, ok := simc.ParseEquipmentItem("", line, source)
+	item, ok := ParseEquipmentItem("", line, source)
 	if !ok {
 		t.Fatalf("failed to parse item line %q", line)
 	}
