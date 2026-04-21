@@ -5,18 +5,12 @@ import {
 	useHydrated,
 	useNavigate,
 } from "@tanstack/react-router";
-import { LoaderCircle, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import {
-	type SubmitHandler,
-	type UseFormReturn,
-	useForm,
-	useWatch,
-} from "react-hook-form";
-import type { z } from "zod";
-import { Alert } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { LoaderCircle } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { type SubmitHandler, useForm, useWatch } from "react-hook-form";
+import type z from "zod";
+import { EquipmentDisplayGroup } from "@/components/equipment-display-group/equipment-display-group";
+import { SimulationForm } from "@/components/simulation-form/simulation-form";
 import {
 	Card,
 	CardContent,
@@ -24,28 +18,15 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import {
-	Form,
-	FormControl,
-	FormDescription,
-	FormField,
-	FormItem,
-	FormLabel,
-	FormMessage,
-} from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
 import { useParseAddonExport } from "@/hooks/use-parse-addon-export";
+import { groupEquipment } from "@/lib/equipment/group";
 import {
 	localStorageGet,
 	localStorageSet,
 	PREV_SIMC_PROFILE_KEY,
 } from "@/lib/local-storage";
-import type { EquipmentItem, EquipmentSlot } from "@/lib/saint-api/generated";
 import { zSimulationOptionsBasic } from "@/lib/saint-api/generated/zod.gen";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
-import { cn } from "@/lib/utils";
-
-type SimulationRequestInput = z.infer<typeof zSimulationOptionsBasic>;
 
 declare global {
 	interface Window {
@@ -63,23 +44,6 @@ declare global {
 const WOWHEAD_CONFIG_SCRIPT =
 	"window.whTooltips={colorLinks:true,iconizeLinks:false,renameLinks:false};";
 
-const orderedSlots = [
-	"head",
-	"neck",
-	"shoulder",
-	"back",
-	"chest",
-	"wrist",
-	"hands",
-	"waist",
-	"legs",
-	"feet",
-	"finger",
-	"trinket",
-	"main_hand",
-	"off_hand",
-] as const;
-
 export const Route = createFileRoute("/simulate")({
 	head: () => ({
 		scripts: [
@@ -94,99 +58,11 @@ export const Route = createFileRoute("/simulate")({
 	component: SimulationPage,
 });
 
-type SimulationFormProps = {
-	form: UseFormReturn<SimulationRequestInput>;
-	submitHandler: SubmitHandler<SimulationRequestInput>;
-
-	// true if the form was submitting and is in a pending state.
-	// you should set this to submit mutation isPending
-	isSubmitPending: boolean;
-};
-
-const SimulationForm = ({
-	form,
-	submitHandler,
-	isSubmitPending,
-}: SimulationFormProps) => {
-	return (
-		<Form {...form}>
-			<form
-				className="flex flex-col gap-5"
-				onSubmit={form.handleSubmit(submitHandler)}
-			>
-				<FormField
-					control={form.control}
-					name="simc_addon_export"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>SimC addon export</FormLabel>
-							<FormControl>
-								<Textarea
-									placeholder={'priest="Example"\nlevel=80\nspec=shadow'}
-									autoComplete="off"
-									autoCapitalize="none"
-									autoCorrect="off"
-									className="h-32"
-									spellCheck={false}
-									{...field}
-								/>
-							</FormControl>
-							<FormDescription>
-								Paste the raw output from the SimulationCraft in-game addon.
-								Saint will submit it to the backend verbatim.
-							</FormDescription>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-
-				{form.formState?.errors?.root?.server?.message && (
-					<Alert variant={"destructive"}>
-						{form.formState?.errors?.root?.server?.message}
-					</Alert>
-				)}
-
-				<div className="flex flex-wrap items-center gap-3">
-					<Button disabled={isSubmitPending} type="submit">
-						{isSubmitPending ? (
-							<>
-								<LoaderCircle
-									data-icon="inline-start"
-									className="animate-spin"
-								/>
-								Sending request
-							</>
-						) : (
-							<>
-								<Sparkles data-icon="inline-start" />
-								Run simulation
-							</>
-						)}
-					</Button>
-					<Button
-						type="button"
-						variant="secondary"
-						onClick={() => {
-							form.reset({
-								kind: "basic",
-								simc_addon_export: "",
-							});
-						}}
-					>
-						Clear
-					</Button>
-				</div>
-			</form>
-		</Form>
-	);
-};
-
 function SimulationPage() {
 	const hydrated = useHydrated();
 	const navigate = useNavigate();
-	const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
-	const form = useForm<SimulationRequestInput>({
+	const form = useForm<z.infer<typeof zSimulationOptionsBasic>>({
 		resolver: zodResolver(zSimulationOptionsBasic),
 		defaultValues: {
 			kind: "basic",
@@ -202,12 +78,6 @@ function SimulationPage() {
 		name: "simc_addon_export",
 		defaultValue: "",
 	});
-
-	useEffect(() => {
-		if (simcExport !== undefined) {
-			setSelectedItems(new Set());
-		}
-	}, [simcExport]);
 
 	// Use previous simc export as default value
 	useEffect(() => {
@@ -237,7 +107,9 @@ function SimulationPage() {
 		},
 	});
 
-	const submitHandler: SubmitHandler<SimulationRequestInput> = (values) => {
+	const submitHandler: SubmitHandler<
+		z.infer<typeof zSimulationOptionsBasic>
+	> = (values) => {
 		void submitMutation.mutateAsync({ data: values });
 		if (hydrated) {
 			localStorageSet(PREV_SIMC_PROFILE_KEY, values.simc_addon_export);
@@ -319,153 +191,4 @@ function SimulationPage() {
 			</Card>
 		</section>
 	);
-}
-
-type EquipmentDisplayGroupProps = {
-	group: EquipmentGroup;
-};
-
-const formatGroupLabel = (groupLabel: string): string => {
-	const words = groupLabel.split("_");
-	return words
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join(" ");
-};
-
-const EquipmentDisplayGroup = ({ group }: EquipmentDisplayGroupProps) => {
-	return (
-		<div key={group.groupLabel} className="space-y-2">
-			<h4 className="font-medium text-sm uppercase tracking-wide">
-				{formatGroupLabel(group.groupLabel)}
-			</h4>
-			<div className="grid gap-2 md:grid-cols-2">
-				{group.items.map((item) => (
-					<EquipmentDisplayGroupItem
-						item={item}
-						key={`${item.raw_line}+${item.source}`}
-					/>
-				))}
-			</div>
-		</div>
-	);
-};
-
-type EquipmentDisplayGroupItemProps = {
-	item: EquipmentItem;
-	onClick?: () => void;
-
-	// show selected state on the item
-	isSelected?: boolean;
-};
-
-const EquipmentDisplayGroupItem = ({
-	item,
-	onClick,
-	isSelected,
-}: EquipmentDisplayGroupItemProps) => {
-	const fp = `${item.raw_line}`;
-
-	return (
-		<button
-			key={fp}
-			type="button"
-			onClick={onClick}
-			className={cn(
-				"rounded-md border bg-card p-3 text-left transition-colors",
-				isSelected
-					? "border-primary ring-1 ring-primary"
-					: "hover:border-muted-foreground/40",
-			)}
-		>
-			<div className="flex items-start justify-between gap-3">
-				<div className="min-w-0 space-y-1">
-					<p className="truncate font-medium text-sm">{item.display_name}</p>
-					<p className="text-muted-foreground text-xs">
-						ilvl {item.item_level ?? "?"} ·{" "}
-						{item.source === "bag" ? "Bag" : "Equipped"}
-					</p>
-				</div>
-				<a
-					href={buildWowheadUrl(item.item_id)}
-					data-wowhead={buildWowheadData(item)}
-					target="_blank"
-					rel="noreferrer"
-					onClick={(event) => {
-						event.stopPropagation();
-					}}
-					className="shrink-0 text-xs underline underline-offset-2"
-				>
-					Wowhead
-				</a>
-			</div>
-		</button>
-	);
-};
-
-type EquipmentGroup = {
-	// display label for the group.
-	groupLabel: string;
-
-	items: EquipmentItem[];
-};
-
-/**
- * Group a flat list of equipment items by their intended slot.
- * All "head" items go into one group, etc.
- *
- * The finger and trinket slots are special cases:
- * - finger1 and finger2 -> go into a single "finger" group
- * - trinket1 and trinket2 -> go into a single "trinket" group
- *
- * @param items items to turn into equipment groups
- * @returns a list of equipment groups for the provided items
- */
-function groupEquipment(items: EquipmentItem[]): EquipmentGroup[] {
-	const groupsBySlot = new Map<string, EquipmentItem[]>();
-
-	for (const item of items) {
-		const groupLabel = intendedLabelForSlotType(item.slot);
-		const group = groupsBySlot.get(groupLabel) ?? [];
-		group.push(item);
-		groupsBySlot.set(groupLabel, group);
-	}
-
-	const groups = Array.from(groupsBySlot.entries()).map(
-		([groupLabel, groupedItems]) =>
-			({ items: groupedItems, groupLabel: groupLabel }) as EquipmentGroup,
-	);
-
-	return groups;
-}
-
-function intendedLabelForSlotType(slot: EquipmentSlot): string {
-	if (slot.startsWith("trinket")) {
-		return "trinket";
-	} else if (slot.startsWith("finger")) {
-		return "finger";
-	}
-	return slot.toString();
-}
-
-function buildWowheadUrl(itemId: number) {
-	return `https://www.wowhead.com/item=${itemId}`;
-}
-
-function buildWowheadData(item: EquipmentItem) {
-	const pairs = [`item=${item.item_id}`];
-
-	if ((item.bonus_ids ?? []).length > 0) {
-		pairs.push(`bonus=${(item.bonus_ids ?? []).join(":")}`);
-	}
-	if (item.enchant_id != null) {
-		pairs.push(`ench=${item.enchant_id}`);
-	}
-	if ((item.gem_ids ?? []).length > 0) {
-		pairs.push(`gems=${(item.gem_ids ?? []).join(":")}`);
-	}
-	if (item.item_level != null) {
-		pairs.push(`ilvl=${item.item_level}`);
-	}
-
-	return pairs.join("&");
 }
