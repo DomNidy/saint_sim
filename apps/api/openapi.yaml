@@ -450,14 +450,6 @@ components:
         addon_export:
           $ref: "#/components/schemas/addon_export"
 
-    # ──────────────────────────────────────────────────────────────────────
-    # Simulation result envelope
-    #
-    # `simulation` is the polling envelope: id + status + (eventually) a
-    # typed result. The result is absent while the job is queued/running and
-    # populated once status = complete. `kind` on the envelope is always set
-    # so the client can pick the right renderer before the result arrives.
-    # ──────────────────────────────────────────────────────────────────────
     simulation:
       type: object
       description: Polling envelope for a simulation job.
