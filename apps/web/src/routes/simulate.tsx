@@ -9,6 +9,7 @@ import { LoaderCircle, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { type SubmitHandler, useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -134,6 +135,11 @@ function SimulationForm() {
 				},
 			});
 		},
+		onError: ({ message, name }) => {
+			form.setError("root.server", {
+				message: `${name}: ${message}`,
+			});
+		},
 	});
 
 	const parseQuery = useParseAddonExport(simcExport, true);
@@ -199,6 +205,12 @@ function SimulationForm() {
 									</FormItem>
 								)}
 							/>
+
+							{form.formState?.errors?.root?.server?.message && (
+								<Alert variant={"destructive"}>
+									{form.formState?.errors?.root?.server?.message}
+								</Alert>
+							)}
 
 							<div className="flex flex-wrap items-center gap-3">
 								<Button disabled={submitMutation.isPending} type="submit">
