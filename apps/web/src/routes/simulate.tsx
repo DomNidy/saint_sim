@@ -312,7 +312,7 @@ function SimulationPage() {
 						) : null}
 
 						{previewGroups.map((group) => (
-							<EquipmentDisplayGroup group={group} key={group.slot} />
+							<EquipmentDisplayGroup group={group} key={group.groupLabel} />
 						))}
 					</div>
 				</CardContent>
@@ -325,11 +325,18 @@ type EquipmentDisplayGroupProps = {
 	group: EquipmentGroup;
 };
 
+const formatGroupLabel = (groupLabel: string): string => {
+	const words = groupLabel.split("_");
+	return words
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+		.join(" ");
+};
+
 const EquipmentDisplayGroup = ({ group }: EquipmentDisplayGroupProps) => {
 	return (
-		<div key={group.slot} className="space-y-2">
+		<div key={group.groupLabel} className="space-y-2">
 			<h4 className="font-medium text-sm uppercase tracking-wide">
-				{group.slot}
+				{formatGroupLabel(group.groupLabel)}
 			</h4>
 			<div className="grid gap-2 md:grid-cols-2">
 				{group.items.map((item) => (
@@ -396,57 +403,48 @@ const EquipmentDisplayGroupItem = ({
 };
 
 type EquipmentGroup = {
-	slot: EquipmentSlot;
+	// display label for the group.
+	groupLabel: string;
+
 	items: EquipmentItem[];
 };
 
 /**
  * Group a flat list of equipment items by their intended slot.
  * All "head" items go into one group, etc.
+ *
+ * The finger and trinket slots are special cases:
+ * - finger1 and finger2 -> go into a single "finger" group
+ * - trinket1 and trinket2 -> go into a single "trinket" group
+ *
  * @param items items to turn into equipment groups
  * @returns a list of equipment groups for the provided items
  */
 function groupEquipment(items: EquipmentItem[]): EquipmentGroup[] {
-	const groupsBySlot = new Map<EquipmentSlot, EquipmentItem[]>();
+	const groupsBySlot = new Map<string, EquipmentItem[]>();
 
 	for (const item of items) {
-		const group = groupsBySlot.get(item.slot) ?? [];
+		const groupLabel = intendedLabelForSlotType(item.slot);
+		const group = groupsBySlot.get(groupLabel) ?? [];
 		group.push(item);
-		groupsBySlot.set(item.slot, group);
+		groupsBySlot.set(groupLabel, group);
 	}
 
 	const groups = Array.from(groupsBySlot.entries()).map(
-		([slot, groupedItems]) =>
-			({ items: groupedItems, slot: slot }) as EquipmentGroup,
+		([groupLabel, groupedItems]) =>
+			({ items: groupedItems, groupLabel: groupLabel }) as EquipmentGroup,
 	);
 
-	return groups.sort((left, right) => {
-		const leftIndex = orderedSlots.indexOf(
-			left.slot as (typeof orderedSlots)[number],
-		);
-		const rightIndex = orderedSlots.indexOf(
-			right.slot as (typeof orderedSlots)[number],
-		);
-
-		if (leftIndex === -1 && rightIndex === -1) {
-			return left.slot.localeCompare(right.slot);
-		}
-		if (leftIndex === -1) {
-			return 1;
-		}
-		if (rightIndex === -1) {
-			return -1;
-		}
-
-		return leftIndex - rightIndex;
-	});
+	return groups;
 }
 
-function slotLabel(slot: EquipmentSlot) {
-	const words = slot.split("_");
-	return words
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join(" ");
+function intendedLabelForSlotType(slot: EquipmentSlot): string {
+	if (slot.startsWith("trinket")) {
+		return "trinket";
+	} else if (slot.startsWith("finger")) {
+		return "finger";
+	}
+	return slot.toString();
 }
 
 function buildWowheadUrl(itemId: number) {
