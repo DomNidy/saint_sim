@@ -130,8 +130,8 @@ func simIdentity(item api.EquipmentItem) string {
 	return strings.ToLower(strings.TrimSpace(attrs))
 }
 
-// buildTopGearCandidatePools normalizes the API equipment payload into the
-// pools used by counting and generation.
+// buildTopGearCandidatePools dupdes a list of Equipment and returns a "pool"
+// for each slot.
 //
 // Dedup rules:
 //   - Singleton slots: keep one entry per simIdentity. Two items that produce
@@ -139,6 +139,13 @@ func simIdentity(item api.EquipmentItem) string {
 //   - Rings/trinkets: keep up to maxCopiesPerPairedItem entries per
 //     simIdentity, so owning two stat‑identical rings still allows an (A, A)
 //     pair. A third copy is rejected — it could never yield a new loadout.
+//
+// Pools:
+//
+// Each equipment slot has a pool, which is the set of all unique items in
+// the top gear options payload for that slot. We implement this as: each
+// slot has a slice of integers that index into the equipment slice provided
+// to this method.
 func buildTopGearCandidatePools(
 	equipment []api.EquipmentItem,
 ) (topGearCandidatePools, error) {
@@ -179,6 +186,7 @@ func buildTopGearCandidatePools(
 		}
 		copies[id]++
 		*dest = append(*dest, idx)
+
 		return nil
 	}
 
