@@ -9,20 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SimulateRouteImport } from './routes/simulate'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as SimulateIndexRouteImport } from './routes/simulate/index'
 import { Route as SimulationSimulationIdRouteImport } from './routes/simulation/$simulationId'
+import { Route as SimulateTopGearRouteImport } from './routes/simulate/top-gear'
+import { Route as SimulateBasicRouteImport } from './routes/simulate/basic'
 import { Route as ProtectedAccountRouteImport } from './routes/_protected/account'
 import { Route as AuthSignUpIndexRouteImport } from './routes/auth/sign-up/index'
 import { Route as AuthSignInIndexRouteImport } from './routes/auth/sign-in/index'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
-const SimulateRoute = SimulateRouteImport.update({
-  id: '/simulate',
-  path: '/simulate',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProtectedRoute = ProtectedRouteImport.update({
   id: '/_protected',
   getParentRoute: () => rootRouteImport,
@@ -32,9 +29,24 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SimulateIndexRoute = SimulateIndexRouteImport.update({
+  id: '/simulate/',
+  path: '/simulate/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SimulationSimulationIdRoute = SimulationSimulationIdRouteImport.update({
   id: '/simulation/$simulationId',
   path: '/simulation/$simulationId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SimulateTopGearRoute = SimulateTopGearRouteImport.update({
+  id: '/simulate/top-gear',
+  path: '/simulate/top-gear',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SimulateBasicRoute = SimulateBasicRouteImport.update({
+  id: '/simulate/basic',
+  path: '/simulate/basic',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectedAccountRoute = ProtectedAccountRouteImport.update({
@@ -60,18 +72,22 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/simulate': typeof SimulateRoute
   '/account': typeof ProtectedAccountRoute
+  '/simulate/basic': typeof SimulateBasicRoute
+  '/simulate/top-gear': typeof SimulateTopGearRoute
   '/simulation/$simulationId': typeof SimulationSimulationIdRoute
+  '/simulate/': typeof SimulateIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/auth/sign-in/': typeof AuthSignInIndexRoute
   '/auth/sign-up/': typeof AuthSignUpIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/simulate': typeof SimulateRoute
   '/account': typeof ProtectedAccountRoute
+  '/simulate/basic': typeof SimulateBasicRoute
+  '/simulate/top-gear': typeof SimulateTopGearRoute
   '/simulation/$simulationId': typeof SimulationSimulationIdRoute
+  '/simulate': typeof SimulateIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/auth/sign-in': typeof AuthSignInIndexRoute
   '/auth/sign-up': typeof AuthSignUpIndexRoute
@@ -80,9 +96,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_protected': typeof ProtectedRouteWithChildren
-  '/simulate': typeof SimulateRoute
   '/_protected/account': typeof ProtectedAccountRoute
+  '/simulate/basic': typeof SimulateBasicRoute
+  '/simulate/top-gear': typeof SimulateTopGearRoute
   '/simulation/$simulationId': typeof SimulationSimulationIdRoute
+  '/simulate/': typeof SimulateIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/auth/sign-in/': typeof AuthSignInIndexRoute
   '/auth/sign-up/': typeof AuthSignUpIndexRoute
@@ -91,18 +109,22 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/simulate'
     | '/account'
+    | '/simulate/basic'
+    | '/simulate/top-gear'
     | '/simulation/$simulationId'
+    | '/simulate/'
     | '/api/auth/$'
     | '/auth/sign-in/'
     | '/auth/sign-up/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/simulate'
     | '/account'
+    | '/simulate/basic'
+    | '/simulate/top-gear'
     | '/simulation/$simulationId'
+    | '/simulate'
     | '/api/auth/$'
     | '/auth/sign-in'
     | '/auth/sign-up'
@@ -110,9 +132,11 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_protected'
-    | '/simulate'
     | '/_protected/account'
+    | '/simulate/basic'
+    | '/simulate/top-gear'
     | '/simulation/$simulationId'
+    | '/simulate/'
     | '/api/auth/$'
     | '/auth/sign-in/'
     | '/auth/sign-up/'
@@ -121,8 +145,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ProtectedRoute: typeof ProtectedRouteWithChildren
-  SimulateRoute: typeof SimulateRoute
+  SimulateBasicRoute: typeof SimulateBasicRoute
+  SimulateTopGearRoute: typeof SimulateTopGearRoute
   SimulationSimulationIdRoute: typeof SimulationSimulationIdRoute
+  SimulateIndexRoute: typeof SimulateIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   AuthSignInIndexRoute: typeof AuthSignInIndexRoute
   AuthSignUpIndexRoute: typeof AuthSignUpIndexRoute
@@ -130,13 +156,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/simulate': {
-      id: '/simulate'
-      path: '/simulate'
-      fullPath: '/simulate'
-      preLoaderRoute: typeof SimulateRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_protected': {
       id: '/_protected'
       path: ''
@@ -151,11 +170,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/simulate/': {
+      id: '/simulate/'
+      path: '/simulate'
+      fullPath: '/simulate/'
+      preLoaderRoute: typeof SimulateIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/simulation/$simulationId': {
       id: '/simulation/$simulationId'
       path: '/simulation/$simulationId'
       fullPath: '/simulation/$simulationId'
       preLoaderRoute: typeof SimulationSimulationIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/simulate/top-gear': {
+      id: '/simulate/top-gear'
+      path: '/simulate/top-gear'
+      fullPath: '/simulate/top-gear'
+      preLoaderRoute: typeof SimulateTopGearRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/simulate/basic': {
+      id: '/simulate/basic'
+      path: '/simulate/basic'
+      fullPath: '/simulate/basic'
+      preLoaderRoute: typeof SimulateBasicRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_protected/account': {
@@ -204,8 +244,10 @@ const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ProtectedRoute: ProtectedRouteWithChildren,
-  SimulateRoute: SimulateRoute,
+  SimulateBasicRoute: SimulateBasicRoute,
+  SimulateTopGearRoute: SimulateTopGearRoute,
   SimulationSimulationIdRoute: SimulationSimulationIdRoute,
+  SimulateIndexRoute: SimulateIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   AuthSignInIndexRoute: AuthSignInIndexRoute,
   AuthSignUpIndexRoute: AuthSignUpIndexRoute,
