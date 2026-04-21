@@ -237,6 +237,14 @@ function SimulationPage() {
 		},
 	});
 
+	const submitHandler: SubmitHandler<SimulationRequestInput> = (values) => {
+		void submitMutation.mutateAsync({ data: values });
+		if (hydrated) {
+			localStorageSet(PREV_SIMC_PROFILE_KEY, values.simc_addon_export);
+		}
+	};
+
+	// auto-parse addon export from form to display gear list
 	const parseQuery = useParseAddonExport(simcExport, true);
 	const previewGroups = useMemo(
 		() => groupEquipment(parseQuery.data?.addon_export.equipment ?? []),
@@ -250,15 +258,6 @@ function SimulationPage() {
 
 		window.$WowheadPower?.refreshLinks?.();
 	}, [previewGroups, hydrated]);
-
-	const submitHandler: SubmitHandler<SimulationRequestInput> = (values) => {
-		void submitMutation.mutateAsync({ data: values });
-		if (hydrated) {
-			localStorageSet(PREV_SIMC_PROFILE_KEY, values.simc_addon_export);
-		}
-	};
-
-	const selectedCount = useMemo(() => selectedItems.size, [selectedItems]);
 
 	return (
 		<section className="w-full pb-10 pt-12">
@@ -275,6 +274,8 @@ function SimulationPage() {
 						isSubmitPending={submitMutation.isPending}
 						submitHandler={submitHandler}
 					/>
+
+					{/* Display list of all parsed gear */}
 					<div className="space-y-4 border-t pt-4">
 						<div className="flex items-center justify-between gap-3">
 							<div>
@@ -283,7 +284,6 @@ function SimulationPage() {
 									Detected items from equipped gear and bags.
 								</p>
 							</div>
-							<Badge variant="secondary">Selected: {selectedCount}</Badge>
 						</div>
 
 						{simcExport.trim().length === 0 ? (
@@ -312,66 +312,7 @@ function SimulationPage() {
 						) : null}
 
 						{previewGroups.map((group) => (
-							<div key={group.slot} className="space-y-2">
-								<h4 className="font-medium text-sm uppercase tracking-wide">
-									{group.label}
-								</h4>
-								<div className="grid gap-2 md:grid-cols-2">
-									{group.items.map((item, idx) => {
-										const fp = `${item.raw_line}${idx}`;
-										const isSelected = selectedItems.has(fp);
-
-										return (
-											<button
-												key={fp}
-												type="button"
-												onClick={() => {
-													setSelectedItems((current) => {
-														const next = new Set(current);
-														if (next.has(fp)) {
-															next.delete(fp);
-														} else {
-															next.add(fp);
-														}
-
-														return next;
-													});
-												}}
-												className={cn(
-													"rounded-md border bg-card p-3 text-left transition-colors",
-													isSelected
-														? "border-primary ring-1 ring-primary"
-														: "hover:border-muted-foreground/40",
-												)}
-											>
-												<div className="flex items-start justify-between gap-3">
-													<div className="min-w-0 space-y-1">
-														<p className="truncate font-medium text-sm">
-															{item.display_name}
-														</p>
-														<p className="text-muted-foreground text-xs">
-															ilvl {item.item_level ?? "?"} ·{" "}
-															{item.source === "bag" ? "Bag" : "Equipped"}
-														</p>
-													</div>
-													<a
-														href={buildWowheadUrl(item.item_id)}
-														data-wowhead={buildWowheadData(item)}
-														target="_blank"
-														rel="noreferrer"
-														onClick={(event) => {
-															event.stopPropagation();
-														}}
-														className="shrink-0 text-xs underline underline-offset-2"
-													>
-														Wowhead
-													</a>
-												</div>
-											</button>
-										);
-									})}
-								</div>
-							</div>
+							<EquipmentDisplayGroup group={group} key={group.slot} />
 						))}
 					</div>
 				</CardContent>
@@ -380,7 +321,92 @@ function SimulationPage() {
 	);
 }
 
-function groupEquipment(items: EquipmentItem[]) {
+type EquipmentDisplayGroupProps = {
+	group: EquipmentGroup;
+};
+
+const EquipmentDisplayGroup = ({ group }: EquipmentDisplayGroupProps) => {
+	return (
+		<div key={group.slot} className="space-y-2">
+			<h4 className="font-medium text-sm uppercase tracking-wide">
+				{group.slot}
+			</h4>
+			<div className="grid gap-2 md:grid-cols-2">
+				{group.items.map((item) => (
+					<EquipmentDisplayGroupItem
+						item={item}
+						key={`${item.raw_line}+${item.source}`}
+					/>
+				))}
+			</div>
+		</div>
+	);
+};
+
+type EquipmentDisplayGroupItemProps = {
+	item: EquipmentItem;
+	onClick?: () => void;
+
+	// show selected state on the item
+	isSelected?: boolean;
+};
+
+const EquipmentDisplayGroupItem = ({
+	item,
+	onClick,
+	isSelected,
+}: EquipmentDisplayGroupItemProps) => {
+	const fp = `${item.raw_line}`;
+
+	return (
+		<button
+			key={fp}
+			type="button"
+			onClick={onClick}
+			className={cn(
+				"rounded-md border bg-card p-3 text-left transition-colors",
+				isSelected
+					? "border-primary ring-1 ring-primary"
+					: "hover:border-muted-foreground/40",
+			)}
+		>
+			<div className="flex items-start justify-between gap-3">
+				<div className="min-w-0 space-y-1">
+					<p className="truncate font-medium text-sm">{item.display_name}</p>
+					<p className="text-muted-foreground text-xs">
+						ilvl {item.item_level ?? "?"} ·{" "}
+						{item.source === "bag" ? "Bag" : "Equipped"}
+					</p>
+				</div>
+				<a
+					href={buildWowheadUrl(item.item_id)}
+					data-wowhead={buildWowheadData(item)}
+					target="_blank"
+					rel="noreferrer"
+					onClick={(event) => {
+						event.stopPropagation();
+					}}
+					className="shrink-0 text-xs underline underline-offset-2"
+				>
+					Wowhead
+				</a>
+			</div>
+		</button>
+	);
+};
+
+type EquipmentGroup = {
+	slot: EquipmentSlot;
+	items: EquipmentItem[];
+};
+
+/**
+ * Group a flat list of equipment items by their intended slot.
+ * All "head" items go into one group, etc.
+ * @param items items to turn into equipment groups
+ * @returns a list of equipment groups for the provided items
+ */
+function groupEquipment(items: EquipmentItem[]): EquipmentGroup[] {
 	const groupsBySlot = new Map<EquipmentSlot, EquipmentItem[]>();
 
 	for (const item of items) {
@@ -390,11 +416,8 @@ function groupEquipment(items: EquipmentItem[]) {
 	}
 
 	const groups = Array.from(groupsBySlot.entries()).map(
-		([slot, groupedItems]) => ({
-			slot,
-			label: slotLabel(slot),
-			items: groupedItems,
-		}),
+		([slot, groupedItems]) =>
+			({ items: groupedItems, slot: slot }) as EquipmentGroup,
 	);
 
 	return groups.sort((left, right) => {
