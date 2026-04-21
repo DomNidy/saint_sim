@@ -8,12 +8,18 @@ type EquipmentDisplayGroupItemProps = {
 
 	// show selected state on the item
 	isSelected?: boolean;
+
+	// this is not about selection state.
+	// this just controls if we should
+	// show equipped badge
+	isEquipped?: boolean;
 };
 
 export const EquipmentDisplayGroupItem = ({
 	item,
 	onClick,
 	isSelected,
+	isEquipped,
 }: EquipmentDisplayGroupItemProps) => {
 	const fp = `${item.raw_line}`;
 
@@ -23,7 +29,7 @@ export const EquipmentDisplayGroupItem = ({
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"rounded-md border bg-card p-3 text-left transition-colors",
+				"border bg-card p-2 text-left transition-colors",
 				isSelected
 					? "border-primary ring-1 ring-primary"
 					: "hover:border-muted-foreground/40",
@@ -32,23 +38,28 @@ export const EquipmentDisplayGroupItem = ({
 			<div className="flex items-start justify-between gap-3">
 				<div className="min-w-0 space-y-1">
 					<p className="truncate font-medium text-sm">{item.display_name}</p>
-					<p className="text-muted-foreground text-xs">
+					<p
+						className={cn(
+							"text-xs font-bold tracking-tight",
+							isEquipped ? "text-wow-green-500" : "text-muted-foreground",
+						)}
+					>
 						ilvl {item.item_level ?? "?"} ·{" "}
 						{item.source === "bag" ? "Bag" : "Equipped"}
 					</p>
 				</div>
+				{/** biome-ignore lint/a11y/useAnchorContent: <just using it for the equipment icon> */}
 				<a
 					href={buildWowheadUrl(item.item_id)}
 					data-wowhead={buildWowheadData(item)}
+					data-wh-icon-size="medium"
 					target="_blank"
 					rel="noreferrer"
 					onClick={(event) => {
 						event.stopPropagation();
 					}}
-					className="shrink-0 text-xs underline underline-offset-2"
-				>
-					Wowhead
-				</a>
+					className=""
+				></a>
 			</div>
 		</button>
 	);

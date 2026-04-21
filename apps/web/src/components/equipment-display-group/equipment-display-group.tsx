@@ -11,13 +11,14 @@ export const EquipmentDisplayGroup = ({
 }: EquipmentDisplayGroupProps) => {
 	return (
 		<div key={group.groupLabel} className="space-y-2">
-			<h4 className="font-medium text-sm uppercase tracking-wide">
+			<h4 className="font-semibold text-lg uppercase tracking-wide">
 				{formatGroupLabel(group.groupLabel)}
 			</h4>
-			<div className="grid gap-2 md:grid-cols-2">
+			<div className="flex flex-col gap-2">
 				{group.items.map((item) => (
 					<EquipmentDisplayGroupItem
 						item={item}
+						isEquipped={item.source === "equipped"}
 						key={`${item.raw_line}+${item.source}`}
 					/>
 				))}

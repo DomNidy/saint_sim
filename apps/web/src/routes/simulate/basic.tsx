@@ -39,10 +39,10 @@ declare global {
 
 // Configure the global Wowhead tooltip script before it loads:
 // - `colorLinks: true` colors item links by quality.
-// - `iconizeLinks: false` keeps Wowhead from prepending icons to links.
+// - `iconizeLinks: true` lets Wowhead prepend item icons to eligible links.
 // - `renameLinks: false` keeps Wowhead from rewriting the link text.
 const WOWHEAD_CONFIG_SCRIPT =
-	"window.whTooltips={colorLinks:true,iconizeLinks:false,renameLinks:false};";
+	"window.whTooltips={colorLinks:true,iconizeLinks:true,renameLinks:false};";
 
 export const Route = createFileRoute("/simulate/basic")({
 	head: () => ({
@@ -93,7 +93,7 @@ function SimulationPage() {
 		mutationFn: submitSimulationRequest,
 		onSuccess: ({ simulationRequestId }) => {
 			navigate({
-				from: "/simulate",
+				from: "/simulate/",
 				to: "/simulation/$simulationId",
 				params: {
 					simulationId: simulationRequestId,
@@ -184,9 +184,11 @@ function SimulationPage() {
 							</p>
 						) : null}
 
-						{previewGroups.map((group) => (
-							<EquipmentDisplayGroup group={group} key={group.groupLabel} />
-						))}
+						<div className="grid grid-cols-2 gap-2">
+							{previewGroups.map((group) => (
+								<EquipmentDisplayGroup group={group} key={group.groupLabel} />
+							))}
+						</div>
 					</div>
 				</CardContent>
 			</Card>
