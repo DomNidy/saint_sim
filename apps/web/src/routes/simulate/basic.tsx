@@ -6,7 +6,7 @@ import {
 	useNavigate,
 } from "@tanstack/react-router";
 import { LoaderCircle } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import type z from "zod";
 import { EquipmentDisplayGroup } from "@/components/equipment-display-group/equipment-display-group";
@@ -19,7 +19,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { useParseAddonExport } from "@/hooks/use-parse-addon-export";
-import { groupEquipment } from "@/lib/equipment/group";
 import {
 	localStorageGet,
 	localStorageSet,
@@ -109,18 +108,14 @@ function SimulationPage() {
 
 	// auto-parse addon export from form to display gear list
 	const parseQuery = useParseAddonExport(simcExport, true);
-	const previewGroups = useMemo(
-		() => groupEquipment(parseQuery.data?.addon_export.equipment ?? []),
-		[parseQuery.data?.addon_export.equipment],
-	);
 
 	useEffect(() => {
-		if (previewGroups.length === 0 || !hydrated) {
+		if (parseQuery.data?.groups.length === 0 || !hydrated) {
 			return;
 		}
 
 		window.$WowheadPower?.refreshLinks?.();
-	}, [previewGroups, hydrated]);
+	}, [parseQuery.data?.groups, hydrated]);
 
 	return (
 		<section className="w-full pb-10 pt-12">
@@ -174,18 +169,18 @@ function SimulationPage() {
 
 						{parseQuery.isError ? (
 							<p className="text-destructive text-sm">
-								{parseQuery.error.message}
+								Error: {parseQuery.error.message}
 							</p>
 						) : null}
 
-						{parseQuery.data && previewGroups.length === 0 ? (
+						{parseQuery.data && parseQuery.data?.groups?.length === 0 ? (
 							<p className="text-muted-foreground text-sm">
 								No gear lines were found in this export.
 							</p>
 						) : null}
 
 						<div className="grid grid-cols-2 gap-2">
-							{previewGroups.map((group) => (
+							{parseQuery.data?.groups.map((group) => (
 								<EquipmentDisplayGroup group={group} key={group.groupLabel} />
 							))}
 						</div>

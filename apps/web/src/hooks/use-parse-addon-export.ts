@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { groupEquipment } from "@/lib/equipment/group";
 import { parseAddonExport } from "@/lib/simulation/parse-addon-export.functions";
 import { useDebouncedValue } from "./use-debounced-value";
 
@@ -14,6 +15,10 @@ export function canonicalizeSimcAddonExport(raw: string): string {
 
 /**
  * Parse a SimulationCraft addon export through the Saint API.
+ *
+ * In addition to the parsed addon export object, a `groups` object is also
+ * returned (derived from the parsed items). Each item is grouped by its
+ * intended slot (in WoW).
  *
  * Normalizes the input before querying so equivalent exports share the same
  * React Query cache key.
@@ -45,6 +50,12 @@ export function useParseAddonExport(rawInput: string, enabled: boolean) {
 			parseAddonExport({
 				data: { rawAddonExport: debouncedCanonical },
 			}),
+		select: (data) => {
+			return {
+				...data,
+				groups: groupEquipment(data.addon_export?.equipment ?? []),
+			};
+		},
 		enabled: enabled && debouncedCanonical.length > 0,
 		staleTime: 5 * 60 * 1000,
 		gcTime: 30 * 60 * 1000,
