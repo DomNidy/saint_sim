@@ -15,7 +15,7 @@ import {
 } from "../ui/form";
 import { Textarea } from "../ui/textarea";
 
-type SimulationFormProps = {
+type SimulationFormBasicProps = {
 	form: UseFormReturn<z.infer<typeof zSimulationOptionsBasic>>;
 	submitHandler: SubmitHandler<z.infer<typeof zSimulationOptionsBasic>>;
 
@@ -24,11 +24,11 @@ type SimulationFormProps = {
 	isSubmitPending: boolean;
 };
 
-export const SimulationForm = ({
+export const SimulationFormBasic = ({
 	form,
 	submitHandler,
 	isSubmitPending,
-}: SimulationFormProps) => {
+}: SimulationFormBasicProps) => {
 	return (
 		<Form {...form}>
 			<form

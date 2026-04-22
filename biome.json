@@ -14,7 +14,11 @@
 			"**/vite.config.ts",
 			"!**/src/lib/api/generated/**/*",
 			"!**/src/routeTree.gen.ts",
-			"!**/src/styles.css"
+			"!**/src/styles.css",
+
+			"!apps/web/src/components/ui/**/*",
+			"!apps/web/src/lib/saint-api/generated/**/*",
+			"!apps/web/src/lib/db/query_sql.ts"
 		]
 	},
 	"formatter": {
