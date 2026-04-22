@@ -19,8 +19,6 @@
   --wow-green-500: #6cdb00;
   --wow-green-600: #54a800;
 
-  --line: rgba(23, 58, 64, 0.14);
-
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -62,8 +60,6 @@
   --wow-gold-700: #ffec71;
   --wow-green-500: #6cdb00;
   --wow-green-600: #54a800;
-
-  --line: rgba(141, 229, 219, 0.18);
 
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

@@ -34,11 +34,11 @@ sql:
             go_type: string
           - db_type: text
             nullable: true
-            go_type: 
+            go_type:
               type: string
               pointer: true
     codegen:
-      - out: ../apps/web/src/lib/db
+      - out: ../apps/web/src/lib/db/
         plugin: ts
         options:
           runtime: node

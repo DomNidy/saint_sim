@@ -10,7 +10,7 @@ import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import type z from "zod";
 import { EquipmentDisplayGroup } from "@/components/equipment-display-group/equipment-display-group";
-import { SimulationForm } from "@/components/simulation-form/simulation-form";
+import { SimulationFormBasic } from "@/components/simulation-form/simulation-form-basic";
 import {
 	Card,
 	CardContent,
@@ -132,7 +132,7 @@ function SimulationPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="flex flex-col gap-6">
-					<SimulationForm
+					<SimulationFormBasic
 						form={form}
 						isSubmitPending={submitMutation.isPending}
 						submitHandler={(values) => {
