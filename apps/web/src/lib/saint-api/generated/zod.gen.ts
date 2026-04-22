@@ -44,6 +44,15 @@ export const zSimulationCoreConfig = z.object({
     ]).optional()
 });
 
+/**
+ * Specifies simulation options to send to the API.
+ */
+export const zSimulationConfigBasic = z.object({
+    kind: z.enum(['basic']),
+    core_config: zSimulationCoreConfig.optional(),
+    simc_addon_export: zSimcAddonExport
+});
+
 export const zParseAddonExportRequest = z.object({
     simc_addon_export: zSimcAddonExport
 });
@@ -102,6 +111,29 @@ export const zEquipmentItem = z.object({
     raw_line: z.string()
 });
 
+/**
+ * Top gear simulation options. The gear which we should try to find some optimal combination of.
+ */
+export const zSimulationConfigTopGear = z.object({
+    kind: z.enum(['topGear']),
+    core_config: zSimulationCoreConfig.optional(),
+    character_name: z.string(),
+    class: zCharacterClass,
+    spec: z.string(),
+    role: z.unknown(),
+    talent_loadout: zAddonExportTalentLoadout,
+    equipment: z.array(zEquipmentItem)
+});
+
+export const zSimulationOptions = z.union([
+    z.object({
+        kind: z.literal('basic')
+    }).and(zSimulationConfigBasic),
+    z.object({
+        kind: z.literal('topGear')
+    }).and(zSimulationConfigTopGear)
+]);
+
 export const zAddonExport = z.object({
     character_name: z.string().nullish(),
     class: zCharacterClass.optional(),
@@ -133,38 +165,6 @@ export const zParseAddonExportResponse = z.object({
  * The concrete kind of simulation to perform (basic, topGear, etc.)
  */
 export const zSimulationKind = z.enum(['basic', 'topGear']);
-
-/**
- * Specifies simulation options to send to the API.
- */
-export const zSimulationConfigBasic = z.object({
-    kind: zSimulationKind,
-    core_config: zSimulationCoreConfig.optional(),
-    simc_addon_export: zSimcAddonExport
-});
-
-/**
- * Top gear simulation options. The gear which we should try to find some optimal combination of.
- */
-export const zSimulationConfigTopGear = z.object({
-    kind: zSimulationKind,
-    core_config: zSimulationCoreConfig.optional(),
-    character_name: z.string(),
-    class: zCharacterClass,
-    spec: z.string(),
-    role: z.unknown(),
-    talent_loadout: zAddonExportTalentLoadout,
-    equipment: z.array(zEquipmentItem)
-});
-
-export const zSimulationOptions = z.union([
-    z.object({
-        kind: z.literal('basic')
-    }).and(zSimulationConfigBasic),
-    z.object({
-        kind: z.literal('topGear')
-    }).and(zSimulationConfigTopGear)
-]);
 
 /**
  * Result of a `basic` simulation — a single actor simmed with their equipped gear. For now this just surfaces the headline DPS and the raw simc log; it will grow structured stats later.

@@ -40,7 +40,7 @@ func buildBasicResult(run RunResult, out JSON2Output) (api.SimulationResultBasic
 	rawLog := string(run.Stdout)
 
 	return api.SimulationResultBasic{
-		Kind:   api.SimulationResultBasicKindBasic,
+		Kind:   api.Basic,
 		Dps:    dps,
 		RawLog: &rawLog,
 	}, nil
@@ -112,7 +112,7 @@ func buildTopGearResult(
 	})
 
 	return api.SimulationResultTopGear{
-		Kind:        api.TopGear,
+		Kind:        api.SimulationResultTopGearKindTopGear,
 		Metric:      out.Sim.Profilesets.Metric,
 		Equipment:   manifest.Equipment(),
 		Profilesets: entries,

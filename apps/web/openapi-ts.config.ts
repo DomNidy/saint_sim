@@ -1,6 +1,6 @@
-import { defineConfig } from "@hey-api/openapi-ts";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { defineConfig } from "@hey-api/openapi-ts";
 
 const configDir = dirname(fileURLToPath(import.meta.url));
 

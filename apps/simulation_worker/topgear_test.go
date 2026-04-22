@@ -311,7 +311,7 @@ func appendEquipment(
 }
 
 func topGearOptions(equipment ...api.EquipmentItem) (api.SimulationOptions, error) {
-	topGear := api.SimulationOptionsTopGear{
+	topGear := api.SimulationConfigTopGear{
 		Kind:          api.TopGear,
 		CharacterName: "Dom",
 		Class:         api.Deathknight,

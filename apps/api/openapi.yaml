@@ -229,7 +229,17 @@ components:
         - kind
       properties:
         kind:
-          $ref: "#/components/schemas/simulation_kind"
+          # note: we don't use the simulation_kind enum here;
+          # TS zod validators get a but scuffed. There's no
+          # way to make the generated zod validator's enum
+          # field narrow to a specific value of the enum.
+          #
+          # For example, if we used simulation_kind here, then the
+          # generated zod validator would allow any value in the enum
+          # (wouldn't narrow down to just `basic`)
+          # $ref: "#/components/schemas/simulation_kind"
+          type: string
+          enum: [ basic ]
         core_config:
           $ref: "#/components/schemas/simulation_core_config"
         simc_addon_export:
@@ -249,7 +259,9 @@ components:
         - kind
       properties:
         kind:
-          $ref: "#/components/schemas/simulation_kind"
+          # $ref: "#/components/schemas/simulation_kind"
+          type: string
+          enum: [ topGear ]
         core_config:
           $ref: "#/components/schemas/simulation_core_config"
         character_name:

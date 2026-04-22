@@ -48,7 +48,7 @@ export type SimulationOptions = ({
  * Specifies simulation options to send to the API.
  */
 export type SimulationConfigBasic = {
-    kind: SimulationKind;
+    kind: 'basic';
     core_config?: SimulationCoreConfig;
     simc_addon_export: SimcAddonExport;
 };
@@ -57,7 +57,7 @@ export type SimulationConfigBasic = {
  * Top gear simulation options. The gear which we should try to find some optimal combination of.
  */
 export type SimulationConfigTopGear = {
-    kind: SimulationKind;
+    kind: 'topGear';
     core_config?: SimulationCoreConfig;
     character_name: string;
     class: CharacterClass;
