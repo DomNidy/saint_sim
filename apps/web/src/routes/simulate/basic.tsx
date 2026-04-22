@@ -27,33 +27,7 @@ import {
 import { zSimulationConfigBasic } from "@/lib/saint-api/generated/zod.gen";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
 
-declare global {
-	interface Window {
-		// Added by the Wowhead tooltip script loaded in the route head.
-		$WowheadPower?: {
-			refreshLinks?: () => void;
-		};
-	}
-}
-
-// Configure the global Wowhead tooltip script before it loads:
-// - `colorLinks: true` colors item links by quality.
-// - `iconizeLinks: true` lets Wowhead prepend item icons to eligible links.
-// - `renameLinks: false` keeps Wowhead from rewriting the link text.
-const WOWHEAD_CONFIG_SCRIPT =
-	"window.whTooltips={colorLinks:true,iconizeLinks:true,renameLinks:false};";
-
 export const Route = createFileRoute("/simulate/basic")({
-	head: () => ({
-		scripts: [
-			{
-				children: WOWHEAD_CONFIG_SCRIPT,
-			},
-			{
-				src: "https://wow.zamimg.com/js/tooltips.js",
-			},
-		],
-	}),
 	component: SimulationPage,
 });
 
@@ -110,12 +84,12 @@ function SimulationPage() {
 	const parseQuery = useParseAddonExport(simcExport, true);
 
 	useEffect(() => {
-		if (parseQuery.data?.groups.length === 0 || !hydrated) {
+		if (parseQuery.data?.groups.length === 0) {
 			return;
 		}
 
 		window.$WowheadPower?.refreshLinks?.();
-	}, [parseQuery.data?.groups, hydrated]);
+	}, [parseQuery.data?.groups]);
 
 	return (
 		<section className="w-full pb-10 pt-12">

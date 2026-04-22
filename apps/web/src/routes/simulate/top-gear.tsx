@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type z from "zod";
 import { AddonExportTextarea } from "@/components/addon-export-textarea";
@@ -23,6 +23,13 @@ function RouteComponent() {
 
 	const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
+	useEffect(() => {
+		if (addonExport.data?.groups.length === 0) {
+			return;
+		}
+
+		window.$WowheadPower?.refreshLinks?.();
+	}, [addonExport?.data?.groups]);
 	return (
 		<div>
 			<AddonExportTextarea
