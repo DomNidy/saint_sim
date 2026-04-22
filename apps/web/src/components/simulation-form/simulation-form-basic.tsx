@@ -2,6 +2,7 @@ import { LoaderCircle, Sparkles } from "lucide-react";
 import type { SubmitHandler, UseFormReturn } from "react-hook-form";
 import type z from "zod";
 import type { zSimulationConfigBasic } from "@/lib/saint-api/generated/zod.gen";
+import { AddonExportTextarea } from "../addon-export-textarea";
 import { Alert } from "../ui/alert";
 import { Button } from "../ui/button";
 import {
@@ -13,7 +14,6 @@ import {
 	FormLabel,
 	FormMessage,
 } from "../ui/form";
-import { Textarea } from "../ui/textarea";
 
 type SimulationFormBasicProps = {
 	form: UseFormReturn<z.infer<typeof zSimulationConfigBasic>>;
@@ -42,7 +42,7 @@ export const SimulationFormBasic = ({
 						<FormItem>
 							<FormLabel>SimC addon export</FormLabel>
 							<FormControl>
-								<Textarea
+								<AddonExportTextarea
 									placeholder={'priest="Example"\nlevel=80\nspec=shadow'}
 									autoComplete="off"
 									autoCapitalize="none"
