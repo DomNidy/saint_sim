@@ -24,7 +24,7 @@ import {
 	localStorageSet,
 	PREV_SIMC_PROFILE_KEY,
 } from "@/lib/local-storage";
-import { zSimulationOptionsBasic } from "@/lib/saint-api/generated/zod.gen";
+import { zSimulationConfigBasic } from "@/lib/saint-api/generated/zod.gen";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
 
 declare global {
@@ -61,8 +61,8 @@ function SimulationPage() {
 	const hydrated = useHydrated();
 	const navigate = useNavigate();
 
-	const form = useForm<z.infer<typeof zSimulationOptionsBasic>>({
-		resolver: zodResolver(zSimulationOptionsBasic),
+	const form = useForm<z.infer<typeof zSimulationConfigBasic>>({
+		resolver: zodResolver(zSimulationConfigBasic),
 		defaultValues: {
 			kind: "basic",
 			simc_addon_export: "",

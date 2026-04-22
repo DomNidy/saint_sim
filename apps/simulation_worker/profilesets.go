@@ -297,14 +297,14 @@ type topGearManifest struct {
 // generated order remains intuitive: earlier input candidates appear earlier in
 // the resulting Combo1/Combo2/... sequence.
 func generateTopGearManifest(
-	opts api.SimulationOptionsTopGear,
+	config api.SimulationConfigTopGear,
 ) (topGearManifest, error) {
-	pools, err := buildTopGearCandidatePools(opts.Equipment)
+	pools, err := buildTopGearCandidatePools(config.Equipment)
 	if err != nil {
 		return topGearManifest{}, err
 	}
 
-	count, err := countTopGearProfilesets(opts.Equipment)
+	count, err := countTopGearProfilesets(config.Equipment)
 	if err != nil {
 		return topGearManifest{}, err
 	}
@@ -315,7 +315,7 @@ func generateTopGearManifest(
 
 	profilesets := make([]profileset, 0, count)
 	base := newProfileset()
-	base.talents = opts.TalentLoadout.Talents
+	base.talents = config.TalentLoadout.Talents
 
 	offHandOptions := pools.offHand
 	if len(offHandOptions) == 0 {
@@ -348,17 +348,17 @@ func generateTopGearManifest(
 
 	buildSingletons(0, base)
 
-	eqCopy := make([]api.EquipmentItem, len(opts.Equipment))
-	copy(eqCopy, opts.Equipment)
+	eqCopy := make([]api.EquipmentItem, len(config.Equipment))
+	copy(eqCopy, config.Equipment)
 
 	return topGearManifest{
 		profilesets:    profilesets,
 		equipment:      eqCopy,
-		characterName:  opts.CharacterName,
+		characterName:  config.CharacterName,
 		level:          90,      /* TODO: assuming 90 for now, thread it through the api later */
 		race:           "human", /*TODO: assuming human for now, thread through api */
-		characterClass: opts.Class,
-		spec:           opts.Spec,
+		characterClass: config.Class,
+		spec:           config.Spec,
 	}, nil
 }
 

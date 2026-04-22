@@ -140,12 +140,12 @@ func TestRouterSimulationAuthAndValidation(t *testing.T) {
 		)),
 	)
 
-	simOpts := api.SimulationOptionsBasic{
-		Kind:            api.SimulationOptionsBasicKindBasic,
+	simConfig := api.SimulationConfigBasic{
+		Kind:            api.SimulationConfigBasicKindBasic,
 		SimcAddonExport: `{"simc_addon_export":"priest=\"Example\"\nlevel=80\nspec=shadow"}`,
 	}
 
-	simOptionsJsonBody, err := json.Marshal(simOpts)
+	simOptionsJsonBody, err := json.Marshal(simConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

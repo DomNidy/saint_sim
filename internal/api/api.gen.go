@@ -73,26 +73,23 @@ const (
 	Wrist    EquipmentSlot = "wrist"
 )
 
+// Defines values for SimulationCoreConfigFightStyle.
+const (
+	CastingPatchwerk SimulationCoreConfigFightStyle = "casting_patchwerk"
+	CleaveAdd        SimulationCoreConfigFightStyle = "cleave_add"
+	DungeonSlice     SimulationCoreConfigFightStyle = "dungeon_slice"
+	ExecutePatchwerk SimulationCoreConfigFightStyle = "execute_patchwerk"
+	HeavyMovement    SimulationCoreConfigFightStyle = "heavy_movement"
+	HecticAddCleave  SimulationCoreConfigFightStyle = "hectic_add_cleave"
+	LightMovement    SimulationCoreConfigFightStyle = "light_movement"
+	Patchwerk        SimulationCoreConfigFightStyle = "patchwerk"
+	TargetDummy      SimulationCoreConfigFightStyle = "target_dummy"
+)
+
 // Defines values for SimulationKind.
 const (
 	SimulationKindBasic   SimulationKind = "basic"
 	SimulationKindTopGear SimulationKind = "topGear"
-)
-
-// Defines values for SimulationOptionsKind.
-const (
-	SimulationOptionsKindBasic   SimulationOptionsKind = "basic"
-	SimulationOptionsKindTopGear SimulationOptionsKind = "topGear"
-)
-
-// Defines values for SimulationOptionsBasicKind.
-const (
-	SimulationOptionsBasicKindBasic SimulationOptionsBasicKind = "basic"
-)
-
-// Defines values for SimulationOptionsTopGearKind.
-const (
-	SimulationOptionsTopGearKindTopGear SimulationOptionsTopGearKind = "topGear"
 )
 
 // Defines values for SimulationResultBasicKind.
@@ -102,7 +99,7 @@ const (
 
 // Defines values for SimulationResultTopGearKind.
 const (
-	SimulationResultTopGearKindTopGear SimulationResultTopGearKind = "topGear"
+	TopGear SimulationResultTopGearKind = "topGear"
 )
 
 // Defines values for SimulationStatus.
@@ -210,7 +207,7 @@ type Simulation struct {
 	// Id ID for the simulation operation.
 	Id openapi_types.UUID `json:"id"`
 
-	// Kind Which simulation variant this job is. Determines the concrete shape of `result` once the job completes. Mirrors the `kind` submitted in simulation_options.
+	// Kind The concrete kind of simulation to perform (basic, topGear, etc.)
 	Kind SimulationKind `json:"kind"`
 
 	// Result Typed output of a completed simulation. This is the value the worker writes to `simulation.sim_result` in the database and the API returns verbatim; the API does not recompute it on read.
@@ -218,38 +215,31 @@ type Simulation struct {
 	Status SimulationStatus  `json:"status"`
 }
 
-// SimulationKind Which simulation variant this job is. Determines the concrete shape of `result` once the job completes. Mirrors the `kind` submitted in simulation_options.
-type SimulationKind string
+// SimulationConfigBasic Specifies simulation options to send to the API.
+type SimulationConfigBasic struct {
+	// CoreConfig Core simc config that is shared between all simulation kinds (basic, top gear, etc.)
+	CoreConfig *SimulationCoreConfig `json:"core_config,omitempty"`
 
-// SimulationOptions Specifies simulation options to send to the API.
-type SimulationOptions struct {
-	// Kind The kind of simulation to perform. `topGear` simulates all combinations of the specified gear, basic simulates the character using its equipped gear.
-	Kind  SimulationOptionsKind `json:"kind"`
-	union json.RawMessage
-}
-
-// SimulationOptionsKind The kind of simulation to perform. `topGear` simulates all combinations of the specified gear, basic simulates the character using its equipped gear.
-type SimulationOptionsKind string
-
-// SimulationOptionsBasic Specifies simulation options to send to the API.
-type SimulationOptionsBasic struct {
-	Kind SimulationOptionsBasicKind `json:"kind"`
+	// Kind The concrete kind of simulation to perform (basic, topGear, etc.)
+	Kind SimulationKind `json:"kind"`
 
 	// SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
 	SimcAddonExport SimcAddonExport `json:"simc_addon_export"`
 }
 
-// SimulationOptionsBasicKind defines model for SimulationOptionsBasic.Kind.
-type SimulationOptionsBasicKind string
-
-// SimulationOptionsTopGear Top gear simulation options. The gear which we should try to find some optimal combination of.
-type SimulationOptionsTopGear struct {
+// SimulationConfigTopGear Top gear simulation options. The gear which we should try to find some optimal combination of.
+type SimulationConfigTopGear struct {
 	CharacterName string         `json:"character_name"`
 	Class         CharacterClass `json:"class"`
 
+	// CoreConfig Core simc config that is shared between all simulation kinds (basic, top gear, etc.)
+	CoreConfig *SimulationCoreConfig `json:"core_config,omitempty"`
+
 	// Equipment The gear to consider in the simulation. We will try to find optimal combinations of these. Must have at least 1 item per slot so it is possible to form a full equipment set.
-	Equipment []EquipmentItem              `json:"equipment"`
-	Kind      SimulationOptionsTopGearKind `json:"kind"`
+	Equipment []EquipmentItem `json:"equipment"`
+
+	// Kind The concrete kind of simulation to perform (basic, topGear, etc.)
+	Kind SimulationKind `json:"kind"`
 
 	// Role The role of the character
 	Role interface{} `json:"role"`
@@ -261,8 +251,21 @@ type SimulationOptionsTopGear struct {
 	TalentLoadout AddonExportTalentLoadout `json:"talent_loadout"`
 }
 
-// SimulationOptionsTopGearKind defines model for SimulationOptionsTopGear.Kind.
-type SimulationOptionsTopGearKind string
+// SimulationCoreConfig Core simc config that is shared between all simulation kinds (basic, top gear, etc.)
+type SimulationCoreConfig struct {
+	FightStyle *SimulationCoreConfigFightStyle `json:"fight_style,omitempty"`
+}
+
+// SimulationCoreConfigFightStyle defines model for SimulationCoreConfig.FightStyle.
+type SimulationCoreConfigFightStyle string
+
+// SimulationKind The concrete kind of simulation to perform (basic, topGear, etc.)
+type SimulationKind string
+
+// SimulationOptions defines model for simulation_options.
+type SimulationOptions struct {
+	union json.RawMessage
+}
 
 // SimulationResult Typed output of a completed simulation. This is the value the worker writes to `simulation.sim_result` in the database and the API returns verbatim; the API does not recompute it on read.
 type SimulationResult struct {
@@ -359,26 +362,24 @@ type ParseAddonExportJSONRequestBody = ParseAddonExportRequest
 // SimulateJSONRequestBody defines body for Simulate for application/json ContentType.
 type SimulateJSONRequestBody = SimulationOptions
 
-// AsSimulationOptionsBasic returns the union data inside the SimulationOptions as a SimulationOptionsBasic
-func (t SimulationOptions) AsSimulationOptionsBasic() (SimulationOptionsBasic, error) {
-	var body SimulationOptionsBasic
+// AsSimulationConfigBasic returns the union data inside the SimulationOptions as a SimulationConfigBasic
+func (t SimulationOptions) AsSimulationConfigBasic() (SimulationConfigBasic, error) {
+	var body SimulationConfigBasic
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromSimulationOptionsBasic overwrites any union data inside the SimulationOptions as the provided SimulationOptionsBasic
-func (t *SimulationOptions) FromSimulationOptionsBasic(v SimulationOptionsBasic) error {
-	t.Kind = "basic"
-
+// FromSimulationConfigBasic overwrites any union data inside the SimulationOptions as the provided SimulationConfigBasic
+func (t *SimulationOptions) FromSimulationConfigBasic(v SimulationConfigBasic) error {
+	v.Kind = "basic"
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeSimulationOptionsBasic performs a merge with any union data inside the SimulationOptions, using the provided SimulationOptionsBasic
-func (t *SimulationOptions) MergeSimulationOptionsBasic(v SimulationOptionsBasic) error {
-	t.Kind = "basic"
-
+// MergeSimulationConfigBasic performs a merge with any union data inside the SimulationOptions, using the provided SimulationConfigBasic
+func (t *SimulationOptions) MergeSimulationConfigBasic(v SimulationConfigBasic) error {
+	v.Kind = "basic"
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -389,26 +390,24 @@ func (t *SimulationOptions) MergeSimulationOptionsBasic(v SimulationOptionsBasic
 	return err
 }
 
-// AsSimulationOptionsTopGear returns the union data inside the SimulationOptions as a SimulationOptionsTopGear
-func (t SimulationOptions) AsSimulationOptionsTopGear() (SimulationOptionsTopGear, error) {
-	var body SimulationOptionsTopGear
+// AsSimulationConfigTopGear returns the union data inside the SimulationOptions as a SimulationConfigTopGear
+func (t SimulationOptions) AsSimulationConfigTopGear() (SimulationConfigTopGear, error) {
+	var body SimulationConfigTopGear
 	err := json.Unmarshal(t.union, &body)
 	return body, err
 }
 
-// FromSimulationOptionsTopGear overwrites any union data inside the SimulationOptions as the provided SimulationOptionsTopGear
-func (t *SimulationOptions) FromSimulationOptionsTopGear(v SimulationOptionsTopGear) error {
-	t.Kind = "topGear"
-
+// FromSimulationConfigTopGear overwrites any union data inside the SimulationOptions as the provided SimulationConfigTopGear
+func (t *SimulationOptions) FromSimulationConfigTopGear(v SimulationConfigTopGear) error {
+	v.Kind = "topGear"
 	b, err := json.Marshal(v)
 	t.union = b
 	return err
 }
 
-// MergeSimulationOptionsTopGear performs a merge with any union data inside the SimulationOptions, using the provided SimulationOptionsTopGear
-func (t *SimulationOptions) MergeSimulationOptionsTopGear(v SimulationOptionsTopGear) error {
-	t.Kind = "topGear"
-
+// MergeSimulationConfigTopGear performs a merge with any union data inside the SimulationOptions, using the provided SimulationConfigTopGear
+func (t *SimulationOptions) MergeSimulationConfigTopGear(v SimulationConfigTopGear) error {
+	v.Kind = "topGear"
 	b, err := json.Marshal(v)
 	if err != nil {
 		return err
@@ -434,9 +433,9 @@ func (t SimulationOptions) ValueByDiscriminator() (interface{}, error) {
 	}
 	switch discriminator {
 	case "basic":
-		return t.AsSimulationOptionsBasic()
+		return t.AsSimulationConfigBasic()
 	case "topGear":
-		return t.AsSimulationOptionsTopGear()
+		return t.AsSimulationConfigTopGear()
 	default:
 		return nil, errors.New("unknown discriminator value: " + discriminator)
 	}
@@ -444,44 +443,11 @@ func (t SimulationOptions) ValueByDiscriminator() (interface{}, error) {
 
 func (t SimulationOptions) MarshalJSON() ([]byte, error) {
 	b, err := t.union.MarshalJSON()
-	if err != nil {
-		return nil, err
-	}
-	object := make(map[string]json.RawMessage)
-	if t.union != nil {
-		err = json.Unmarshal(b, &object)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	object["kind"], err = json.Marshal(t.Kind)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling 'kind': %w", err)
-	}
-
-	b, err = json.Marshal(object)
 	return b, err
 }
 
 func (t *SimulationOptions) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
-	if err != nil {
-		return err
-	}
-	object := make(map[string]json.RawMessage)
-	err = json.Unmarshal(b, &object)
-	if err != nil {
-		return err
-	}
-
-	if raw, found := object["kind"]; found {
-		err = json.Unmarshal(raw, &t.Kind)
-		if err != nil {
-			return fmt.Errorf("error reading 'kind': %w", err)
-		}
-	}
-
 	return err
 }
 
@@ -1009,70 +975,71 @@ func (sh *strictHandler) GetSimulation(ctx *gin.Context, id openapi_types.UUID) 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"hIN8B+o3qPGnxqzN5v8DAAD//97mk3lNOAAA",
+	"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",
+	"1vUb1Pi5MWu9/v8AAAD///tL8IsgOQAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

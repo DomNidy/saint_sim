@@ -96,8 +96,15 @@ func (worker simulationWorker) handleDelivery(
 	}
 
 	// route request to the handler for the simulation kind
-	switch request.options.Kind {
-	case api.SimulationOptionsKindBasic:
+	kind, err := request.options.Discriminator()
+	if err != nil {
+		log.Printf("got error checking for discriminator: %w", err)
+		markSimErrored(requestID)
+		return
+	}
+
+	switch kind {
+	case string(api.SimulationKindBasic):
 		err = worker.processBasic(ctx, request)
 		if err != nil {
 			log.Printf("failed to process basic simulation %s: %v", requestID.String(), err)
@@ -105,7 +112,7 @@ func (worker simulationWorker) handleDelivery(
 		}
 
 		return
-	case api.SimulationOptionsKindTopGear:
+	case string(api.SimulationKindTopGear):
 		err = worker.processTopGear(ctx, request)
 		if err != nil {
 			log.Printf("failed to process topGear simulation: %v", err)
@@ -114,7 +121,7 @@ func (worker simulationWorker) handleDelivery(
 
 		return
 	default:
-		log.Printf("got unsupported simulation, ignoring this. kind: '%s'", request.options.Kind)
+		log.Printf("got unsupported simulation, ignoring this. kind: '%s'", kind)
 		// todo: mark as errored in db
 		return
 	}
@@ -153,12 +160,12 @@ func (worker simulationWorker) processBasic(
 	ctx context.Context,
 	request simulationRequest,
 ) error {
-	options, err := request.options.AsSimulationOptionsBasic()
+	config, err := request.options.AsSimulationConfigBasic()
 	if err != nil {
 		return fmt.Errorf("could not cast to basic: %w", err)
 	}
 
-	if err := utils.ValidateSimulationOptionsBasic(&options); err != nil {
+	if err := utils.ValidateSimulationConfigBasic(&config); err != nil {
 		return fmt.Errorf("validate simulation options: %w", err)
 	}
 
@@ -174,7 +181,7 @@ func (worker simulationWorker) processBasic(
 		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
 	}
 
-	run, err := worker.runSimcOnProfile(ctx, options.SimcAddonExport)
+	run, err := worker.runSimcOnProfile(ctx, config.SimcAddonExport)
 	if err != nil {
 		return fmt.Errorf("run simulation: %w", err)
 	}
@@ -215,7 +222,7 @@ func (worker simulationWorker) processTopGear(
 	ctx context.Context,
 	request simulationRequest,
 ) error {
-	opts, err := request.options.AsSimulationOptionsTopGear()
+	opts, err := request.options.AsSimulationConfigTopGear()
 	if err != nil {
 		return fmt.Errorf("could not cast to topGear: %w", err)
 	}

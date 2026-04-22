@@ -28,11 +28,20 @@ export const zCharacterClass = z.enum([
 ]);
 
 /**
- * Specifies simulation options to send to the API.
+ * Core simc config that is shared between all simulation kinds (basic, top gear, etc.)
  */
-export const zSimulationOptionsBasic = z.object({
-    simc_addon_export: zSimcAddonExport,
-    kind: z.enum(['basic'])
+export const zSimulationCoreConfig = z.object({
+    fight_style: z.enum([
+        'patchwerk',
+        'dungeon_slice',
+        'target_dummy',
+        'execute_patchwerk',
+        'hectic_add_cleave',
+        'light_movement',
+        'heavy_movement',
+        'casting_patchwerk',
+        'cleave_add'
+    ]).optional()
 });
 
 export const zParseAddonExportRequest = z.object({
@@ -93,30 +102,6 @@ export const zEquipmentItem = z.object({
     raw_line: z.string()
 });
 
-/**
- * Top gear simulation options. The gear which we should try to find some optimal combination of.
- */
-export const zSimulationOptionsTopGear = z.object({
-    character_name: z.string(),
-    class: zCharacterClass,
-    spec: z.string(),
-    role: z.unknown(),
-    talent_loadout: zAddonExportTalentLoadout,
-    equipment: z.array(zEquipmentItem),
-    kind: z.enum(['topGear'])
-});
-
-export const zSimulationOptions = z.intersection(z.union([
-    z.object({
-        kind: z.literal('basic')
-    }).and(zSimulationOptionsBasic),
-    z.object({
-        kind: z.literal('topGear')
-    }).and(zSimulationOptionsTopGear)
-]), z.object({
-    kind: z.enum(['topGear', 'basic'])
-}));
-
 export const zAddonExport = z.object({
     character_name: z.string().nullish(),
     class: zCharacterClass.optional(),
@@ -143,6 +128,43 @@ export const zAddonExport = z.object({
 export const zParseAddonExportResponse = z.object({
     addon_export: zAddonExport
 });
+
+/**
+ * The concrete kind of simulation to perform (basic, topGear, etc.)
+ */
+export const zSimulationKind = z.enum(['basic', 'topGear']);
+
+/**
+ * Specifies simulation options to send to the API.
+ */
+export const zSimulationConfigBasic = z.object({
+    kind: zSimulationKind,
+    core_config: zSimulationCoreConfig.optional(),
+    simc_addon_export: zSimcAddonExport
+});
+
+/**
+ * Top gear simulation options. The gear which we should try to find some optimal combination of.
+ */
+export const zSimulationConfigTopGear = z.object({
+    kind: zSimulationKind,
+    core_config: zSimulationCoreConfig.optional(),
+    character_name: z.string(),
+    class: zCharacterClass,
+    spec: z.string(),
+    role: z.unknown(),
+    talent_loadout: zAddonExportTalentLoadout,
+    equipment: z.array(zEquipmentItem)
+});
+
+export const zSimulationOptions = z.union([
+    z.object({
+        kind: z.literal('basic')
+    }).and(zSimulationConfigBasic),
+    z.object({
+        kind: z.literal('topGear')
+    }).and(zSimulationConfigTopGear)
+]);
 
 /**
  * Result of a `basic` simulation — a single actor simmed with their equipped gear. For now this just surfaces the headline DPS and the raw simc log; it will grow structured stats later.
@@ -224,7 +246,7 @@ export const zSimulationStatus = z.enum([
  */
 export const zSimulation = z.object({
     id: z.uuid(),
-    kind: z.enum(['basic', 'topGear']),
+    kind: zSimulationKind,
     status: zSimulationStatus,
     error_text: z.string().optional(),
     result: zSimulationResult.optional()

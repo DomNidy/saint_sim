@@ -39,7 +39,7 @@ func (server *Server) Simulate(
 
 	simOptions := *request.Body
 
-	options, ok := simulationOptionsByDiscriminator(simOptions)
+	config, ok := simulationConfigByDiscriminator(simOptions)
 	if !ok {
 		return api.Simulate422JSONResponse{
 			MalformedRequestJSONResponse: api.MalformedRequestJSONResponse{
@@ -48,12 +48,12 @@ func (server *Server) Simulate(
 		}, nil
 	}
 
-	if topGearOptions, ok := options.(api.SimulationOptionsTopGear); ok {
-		return server.handleSimulationOptionsTopGear(ctx, authContext, topGearOptions)
+	if topGearConfig, ok := config.(api.SimulationConfigTopGear); ok {
+		return server.handleSimulationTopGear(ctx, authContext, topGearConfig)
 	}
 
-	if basicSimOptions, ok := options.(api.SimulationOptionsBasic); ok {
-		return server.handleSimulationOptionsBasic(ctx, authContext, basicSimOptions)
+	if basicSimConfig, ok := config.(api.SimulationConfigBasic); ok {
+		return server.handleSimulationBasic(ctx, authContext, basicSimConfig)
 	}
 
 	// if we reach here, that means we didn't handle all possible simulation option types
@@ -65,14 +65,14 @@ func (server *Server) Simulate(
 	}, nil
 }
 
-func (server *Server) handleSimulationOptionsBasic(
+func (server *Server) handleSimulationBasic(
 	ctx context.Context,
 	authContext auth.AuthContext,
-	simOptions api.SimulationOptionsBasic,
+	simConfig api.SimulationConfigBasic,
 ) (api.SimulateResponseObject, error) {
-	simOptions.SimcAddonExport = NormalizeLineEndings(simOptions.SimcAddonExport)
+	simConfig.SimcAddonExport = NormalizeLineEndings(simConfig.SimcAddonExport)
 
-	validationFailure := validateSimulationRequestBasic(ctx, simOptions)
+	validationFailure := validateSimulationRequestBasic(ctx, simConfig)
 	if validationFailure != nil {
 		return api.Simulate400JSONResponse(validationFailure.response), nil
 	}
@@ -82,7 +82,7 @@ func (server *Server) handleSimulationOptionsBasic(
 		authContext,
 		server.dbClient,
 		db.SimulationKindBasic,
-		simOptions,
+		simConfig,
 	)
 	if err != nil {
 		log.Printf("Error creating simulation request: %v", err)
@@ -116,10 +116,10 @@ func (server *Server) handleSimulationOptionsBasic(
 	}, nil
 }
 
-func (server *Server) handleSimulationOptionsTopGear(
+func (server *Server) handleSimulationTopGear(
 	ctx context.Context,
 	authContext auth.AuthContext,
-	simOptions api.SimulationOptionsTopGear,
+	simOptions api.SimulationConfigTopGear,
 ) (api.SimulateResponseObject, error) {
 	simulationID, err := createSimulationRequest(
 		ctx,
@@ -160,22 +160,22 @@ func (server *Server) handleSimulationOptionsTopGear(
 	}, nil
 }
 
-func simulationOptionsByDiscriminator(simOptions api.SimulationOptions) (interface{}, bool) {
-	options, err := simOptions.ValueByDiscriminator()
+func simulationConfigByDiscriminator(config api.SimulationOptions) (interface{}, bool) {
+	simConfig, err := config.ValueByDiscriminator()
 	if err != nil {
 		return nil, false
 	}
 
-	return options, true
+	return simConfig, true
 }
 
 func validateSimulationRequestBasic(
 	ctx context.Context,
-	simOptions api.SimulationOptionsBasic,
+	simOptions api.SimulationConfigBasic,
 ) *simulationValidationError {
 	_ = ctx
 
-	err := utils.ValidateSimulationOptionsBasic(&simOptions)
+	err := utils.ValidateSimulationConfigBasic(&simOptions)
 	if err != nil {
 		return &simulationValidationError{
 			statusCode: http.StatusBadRequest,

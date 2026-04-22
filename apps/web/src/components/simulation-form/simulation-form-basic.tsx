@@ -1,7 +1,7 @@
 import { LoaderCircle, Sparkles } from "lucide-react";
 import type { SubmitHandler, UseFormReturn } from "react-hook-form";
 import type z from "zod";
-import type { zSimulationOptionsBasic } from "@/lib/saint-api/generated/zod.gen";
+import type { zSimulationConfigBasic } from "@/lib/saint-api/generated/zod.gen";
 import { Alert } from "../ui/alert";
 import { Button } from "../ui/button";
 import {
@@ -16,8 +16,8 @@ import {
 import { Textarea } from "../ui/textarea";
 
 type SimulationFormBasicProps = {
-	form: UseFormReturn<z.infer<typeof zSimulationOptionsBasic>>;
-	submitHandler: SubmitHandler<z.infer<typeof zSimulationOptionsBasic>>;
+	form: UseFormReturn<z.infer<typeof zSimulationConfigBasic>>;
+	submitHandler: SubmitHandler<z.infer<typeof zSimulationConfigBasic>>;
 
 	// true if the form was submitting and is in a pending state.
 	// you should set this to submit mutation isPending

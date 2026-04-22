@@ -191,44 +191,51 @@ components:
         - demonhunter
         - evoker
 
-    simulation_options:
+    simulation_core_config:
       type: object
+      description: Core simc config that is shared between all simulation kinds
+        (basic, top gear, etc.)
       properties:
-        kind:
-          description: The kind of simulation to perform. `topGear` simulates all
-            combinations of the specified gear, basic simulates the character
-            using its equipped gear.
+        fight_style:
           type: string
           enum:
-            - topGear
-            - basic
+            - patchwerk
+            - dungeon_slice
+            - target_dummy
+            - execute_patchwerk
+            - hectic_add_cleave
+            - light_movement
+            - heavy_movement
+            - casting_patchwerk
+            - cleave_add
+
+    simulation_options:
+      type: object
+      oneOf:
+        - $ref: "#/components/schemas/simulation_config_basic"
+        - $ref: "#/components/schemas/simulation_config_topGear"
       discriminator:
+        description: The concrete simulation kind to perform
         propertyName: kind
         mapping:
-          basic: "#/components/schemas/simulation_options_basic"
-          topGear: "#/components/schemas/simulation_options_topGear"
-      oneOf:
-        - $ref: "#/components/schemas/simulation_options_basic"
-        - $ref: "#/components/schemas/simulation_options_topGear"
-      description: Specifies simulation options to send to the API.
-      required:
-        - kind
+          basic: "#/components/schemas/simulation_config_basic"
+          topGear: "#/components/schemas/simulation_config_topGear"
 
-    simulation_options_basic:
+    simulation_config_basic:
       type: object
       description: Specifies simulation options to send to the API.
       required:
         - simc_addon_export
         - kind
       properties:
+        kind:
+          $ref: "#/components/schemas/simulation_kind"
+        core_config:
+          $ref: "#/components/schemas/simulation_core_config"
         simc_addon_export:
           $ref: "#/components/schemas/simc_addon_export"
-        kind:
-          type: string
-          enum:
-            - basic
 
-    simulation_options_topGear:
+    simulation_config_topGear:
       type: object
       description: Top gear simulation options. The gear which we should try to find
         some optimal combination of.
@@ -241,6 +248,10 @@ components:
         - role
         - kind
       properties:
+        kind:
+          $ref: "#/components/schemas/simulation_kind"
+        core_config:
+          $ref: "#/components/schemas/simulation_core_config"
         character_name:
           type: string
         class:
@@ -261,10 +272,6 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/equipment_item"
-        kind:
-          type: string
-          enum:
-            - topGear
 
     parse_addon_export_request:
       type: object
@@ -464,25 +471,21 @@ components:
           description: ID for the simulation operation.
           example: "41e9a22f-d2c1-48b2-b234-15db461049d4"
         kind:
-          description: >
-            Which simulation variant this job is. Determines the concrete shape
-            of `result` once the job completes. Mirrors the `kind` submitted in
-            simulation_options.
-          type: string
-          enum:
-            - basic
-            - topGear
+          $ref: "#/components/schemas/simulation_kind"
         status:
           $ref: "#/components/schemas/simulation_status"
         error_text:
           type: string
           description: Populated when status = error.
         result:
-          description: >
-            Present only when status = complete. The concrete variant is
-            selected by `kind` on this envelope (and repeated inside the result
-            object as the union discriminator).
           $ref: "#/components/schemas/simulation_result"
+
+    simulation_kind:
+      description: The concrete kind of simulation to perform (basic, topGear, etc.)
+      type: string
+      enum:
+        - basic
+        - topGear
 
     simulation_result:
       description: >
@@ -491,12 +494,12 @@ components:
         verbatim; the API does not recompute it on read.
       oneOf:
         - $ref: "#/components/schemas/simulation_result_basic"
-        - $ref: "#/components/schemas/simulation_result_top_gear"
+        - $ref: "#/components/schemas/simulation_result_topGear"
       discriminator:
         propertyName: kind
         mapping:
           basic: "#/components/schemas/simulation_result_basic"
-          topGear: "#/components/schemas/simulation_result_top_gear"
+          topGear: "#/components/schemas/simulation_result_topGear"
 
     simulation_result_basic:
       type: object
@@ -521,7 +524,7 @@ components:
             Human-readable stdout from simc. Optional; may be truncated or
             omitted for large runs.
 
-    simulation_result_top_gear:
+    simulation_result_topGear:
       type: object
       description: >
         Result of a `topGear` simulation.
@@ -559,9 +562,9 @@ components:
           description: >
             All simmed loadouts, sorted by `mean` descending (best first).
           items:
-            $ref: "#/components/schemas/top_gear_profileset_result"
+            $ref: "#/components/schemas/topGear_profileset_result"
 
-    top_gear_profileset_result:
+    topGear_profileset_result:
       type: object
       description: One simmed loadout and its headline metric.
       required:
@@ -584,9 +587,9 @@ components:
           format: double
           description: simc's reported error bound on `mean`.
         items:
-          $ref: "#/components/schemas/top_gear_profileset_items"
+          $ref: "#/components/schemas/topGear_profileset_items"
 
-    top_gear_profileset_items:
+    topGear_profileset_items:
       type: object
       description: >
         Per-slot equipment selection for a single loadout. Every value is an

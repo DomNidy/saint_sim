@@ -31,29 +31,34 @@ export const CharacterClass = {
 
 export type CharacterClass = typeof CharacterClass[keyof typeof CharacterClass];
 
-export type SimulationOptions = (({
-    kind: 'basic';
-} & SimulationOptionsBasic) | ({
-    kind: 'topGear';
-} & SimulationOptionsTopGear)) & {
-    /**
-     * The kind of simulation to perform. `topGear` simulates all combinations of the specified gear, basic simulates the character using its equipped gear.
-     */
-    kind: 'topGear' | 'basic';
+/**
+ * Core simc config that is shared between all simulation kinds (basic, top gear, etc.)
+ */
+export type SimulationCoreConfig = {
+    fight_style?: 'patchwerk' | 'dungeon_slice' | 'target_dummy' | 'execute_patchwerk' | 'hectic_add_cleave' | 'light_movement' | 'heavy_movement' | 'casting_patchwerk' | 'cleave_add';
 };
+
+export type SimulationOptions = ({
+    kind: 'basic';
+} & SimulationConfigBasic) | ({
+    kind: 'topGear';
+} & SimulationConfigTopGear);
 
 /**
  * Specifies simulation options to send to the API.
  */
-export type SimulationOptionsBasic = {
+export type SimulationConfigBasic = {
+    kind: SimulationKind;
+    core_config?: SimulationCoreConfig;
     simc_addon_export: SimcAddonExport;
-    kind: 'basic';
 };
 
 /**
  * Top gear simulation options. The gear which we should try to find some optimal combination of.
  */
-export type SimulationOptionsTopGear = {
+export type SimulationConfigTopGear = {
+    kind: SimulationKind;
+    core_config?: SimulationCoreConfig;
     character_name: string;
     class: CharacterClass;
     /**
@@ -69,7 +74,6 @@ export type SimulationOptionsTopGear = {
      * The gear to consider in the simulation. We will try to find optimal combinations of these. Must have at least 1 item per slot so it is possible to form a full equipment set.
      */
     equipment: Array<EquipmentItem>;
-    kind: 'topGear';
 };
 
 export type ParseAddonExportRequest = {
@@ -179,11 +183,7 @@ export type Simulation = {
      * ID for the simulation operation.
      */
     id: string;
-    /**
-     * Which simulation variant this job is. Determines the concrete shape of `result` once the job completes. Mirrors the `kind` submitted in simulation_options.
-     *
-     */
-    kind: 'basic' | 'topGear';
+    kind: SimulationKind;
     status: SimulationStatus;
     /**
      * Populated when status = error.
@@ -191,6 +191,16 @@ export type Simulation = {
     error_text?: string;
     result?: SimulationResult;
 };
+
+/**
+ * The concrete kind of simulation to perform (basic, topGear, etc.)
+ */
+export const SimulationKind = { BASIC: 'basic', TOP_GEAR: 'topGear' } as const;
+
+/**
+ * The concrete kind of simulation to perform (basic, topGear, etc.)
+ */
+export type SimulationKind = typeof SimulationKind[keyof typeof SimulationKind];
 
 /**
  * Typed output of a completed simulation. This is the value the worker writes to `simulation.sim_result` in the database and the API returns verbatim; the API does not recompute it on read.

@@ -112,7 +112,7 @@ func buildTopGearResult(
 	})
 
 	return api.SimulationResultTopGear{
-		Kind:        api.SimulationResultTopGearKindTopGear,
+		Kind:        api.TopGear,
 		Metric:      out.Sim.Profilesets.Metric,
 		Equipment:   manifest.Equipment(),
 		Profilesets: entries,

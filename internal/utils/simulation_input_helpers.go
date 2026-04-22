@@ -19,9 +19,9 @@ const (
 	errMissingSimcAddonExport    simulationValidationError = "simc addon export is required"
 )
 
-// ValidateSimulationOptionsBasic validates the user-provided simulation options and reports the
+// ValidateSimulationConfigBasic validates the user-provided simulation options and reports the
 // first failure.
-func ValidateSimulationOptionsBasic(options *api.SimulationOptionsBasic) error {
+func ValidateSimulationConfigBasic(options *api.SimulationConfigBasic) error {
 	if options == nil {
 		return errSimulationOptionsRequired
 	}

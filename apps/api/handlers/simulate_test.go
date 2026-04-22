@@ -102,33 +102,33 @@ func assertTopGearCreateSimulationParams(t *testing.T, arg db.CreateSimulationPa
 		t.Fatalf("kind = %q, want %q", arg.Kind, db.SimulationKindTopGear)
 	}
 
-	var topGearOptions api.SimulationOptionsTopGear
-	if err := json.Unmarshal(arg.SimConfig, &topGearOptions); err != nil {
+	var topGearConfig api.SimulationConfigTopGear
+	if err := json.Unmarshal(arg.SimConfig, &topGearConfig); err != nil {
 		t.Fatalf("unmarshal top gear sim config: %v", err)
 	}
 
-	if topGearOptions.CharacterName != "Gubulgi" {
+	if topGearConfig.CharacterName != "Gubulgi" {
 		t.Fatalf(
 			"character_name = %q, want %q",
-			topGearOptions.CharacterName,
+			topGearConfig.CharacterName,
 			"Gubulgi",
 		)
 	}
-	if topGearOptions.Class != api.Deathknight {
-		t.Fatalf("class = %q, want %q", topGearOptions.Class, api.Deathknight)
+	if topGearConfig.Class != api.Deathknight {
+		t.Fatalf("class = %q, want %q", topGearConfig.Class, api.Deathknight)
 	}
-	if topGearOptions.Spec != "unholy" {
-		t.Fatalf("spec = %q, want %q", topGearOptions.Spec, "unholy")
+	if topGearConfig.Spec != "unholy" {
+		t.Fatalf("spec = %q, want %q", topGearConfig.Spec, "unholy")
 	}
-	if topGearOptions.TalentLoadout.Talents != "ACTIVE_TALENTS" {
+	if topGearConfig.TalentLoadout.Talents != "ACTIVE_TALENTS" {
 		t.Fatalf(
 			"talents = %q, want %q",
-			topGearOptions.TalentLoadout.Talents,
+			topGearConfig.TalentLoadout.Talents,
 			"ACTIVE_TALENTS",
 		)
 	}
-	if len(topGearOptions.Equipment) != 2 {
-		t.Fatalf("equipment len = %d, want %d", len(topGearOptions.Equipment), 2)
+	if len(topGearConfig.Equipment) != 2 {
+		t.Fatalf("equipment len = %d, want %d", len(topGearConfig.Equipment), 2)
 	}
 }
 
@@ -166,14 +166,14 @@ func TestPublishSimulationJob(t *testing.T) {
 				if err := json.Unmarshal(arg.SimConfig, &simOptions); err != nil {
 					t.Fatalf("unmarshal sim config: %v", err)
 				}
-				basicOptions, err := simOptions.AsSimulationOptionsBasic()
+				basicConfig, err := simOptions.AsSimulationConfigBasic()
 				if err != nil {
 					t.Fatalf("decode basic sim options: %v", err)
 				}
-				if basicOptions.SimcAddonExport != expectedExport {
+				if basicConfig.SimcAddonExport != expectedExport {
 					t.Fatalf(
 						"simc_addon_export = %q, want %q",
-						basicOptions.SimcAddonExport,
+						basicConfig.SimcAddonExport,
 						expectedExport,
 					)
 				}
@@ -371,25 +371,25 @@ func TestValidateSimulationRequest(t *testing.T) {
 
 	cases := []struct {
 		name       string
-		options    api.SimulationOptionsBasic
+		simConfig  api.SimulationConfigBasic
 		wantStatus int
 		wantOK     bool
 	}{
 		{
 			name: "valid simc addon export",
-			options: api.SimulationOptionsBasic{
+			simConfig: api.SimulationConfigBasic{
 				SimcAddonExport: "priest=\"Example\"\nlevel=80\nspec=shadow",
 			},
 			wantOK: true,
 		},
 		{
 			name:       "missing simc addon export",
-			options:    api.SimulationOptionsBasic{},
+			simConfig:  api.SimulationConfigBasic{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name: "empty simc addon export",
-			options: api.SimulationOptionsBasic{
+			simConfig: api.SimulationConfigBasic{
 				SimcAddonExport: "",
 			},
 			wantStatus: http.StatusBadRequest,
@@ -402,7 +402,7 @@ func TestValidateSimulationRequest(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := validateSimulationRequestBasic(t.Context(), testCase.options)
+			result := validateSimulationRequestBasic(t.Context(), testCase.simConfig)
 			if testCase.wantOK {
 				if result != nil {
 					t.Fatalf("validateSimulationRequest() = %#v, want nil", result)

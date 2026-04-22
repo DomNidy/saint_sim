@@ -1,14 +1,14 @@
 import { LoaderCircle, Sparkles } from "lucide-react";
 import type { SubmitHandler, UseFormReturn } from "react-hook-form";
 import type z from "zod";
-import type { zSimulationOptionsTopGear } from "@/lib/saint-api/generated/zod.gen";
+import type { zSimulationConfigTopGear } from "@/lib/saint-api/generated/zod.gen";
 import { Alert } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Form } from "../ui/form";
 
 type SimuationFormTopGearProps = {
-	form: UseFormReturn<z.infer<typeof zSimulationOptionsTopGear>>;
-	submitHandler: SubmitHandler<z.infer<typeof zSimulationOptionsTopGear>>;
+	form: UseFormReturn<z.infer<typeof zSimulationConfigTopGear>>;
+	submitHandler: SubmitHandler<z.infer<typeof zSimulationConfigTopGear>>;
 
 	// true if the form was submitting and is in a pending state.
 	// you should set this to submit mutation isPending
