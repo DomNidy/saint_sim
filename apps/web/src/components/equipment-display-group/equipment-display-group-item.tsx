@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 type EquipmentDisplayGroupItemProps = {
 	item: EquipmentItem;
-	onClick?: () => void;
+	onClick?: (equipment: EquipmentItem) => void;
 
 	// show selected state on the item
 	isSelected?: boolean;
@@ -27,7 +27,7 @@ export const EquipmentDisplayGroupItem = ({
 		<button
 			key={fp}
 			type="button"
-			onClick={onClick}
+			onClick={() => onClick?.(item)}
 			className={cn(
 				"border bg-card p-2 text-left transition-colors",
 				isSelected
