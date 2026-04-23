@@ -547,7 +547,11 @@ components:
         - character_class
         - equipped_items
         - spec
+        - race
       properties:
+        name:
+          type: string
+          description: Name of the character
         character_class:
           $ref: "#/components/schemas/character_class"
         level:
@@ -558,7 +562,6 @@ components:
           description: The loot specialization of your character.
         race:
           type: string
-          nullable: true
         region:
           type: string
           nullable: true

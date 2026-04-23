@@ -269,13 +269,17 @@ export type SimulationStatus = typeof SimulationStatus[keyof typeof SimulationSt
  * The representation of a wow character.
  */
 export type WowCharacter = {
+    /**
+     * Name of the character
+     */
+    name?: string;
     character_class: CharacterClass;
     level: number;
     /**
      * The loot specialization of your character.
      */
     loot_spec?: string;
-    race?: string | null;
+    race: string;
     region?: string | null;
     server?: string | null;
     role?: string | null;

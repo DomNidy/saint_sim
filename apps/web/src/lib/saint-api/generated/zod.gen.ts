@@ -194,10 +194,11 @@ export const zSimulation = z.object({
  * The representation of a wow character.
  */
 export const zWowCharacter = z.object({
+    name: z.string().optional(),
     character_class: zCharacterClass,
     level: z.int().gte(1),
     loot_spec: z.string().optional(),
-    race: z.string().nullish(),
+    race: z.string(),
     region: z.string().nullish(),
     server: z.string().nullish(),
     role: z.string().nullish(),
