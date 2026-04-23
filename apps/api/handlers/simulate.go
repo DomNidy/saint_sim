@@ -18,6 +18,8 @@ type simulationValidationError struct {
 	response   api.ErrorResponse
 }
 
+type simulationValidator[T any] func(context.Context, T) *simulationValidationError
+
 // Simulate validates a simulation request, persists it, and enqueues it for processing.
 func (server *Server) Simulate(
 	ctx context.Context,
@@ -33,6 +35,7 @@ func (server *Server) Simulate(
 	authContext, authResolved := auth.ResolveAuthFromContext(ctx)
 	if !authResolved {
 		log.Printf("simulate unauthorized: auth context missing from request context")
+
 		return api.Simulate401JSONResponse{
 			Message: "Unauthorized",
 			Code:    "",
@@ -46,16 +49,30 @@ func (server *Server) Simulate(
 		return api.Simulate422JSONResponse{
 			MalformedRequestJSONResponse: api.MalformedRequestJSONResponse{
 				Message: "Invalid or malformed input",
+				Code:    "",
 			},
 		}, nil
 	}
 
-	if topGearConfig, ok := config.(api.SimulationConfigTopGear); ok {
-		return server.handleSimulationTopGear(ctx, authContext, topGearConfig)
-	}
-
-	if basicSimConfig, ok := config.(api.SimulationConfigBasic); ok {
-		return server.handleSimulationBasic(ctx, authContext, basicSimConfig)
+	switch simConfig := config.(type) {
+	case api.SimulationConfigBasic:
+		return submitSimulation(
+			ctx,
+			server,
+			authContext,
+			db.SimulationKindBasic,
+			simConfig,
+			validateSimulationConfigBasic,
+		)
+	case api.SimulationConfigTopGear:
+		return submitSimulation(
+			ctx,
+			server,
+			authContext,
+			db.SimulationKindTopGear,
+			simConfig,
+			noValidation[api.SimulationConfigTopGear],
+		)
 	}
 
 	// if we reach here, that means we didn't handle all possible simulation option types
@@ -68,13 +85,19 @@ func (server *Server) Simulate(
 	}, nil
 }
 
-func (server *Server) handleSimulationBasic(
+func noValidation[T any](context.Context, T) *simulationValidationError {
+	return nil
+}
+
+func submitSimulation[T api.SimulationConfigBasic | api.SimulationConfigTopGear](
 	ctx context.Context,
+	server *Server,
 	authContext auth.AuthContext,
-	simConfig api.SimulationConfigBasic,
+	kind db.SimulationKind,
+	simConfig T,
+	validate simulationValidator[T],
 ) (api.SimulateResponseObject, error) {
-	validationFailure := validateSimulationRequestBasic(ctx, simConfig)
-	if validationFailure != nil {
+	if validationFailure := validate(ctx, simConfig); validationFailure != nil {
 		return api.Simulate400JSONResponse(validationFailure.response), nil
 	}
 
@@ -82,57 +105,11 @@ func (server *Server) handleSimulationBasic(
 		ctx,
 		authContext,
 		server.dbClient,
-		db.SimulationKindBasic,
+		kind,
 		simConfig,
 	)
 	if err != nil {
 		log.Printf("Error creating simulation request: %v", err)
-
-		return api.Simulate500JSONResponse{
-			InternalErrorJSONResponse: api.InternalErrorJSONResponse{
-				Message: "Internal server error",
-				Code:    "",
-			},
-		}, nil
-	}
-
-	simulationJobMessage := utils.SimulationJobMessage{
-		SimulationID: simulationID,
-	}
-
-	err = server.simQueue.Publish(simulationJobMessage)
-	if err != nil {
-		log.Printf("ERROR: Failed to publish simulation message to queue: %v", err)
-
-		return api.Simulate500JSONResponse{
-			InternalErrorJSONResponse: api.InternalErrorJSONResponse{
-				Message: "An internal server error occurred. Please try again later.",
-				Code:    "",
-			},
-		}, nil
-	}
-
-	log.Printf(" [x] Sent %v\n", simulationJobMessage)
-
-	return api.Simulate202JSONResponse{
-		SimulationId: &simulationID,
-	}, nil
-}
-
-func (server *Server) handleSimulationTopGear(
-	ctx context.Context,
-	authContext auth.AuthContext,
-	simOptions api.SimulationConfigTopGear,
-) (api.SimulateResponseObject, error) {
-	simulationID, err := createSimulationRequest(
-		ctx,
-		authContext,
-		server.dbClient,
-		db.SimulationKindTopGear,
-		simOptions,
-	)
-	if err != nil {
-		log.Printf("Error creating top gear simulation request: %v", err)
 
 		return api.Simulate500JSONResponse{
 			InternalErrorJSONResponse: api.InternalErrorJSONResponse{
@@ -174,13 +151,13 @@ func simulationConfigByDiscriminator(config api.SimulationOptions) (interface{},
 	return simConfig, true
 }
 
-func validateSimulationRequestBasic(
+func validateSimulationConfigBasic(
 	ctx context.Context,
-	simOptions api.SimulationConfigBasic,
+	simConfig api.SimulationConfigBasic,
 ) *simulationValidationError {
 	_ = ctx
 
-	err := utils.ValidateSimulationConfigBasic(&simOptions)
+	err := utils.ValidateSimulationConfigBasic(&simConfig)
 	if err != nil {
 		return &simulationValidationError{
 			statusCode: http.StatusBadRequest,
@@ -194,14 +171,14 @@ func validateSimulationRequestBasic(
 	return nil
 }
 
-func createSimulationRequest[T any](
+func createSimulationRequest[T api.SimulationConfigBasic | api.SimulationConfigTopGear](
 	ctx context.Context,
 	authContext auth.AuthContext,
 	dbClient simulationCreator,
 	kind db.SimulationKind,
-	simOptions T,
+	simConfig T,
 ) (string, error) {
-	simOptionsJSON, err := json.Marshal(simOptions)
+	simOptionsJSON, err := json.Marshal(simConfig)
 	if err != nil {
 		return "", fmt.Errorf("marshal simulation options: %w", err)
 	}

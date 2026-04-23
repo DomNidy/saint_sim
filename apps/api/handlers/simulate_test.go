@@ -33,6 +33,11 @@ type stubSimulationStore struct {
 	getSimulation    func(context.Context, uuid.UUID) (db.Simulation, error)
 }
 
+const basicSimulationRequestBody = `{
+	"kind":"basic",
+	"simc_addon_export":"priest=\"Example\"\r\nlevel=80\rspec=shadow"
+}`
+
 const topGearSimulationRequestBody = `{
 	"kind":"topGear",
 	"core_config":{},
@@ -97,6 +102,39 @@ func decodeTopGearSimulationRequestBody(t *testing.T) api.SimulationOptions {
 	return requestBody
 }
 
+func decodeBasicSimulationRequestBody(t *testing.T) api.SimulationOptions {
+	t.Helper()
+
+	var requestBody api.SimulationOptions
+	if err := json.Unmarshal([]byte(basicSimulationRequestBody), &requestBody); err != nil {
+		t.Fatalf("build basic simulate request body: %v", err)
+	}
+
+	return requestBody
+}
+
+func assertBasicCreateSimulationParams(t *testing.T, arg db.CreateSimulationParams) {
+	t.Helper()
+
+	if arg.Kind != db.SimulationKindBasic {
+		t.Fatalf("kind = %q, want %q", arg.Kind, db.SimulationKindBasic)
+	}
+
+	var basicConfig api.SimulationConfigBasic
+	if err := json.Unmarshal(arg.SimConfig, &basicConfig); err != nil {
+		t.Fatalf("unmarshal basic sim config: %v", err)
+	}
+
+	expectedExport := "priest=\"Example\"\r\nlevel=80\rspec=shadow"
+	if basicConfig.SimcAddonExport != expectedExport {
+		t.Fatalf(
+			"simc_addon_export = %q, want %q",
+			basicConfig.SimcAddonExport,
+			expectedExport,
+		)
+	}
+}
+
 func assertTopGearCreateSimulationParams(t *testing.T, arg db.CreateSimulationParams) {
 	t.Helper()
 
@@ -135,110 +173,33 @@ func assertTopGearCreateSimulationParams(t *testing.T, arg db.CreateSimulationPa
 	}
 }
 
-// TODO: We need to rewrite this
-// func TestPublishSimulationJob(t *testing.T) {
-// 	t.Parallel()
-// 	gin.SetMode(gin.TestMode)
+func assertAcceptedSimulationResponse(
+	t *testing.T,
+	response api.SimulateResponseObject,
+	simulationID uuid.UUID,
+) {
+	t.Helper()
 
-// 	recorder := httptest.NewRecorder()
-// 	ctx, _ := gin.CreateTestContext(recorder)
-// 	auth.SetAuthContext(ctx, auth.AuthContext{
-// 		Scheme: auth.AuthSchemeBearer,
-// 		UserID: "user-123",
-// 	})
+	acceptedResponse, ok := response.(api.Simulate202JSONResponse)
+	if !ok {
+		t.Fatalf("response type = %T, want %T", response, api.Simulate202JSONResponse{})
+	}
+	if acceptedResponse.SimulationId == nil ||
+		*acceptedResponse.SimulationId != simulationID.String() {
+		t.Fatalf(
+			"simulation id = %v, want %s",
+			acceptedResponse.SimulationId,
+			simulationID.String(),
+		)
+	}
+}
 
-// 	didWriteToStore := false
-// 	didPublishToQueue := false
-// 	simulationID := uuid.New()
-// 	expectedExport := "priest=\"Example\"\nlevel=80\nspec=shadow"
-
-// 	server := NewServer(
-// 		&stubSimulationStore{
-// 			createSimulation: func(
-// 				_ context.Context,
-// 				arg db.CreateSimulationParams,
-// 			) (db.Simulation, error) {
-// 				if didPublishToQueue {
-// 					t.Fatal(
-// 						"created simulation after published to queue. " +
-// 							"this is incorrect order, want: create simulation, then publish to queue",
-// 					)
-// 				}
-
-// 				var simOptions api.SimulationOptions
-// 				if err := json.Unmarshal(arg.SimConfig, &simOptions); err != nil {
-// 					t.Fatalf("unmarshal sim config: %v", err)
-// 				}
-// 				basicConfig, err := simOptions.AsSimulationConfigBasic()
-// 				if err != nil {
-// 					t.Fatalf("decode basic sim options: %v", err)
-// 				}
-// 				if basicConfig.SimcAddonExport != expectedExport {
-// 					t.Fatalf(
-// 						"simc_addon_export = %q, want %q",
-// 						basicConfig.SimcAddonExport,
-// 						expectedExport,
-// 					)
-// 				}
-
-// 				didWriteToStore = true
-
-// 				return db.Simulation{ID: simulationID}, nil
-// 			},
-// 		},
-// 		&stubQueue{
-// 			publish: func(_ utils.SimulationJobMessage) error {
-// 				if !didWriteToStore {
-// 					t.Fatal(
-// 						"got: published to queue before we created sim in store, want: create sim in store, then
-// publish to queue",
-// 					)
-// 				}
-
-// 				didPublishToQueue = true
-
-// 				return nil
-// 			},
-// 		},
-// 	)
-// 	var requestBody api.SimulationOptions
-// 	if err := json.Unmarshal([]byte(`{
-// 		"kind":"basic",
-// 		"simc_addon_export":"priest=\"Example\"\r\nlevel=80\rspec=shadow"
-// 	}`), &requestBody); err != nil {
-// 		t.Fatalf("build simulate request body: %v", err)
-// 	}
-
-// 	response, err := server.Simulate(ctx, api.SimulateRequestObject{
-// 		Body: &requestBody,
-// 	})
-// 	if err != nil {
-// 		t.Fatalf("Simulate() error = %v", err)
-// 	}
-
-// 	if !didPublishToQueue {
-// 		t.Fatal("Simulate did not publish to queue")
-// 	}
-// 	if !didWriteToStore {
-// 		t.Fatal("Simulate did not write to store")
-// 	}
-
-// 	acceptedResponse, ok := response.(api.Simulate202JSONResponse)
-// 	if !ok {
-// 		t.Fatalf("response type = %T, want %T", response, api.Simulate202JSONResponse{})
-// 	}
-// 	if acceptedResponse.SimulationId == nil ||
-// 		*acceptedResponse.SimulationId != simulationID.String() {
-// 		t.Fatalf(
-// 			"simulation id = %v, want %s",
-// 			acceptedResponse.SimulationId,
-// 			simulationID.String(),
-// 		)
-// 	}
-// }
-
-func TestPublishTopGearSimulationJob(t *testing.T) {
-	t.Parallel()
+func testPublishSimulationJob(
+	t *testing.T,
+	requestBody api.SimulationOptions,
+	assertCreateParams func(*testing.T, db.CreateSimulationParams),
+) {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
 
 	recorder := httptest.NewRecorder()
@@ -265,7 +226,7 @@ func TestPublishTopGearSimulationJob(t *testing.T) {
 					)
 				}
 
-				assertTopGearCreateSimulationParams(t, arg)
+				assertCreateParams(t, arg)
 
 				didWriteToStore = true
 
@@ -287,8 +248,6 @@ func TestPublishTopGearSimulationJob(t *testing.T) {
 		},
 	)
 
-	requestBody := decodeTopGearSimulationRequestBody(t)
-
 	response, err := server.Simulate(ctx, api.SimulateRequestObject{
 		Body: &requestBody,
 	})
@@ -297,22 +256,31 @@ func TestPublishTopGearSimulationJob(t *testing.T) {
 	}
 
 	if !didPublishToQueue {
-		t.Fatal("Simulate did not publish top gear job to queue")
+		t.Fatal("Simulate did not publish job to queue")
 	}
 	if !didWriteToStore {
-		t.Fatal("Simulate did not write top gear simulation to store")
+		t.Fatal("Simulate did not write simulation to store")
 	}
 
-	acceptedResponse, ok := response.(api.Simulate202JSONResponse)
-	if !ok {
-		t.Fatalf("response type = %T, want %T", response, api.Simulate202JSONResponse{})
-	}
-	if acceptedResponse.SimulationId == nil ||
-		*acceptedResponse.SimulationId != simulationID.String() {
-		t.Fatalf(
-			"simulation id = %v, want %s",
-			acceptedResponse.SimulationId,
-			simulationID.String(),
-		)
-	}
+	assertAcceptedSimulationResponse(t, response, simulationID)
+}
+
+func TestPublishBasicSimulationJob(t *testing.T) {
+	t.Parallel()
+
+	testPublishSimulationJob(
+		t,
+		decodeBasicSimulationRequestBody(t),
+		assertBasicCreateSimulationParams,
+	)
+}
+
+func TestPublishTopGearSimulationJob(t *testing.T) {
+	t.Parallel()
+
+	testPublishSimulationJob(
+		t,
+		decodeTopGearSimulationRequestBody(t),
+		assertTopGearCreateSimulationParams,
+	)
 }
