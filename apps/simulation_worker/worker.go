@@ -16,6 +16,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	amqp091 "github.com/rabbitmq/amqp091-go"
 
+	"github.com/DomNidy/saint_sim/apps/simulation_worker/json2"
+	"github.com/DomNidy/saint_sim/apps/simulation_worker/sims"
 	"github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
 	utils "github.com/DomNidy/saint_sim/internal/utils"
@@ -186,7 +188,7 @@ func (worker simulationWorker) processBasic(
 		return fmt.Errorf("run simulation: %w", err)
 	}
 
-	parsed, err := ParseJSON2(run.JSON2)
+	parsed, err := json2.ParseJSON2(run.JSON2)
 	if err != nil {
 		return fmt.Errorf("parse simc json2 output: %w", err)
 	}
@@ -275,12 +277,12 @@ func (worker simulationWorker) processTopGear(
 		return fmt.Errorf("run simulation: %w", err)
 	}
 
-	parsed, err := ParseJSON2(run.JSON2)
+	parsed, err := json2.ParseJSON2(run.JSON2)
 	if err != nil {
 		return fmt.Errorf("parse simc json2 output: %w", err)
 	}
 
-	topGearResult, err := buildTopGearResult(&manifest, parsed)
+	topGearResult, err := sims.()(&manifest, parsed)
 	if err != nil {
 		return fmt.Errorf("build top gear result: %w", err)
 	}

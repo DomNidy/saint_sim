@@ -165,12 +165,12 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 	gotSummaries := make([]profilesetSummary, 0, got.Len())
 	for _, profile := range got.profilesets {
 		gotSummaries = append(gotSummaries, profilesetSummary{
-			name:    profile.name,
-			head:    got.equipment[profile.head].RawLine,
-			finger1: retargetEquipmentLine(got.equipment[profile.finger1].RawLine, api.Finger1),
-			finger2: retargetEquipmentLine(got.equipment[profile.finger2].RawLine, api.Finger2),
-			offHand: offHandSummaryLine(got, profile.offHand),
-			talents: profile.talents,
+			name:    profile.Name,
+			head:    got.equipment[profile.Head].RawLine,
+			finger1: retargetEquipmentLine(got.equipment[profile.Finger1].RawLine, api.Finger1),
+			finger2: retargetEquipmentLine(got.equipment[profile.Finger2].RawLine, api.Finger2),
+			offHand: offHandSummaryLine(got, profile.OffHand),
+			talents: profile.Talents,
 		})
 	}
 
@@ -209,17 +209,17 @@ func TestGenerateTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *te
 		t.Fatalf("len(generateTopGearProfilesets()) = %d, want 1", got.Len())
 	}
 	if retargetEquipmentLine(
-		got.equipment[got.profilesets[0].finger1].RawLine,
+		got.equipment[got.profilesets[0].Finger1].RawLine,
 		api.Finger1,
 	) != baseRingLines()[0] ||
 		retargetEquipmentLine(
-			got.equipment[got.profilesets[0].finger2].RawLine,
+			got.equipment[got.profilesets[0].Finger2].RawLine,
 			api.Finger2,
 		) != "finger2=,id=256971,gem_id=240865,bonus_id=12769/6652/13668" {
 		t.Fatalf(
 			"ring pair = (%q, %q), want the two distinct copies of the same ring",
-			retargetEquipmentLine(got.equipment[got.profilesets[0].finger1].RawLine, api.Finger1),
-			retargetEquipmentLine(got.equipment[got.profilesets[0].finger2].RawLine, api.Finger2),
+			retargetEquipmentLine(got.equipment[got.profilesets[0].Finger1].RawLine, api.Finger1),
+			retargetEquipmentLine(got.equipment[got.profilesets[0].Finger2].RawLine, api.Finger2),
 		)
 	}
 }

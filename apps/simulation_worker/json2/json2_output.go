@@ -1,4 +1,4 @@
-package main
+package json2
 
 import (
 	"encoding/json"
@@ -75,5 +75,6 @@ func ParseJSON2(raw []byte) (JSON2Output, error) {
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return JSON2Output{}, fmt.Errorf("decode simc json2 output: %w", err)
 	}
+
 	return out, nil
 }
