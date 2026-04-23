@@ -1,52 +1,21 @@
 package sims
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
 )
 
 const simcNoArgumentsExitCode = 50
 const simcProfileFileMode = 0o600
 
 // Run executes a simulation end-to-end using the provided manifest as the
-// "plan"
-func Run[T Manifest](ctx context.Context, manifest T) (RunResult, error) {
+// "plan".
+func Run[T Manifest](ctx context.Context, manifest T, simcBinaryPath string) (RunResult, error) {
 	// profileString, err := manifest.BuildSimcProfile()
 	// write to disk
 	// do what the current Run method does basically..
 	// run
 	// manifest.BuildResultFromJSON2()
 	return RunResult{}, nil
-}
-
-type simcRunner struct {
-	// simc binary path
-	binaryPath string
-}
-
-func (runner simcRunner) Version(ctx context.Context) (string, error) {
-	// #nosec G204 -- the binary path comes from deployment configuration, not queue input.
-	command := exec.CommandContext(ctx, runner.binaryPath)
-
-	var output bytes.Buffer
-	command.Stdout = &output
-
-	err := command.Run()
-	exitCode := -1
-	if command.ProcessState != nil {
-		exitCode = command.ProcessState.ExitCode()
-	}
-
-	if err != nil && exitCode != simcNoArgumentsExitCode {
-		return "", fmt.Errorf("run simc binary: %w", err)
-	}
-
-	return strings.TrimSpace(output.String()), nil
 }
 
 // Run writes the profileText to a temporary profile on disk, performs the sim, returns the
@@ -90,28 +59,28 @@ func (runner simcRunner) Version(ctx context.Context) (string, error) {
 // 	}, nil
 // }
 
-// write a simc profile to disk and return a cleanup function along with the
-// path to the profile
-// must call the cleanup function.
-func (runner simcRunner) writeSimcProfileTemp(
-	ctx context.Context,
-	profileText string,
-) (string, func(), error) {
-	tempDir, err := os.MkdirTemp("", "saint-simc-*")
-	if err != nil {
-		return "", func() {}, fmt.Errorf("create simc temp dir: %w", err)
-	}
+// // write a simc profile to disk and return a cleanup function along with the
+// // path to the profile
+// // must call the cleanup function.
+// func (runner simcRunner) writeSimcProfileTemp(
+// 	ctx context.Context,
+// 	profileText string,
+// ) (string, func(), error) {
+// 	tempDir, err := os.MkdirTemp("", "saint-simc-*")
+// 	if err != nil {
+// 		return "", func() {}, fmt.Errorf("create simc temp dir: %w", err)
+// 	}
 
-	cleanupFunc := func() {
-		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
-			fmt.Fprintf(os.Stderr, "remove simc temp dir: %v\n", removeErr)
-		}
-	}
+// 	cleanupFunc := func() {
+// 		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+// 			fmt.Fprintf(os.Stderr, "remove simc temp dir: %v\n", removeErr)
+// 		}
+// 	}
 
-	profilePath := filepath.Join(tempDir, "input.simc")
-	if err := os.WriteFile(profilePath, []byte(profileText), simcProfileFileMode); err != nil {
-		return "", func() {}, fmt.Errorf("write simc profile: %w", err)
-	}
+// 	profilePath := filepath.Join(tempDir, "input.simc")
+// 	if err := os.WriteFile(profilePath, []byte(profileText), simcProfileFileMode); err != nil {
+// 		return "", func() {}, fmt.Errorf("write simc profile: %w", err)
+// 	}
 
-	return profilePath, cleanupFunc, nil
-}
+// 	return profilePath, cleanupFunc, nil
+// }

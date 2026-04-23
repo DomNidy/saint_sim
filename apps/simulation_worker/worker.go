@@ -13,7 +13,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	amqp091 "github.com/rabbitmq/amqp091-go"
 
-	"github.com/DomNidy/saint_sim/apps/simulation_worker/json2"
 	"github.com/DomNidy/saint_sim/apps/simulation_worker/sims"
 	"github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
@@ -21,8 +20,8 @@ import (
 )
 
 type simulationWorker struct {
-	runner sims.Runner
-	store  Store
+	workerConfig
+	store Store
 }
 
 func (worker simulationWorker) Start(
@@ -180,22 +179,16 @@ func (worker simulationWorker) processBasic(
 		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
 	}
 
-	run, err := worker.runner.Run(ctx, config.SimcAddonExport)
+	manifest := sims.BasicSimManifest{}
+
+	run, err := sims.Run(ctx, manifest, worker.simcBinaryPath)
 	if err != nil {
 		return fmt.Errorf("run simulation: %w", err)
 	}
 
-	parsed, err := json2.ParseJSON2(run.JSON2)
-	if err != nil {
-		return fmt.Errorf("parse simc json2 output: %w", err)
-	}
+	json2Bytes, err := run.JSON2.Marshal()
 
-	basicResult, err := sims.BuildBasicResult(string(run.Stdout), parsed)
-	if err != nil {
-		return fmt.Errorf("build basic result: %w", err)
-	}
-
-	simResultBytes, err := marshalResultAsBasic(basicResult)
+	simResultBytes, err := json.Marshal(run.Data)
 	if err != nil {
 		return fmt.Errorf("marshal basic result: %w", err)
 	}
@@ -203,7 +196,7 @@ func (worker simulationWorker) processBasic(
 	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
 		ID:           request.id,
 		SimResult:    simResultBytes,
-		SimcRawJson2: run.JSON2,
+		SimcRawJson2: json2Bytes,
 		CompletedAt:  nowTimestamptz(),
 		Status: db.NullSimulationStatus{
 			SimulationStatus: db.SimulationStatusComplete,
@@ -243,14 +236,13 @@ func (worker simulationWorker) processTopGear(
 		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
 	}
 
-	runResult, err := sims.Run(ctx, manifest)
+	runResult, err := sims.Run(ctx, manifest, worker.simcBinaryPath)
 	if err != nil {
 		return fmt.Errorf("error performing sim gear result: %w", err)
 	}
 
 	// if we fail to marshal the raw json 2 into byte array - try to continue still
-	var json2Bytes []byte
-	json2Bytes, err = json.Marshal(runResult.JSON2)
+	json2Bytes, err := runResult.JSON2.Marshal()
 	if err != nil {
 		log.Printf(
 			"WARN: failed to marshal rawJson2 into a byte array - db will be missing raw JSON2 output for this sim!",
@@ -286,7 +278,7 @@ func (worker simulationWorker) processTopGear(
 // and returns the canonical on‑wire / on‑disk bytes. The union's custom
 // MarshalJSON emits only the inner variant (with kind embedded) — that's
 // exactly the shape we want in the `sim_result` column.
-func marshalResultAsBasic(r api.SimulationResultBasic) ([]byte, error) {
+func arshalResultAsBasic(r api.SimulationResultBasic) ([]byte, error) {
 	var u api.SimulationResult
 	if err := u.FromSimulationResultBasic(r); err != nil {
 		return nil, fmt.Errorf("wrap basic result: %w", err)

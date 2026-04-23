@@ -33,17 +33,8 @@ func run() error {
 	defer dependencies.dbPool.Close()
 	defer dependencies.queue.Close()
 
-	runner := simcRunner{binaryPath: config.simcBinaryPath}
-
-	version, err := runner.Version(ctx)
-	if err != nil {
-		return fmt.Errorf("read SimC version: %w", err)
-	}
-
-	log.Printf("simulation worker running SimC version: %s", version)
-
 	worker := simulationWorker{
-		runner: simcRunner{binaryPath: config.simcBinaryPath},
+		workerConfig: config,
 		store: dbSimulationStore{
 			queries: *dbqueries.New(dependencies.dbPool),
 		},
