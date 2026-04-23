@@ -5,7 +5,7 @@ import { EquipmentDisplayGroupItem } from "./equipment-display-group-item";
 
 type EquipmentDisplayGroupProps = {
 	group: EquipmentGroup;
-	onClickEquipment: (equipment: EquipmentItem) => void;
+	onClickEquipment?: (equipment: EquipmentItem) => void;
 	// called to check selected state, if not provided. if not
 	// provided, then selected state is false
 	isEquipmentSelected?: (equipment: EquipmentItem) => boolean;
@@ -13,7 +13,7 @@ type EquipmentDisplayGroupProps = {
 
 export const EquipmentDisplayGroup = ({
 	group,
-	onClickEquipment: onSelectEquipment,
+	onClickEquipment,
 	isEquipmentSelected,
 }: EquipmentDisplayGroupProps) => {
 	return (
@@ -27,7 +27,7 @@ export const EquipmentDisplayGroup = ({
 						item={item}
 						isEquipped={item.source === "equipped"}
 						key={`${item.raw_line}+${item.source}`}
-						onClick={onSelectEquipment}
+						onClick={onClickEquipment}
 						isSelected={isEquipmentSelected?.(item) ?? false}
 					/>
 				))}

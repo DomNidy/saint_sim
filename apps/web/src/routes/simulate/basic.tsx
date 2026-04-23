@@ -24,7 +24,10 @@ import {
 	localStorageSet,
 	PREV_SIMC_PROFILE_KEY,
 } from "@/lib/local-storage";
-import { zSimulationConfigBasic } from "@/lib/saint-api/generated/zod.gen";
+import {
+	zSimcAddonExport,
+	zSimulationConfigBasic,
+} from "@/lib/saint-api/generated/zod.gen";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
 
 export const Route = createFileRoute("/simulate/basic")({
@@ -80,16 +83,20 @@ function SimulationPage() {
 		},
 	});
 
-	// auto-parse addon export from form to display gear list
-	const parseQuery = useParseAddonExport(simcExport, true);
+	const parseAddonExportEnabled = !!simcExport && simcExport.length > 0; // only parse addon export when we have it
+	const {
+		equipmentGroups,
+		wowCharacter,
+		errorMessage: parseAddonExportError,
+	} = useParseAddonExport(simcExport, parseAddonExportEnabled);
 
 	useEffect(() => {
-		if (parseQuery.data?.groups.length === 0) {
+		if (equipmentGroups?.length === 0) {
 			return;
 		}
 
 		window.$WowheadPower?.refreshLinks?.();
-	}, [parseQuery.data?.groups]);
+	}, [equipmentGroups]);
 
 	return (
 		<section className="w-full pb-10 pt-12">
@@ -134,30 +141,23 @@ function SimulationPage() {
 							</p>
 						) : null}
 
-						{parseQuery.isLoading ? (
-							<div className="flex items-center gap-2 text-muted-foreground text-sm">
-								<LoaderCircle className="size-4 animate-spin" />
-								Parsing addon export...
-							</div>
-						) : null}
-
-						{parseQuery.isError ? (
+						{parseAddonExportError ? (
 							<p className="text-destructive text-sm">
-								Error: {parseQuery.error.message}
+								Error: {parseAddonExportError}
 							</p>
 						) : null}
 
-						{parseQuery.data && parseQuery.data?.groups?.length === 0 ? (
+						{equipmentGroups && equipmentGroups?.length === 0 ? (
 							<p className="text-muted-foreground text-sm">
 								No gear lines were found in this export.
 							</p>
-						) : null}
-
-						<div className="grid grid-cols-2 gap-2">
-							{parseQuery.data?.groups.map((group) => (
-								<EquipmentDisplayGroup group={group} key={group.groupLabel} />
-							))}
-						</div>
+						) : (
+							<div className="grid grid-cols-2 gap-2">
+								{equipmentGroups?.map((group) => (
+									<EquipmentDisplayGroup group={group} key={group.groupLabel} />
+								))}
+							</div>
+						)}
 					</div>
 				</CardContent>
 			</Card>
