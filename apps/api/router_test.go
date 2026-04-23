@@ -17,6 +17,7 @@ import (
 	"github.com/DomNidy/saint_sim/apps/api/handlers"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
+	"github.com/DomNidy/saint_sim/internal/simulation"
 	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
@@ -28,30 +29,33 @@ var (
 )
 
 type routerStubStore struct {
-	createSimulation func(context.Context, db.CreateSimulationParams) (db.Simulation, error)
-	getSimulation    func(context.Context, uuid.UUID) (db.Simulation, error)
+	createQueuedSimulation func(
+		context.Context,
+		simulation.CreateQueuedSimulationInput,
+	) (uuid.UUID, error)
+	getSimulation func(context.Context, uuid.UUID) (api.Simulation, error)
 }
 
-func (store routerStubStore) CreateSimulation(
+func (store routerStubStore) CreateQueuedSimulation(
 	ctx context.Context,
-	arg db.CreateSimulationParams,
-) (db.Simulation, error) {
-	if store.createSimulation != nil {
-		return store.createSimulation(ctx, arg)
+	arg simulation.CreateQueuedSimulationInput,
+) (uuid.UUID, error) {
+	if store.createQueuedSimulation != nil {
+		return store.createQueuedSimulation(ctx, arg)
 	}
 
-	return db.Simulation{}, nil
+	return uuid.Nil, nil
 }
 
 func (store routerStubStore) GetSimulation(
 	ctx context.Context,
 	id uuid.UUID,
-) (db.Simulation, error) {
+) (api.Simulation, error) {
 	if store.getSimulation != nil {
 		return store.getSimulation(ctx, id)
 	}
 
-	return db.Simulation{}, nil
+	return api.Simulation{}, nil
 }
 
 type routerStubQueue struct {
@@ -100,11 +104,11 @@ func TestRouterSimulationAuthAndValidation(t *testing.T) {
 	router := newTestRouter(
 		t,
 		withStore(routerStubStore{
-			createSimulation: func(
+			createQueuedSimulation: func(
 				_ context.Context,
-				_ db.CreateSimulationParams,
-			) (db.Simulation, error) {
-				return db.Simulation{ID: simulationID}, nil
+				_ simulation.CreateQueuedSimulationInput,
+			) (uuid.UUID, error) {
+				return simulationID, nil
 			},
 		}),
 		withOpenAPIAuthenticator(auth.NewOpenAPIRequestAuthenticator(
@@ -297,11 +301,11 @@ func newTestRouter(t *testing.T, opts ...testRouterOption) *gin.Engine {
 
 	options := testRouterOptions{
 		store: routerStubStore{
-			createSimulation: func(
+			createQueuedSimulation: func(
 				_ context.Context,
-				_ db.CreateSimulationParams,
-			) (db.Simulation, error) {
-				return db.Simulation{ID: uuid.New()}, nil
+				_ simulation.CreateQueuedSimulationInput,
+			) (uuid.UUID, error) {
+				return uuid.New(), nil
 			},
 		},
 		openAPIAuthenticator: newTestOpenAPIAuthenticator(),

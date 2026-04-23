@@ -9,7 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	dbqueries "github.com/DomNidy/saint_sim/internal/db"
+	workerusecases "github.com/DomNidy/saint_sim/apps/simulation_worker/usecases"
+	simulationpostgres "github.com/DomNidy/saint_sim/internal/simulation/postgres"
 )
 
 func main() {
@@ -33,11 +34,15 @@ func run() error {
 	defer dependencies.dbPool.Close()
 	defer dependencies.queue.Close()
 
+	simulationRepository := simulationpostgres.NewRepository(dependencies.dbPool)
+	processor := workerusecases.NewProcessSimulationUseCase(
+		simulationRepository,
+		config.simcBinaryPath,
+	)
+
 	worker := simulationWorker{
 		workerConfig: config,
-		store: dbSimulationStore{
-			queries: *dbqueries.New(dependencies.dbPool),
-		},
+		processor:    processor,
 	}
 
 	err = worker.Start(ctx, dependencies.queue)
