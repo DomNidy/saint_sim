@@ -9,7 +9,7 @@ export const zHealthResponse = z.object({
 /**
  * Raw SimulationCraft addon export string supplied by the caller.
  */
-export const zSimcAddonExport = z.string().min(1);
+export const zSimcAddonExport = z.string();
 
 export const zCharacterClass = z.enum([
     'warrior',
@@ -28,20 +28,25 @@ export const zCharacterClass = z.enum([
 ]);
 
 /**
+ * Simc fight style
+ */
+export const zFightStyle = z.enum([
+    'patchwerk',
+    'dungeon_slice',
+    'target_dummy',
+    'execute_patchwerk',
+    'hectic_add_cleave',
+    'light_movement',
+    'heavy_movement',
+    'casting_patchwerk',
+    'cleave_add'
+]);
+
+/**
  * Core simc config that is shared between all simulation kinds (basic, top gear, etc.)
  */
 export const zSimulationCoreConfig = z.object({
-    fight_style: z.enum([
-        'patchwerk',
-        'dungeon_slice',
-        'target_dummy',
-        'execute_patchwerk',
-        'hectic_add_cleave',
-        'light_movement',
-        'heavy_movement',
-        'casting_patchwerk',
-        'cleave_add'
-    ]).optional()
+    fight_style: zFightStyle.optional()
 });
 
 export const zEquipmentSource = z.enum(['equipped', 'bag']);

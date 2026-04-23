@@ -141,8 +141,16 @@ func TestRouterSimulationAuthAndValidation(t *testing.T) {
 	)
 
 	simConfig := api.SimulationConfigBasic{
-		Kind:            api.SimulationConfigBasicKindBasic,
-		SimcAddonExport: `{"simc_addon_export":"priest=\"Example\"\nlevel=80\nspec=shadow"}`,
+		Kind: api.SimulationConfigBasicKindBasic,
+		Character: api.WowCharacter{
+			CharacterClass: api.Priest,
+			EquippedItems:  []api.EquipmentItem{},
+			Level:          80,
+			Race:           "void_elf",
+			Spec:           "shadow",
+		},
+		CoreConfig:      api.SimulationCoreConfig{},
+		SimcAddonExport: "priest=\"Example\"\nlevel=80\nspec=shadow",
 	}
 
 	simOptionsJsonBody, err := json.Marshal(simConfig)
@@ -261,22 +269,6 @@ func TestRouterGeneratedBindingAndValidation(t *testing.T) {
 		)
 	}
 
-	parseReq := httptest.NewRequest(
-		http.MethodPost,
-		"/simc/parse-addon-export",
-		bytes.NewBufferString(`{}`),
-	)
-	parseReq.Header.Set("Content-Type", "application/json")
-	parseRec := httptest.NewRecorder()
-	router.ServeHTTP(parseRec, parseReq)
-	if parseRec.Code != http.StatusBadRequest {
-		t.Fatalf(
-			"status = %d, want %d; body = %s",
-			parseRec.Code,
-			http.StatusBadRequest,
-			parseRec.Body.String(),
-		)
-	}
 }
 
 type testRouterOptions struct {

@@ -10,15 +10,51 @@ import (
 
 	"github.com/google/uuid"
 
+	api_utils "github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/internal/api"
+	"github.com/DomNidy/saint_sim/internal/db"
 )
 
 type stubRunner struct{}
 
-func (sr stubRunner) Run(_ context.Context, profilePath string) ([]byte, error) {
+func (sr stubRunner) Run(_ context.Context, profilePath string) (RunResult, error) {
 	_ = profilePath
 
-	return nil, nil
+	return RunResult{
+		JSON2: []byte(`{
+			"sim": {
+				"profilesets": {
+					"metric": "dps",
+					"results": [
+						{
+							"name": "Combo1",
+							"mean": 12345,
+							"min": 12000,
+							"max": 12600,
+							"stddev": 10,
+							"mean_stddev": 10,
+							"mean_error": 5,
+							"median": 12340,
+							"iterations": 5
+						}
+					]
+				}
+			}
+		}`),
+	}, nil
+}
+
+type stubStore struct{}
+
+func (stubStore) LoadRequest(_ context.Context, _ uuid.UUID) (simulationRequest, error) {
+	return simulationRequest{}, nil
+}
+
+func (stubStore) UpdateSimulation(
+	_ context.Context,
+	_ db.UpdateSimulationParams,
+) (db.Simulation, error) {
+	return db.Simulation{}, nil
 }
 
 func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
@@ -47,12 +83,16 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 		t.Fatalf("countTopGearProfilesets() = %d, want 6", gotCount)
 	}
 
-	got, err := generateTopGearManifest(equipment, "TALENTS")
+	got, err := generateTopGearManifest(topGearConfig(equipment, "TALENTS"))
 	if err != nil {
 		t.Fatalf("generateTopGearProfilesets() error = %v", err)
 	}
-	if len(got) != gotCount {
-		t.Fatalf("len(generateTopGearProfilesets()) = %d, want %d", len(got), gotCount)
+	if got.Len() != gotCount {
+		t.Fatalf(
+			"len(generateTopGearProfilesets()) = %d, want %d",
+			got.Len(),
+			gotCount,
+		)
 	}
 
 	want := []struct {
@@ -69,7 +109,7 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 			finger1: baseRingLines()[0],
 			finger2: baseRingLines()[1],
 			offHand: "off_hand=,",
-			talents: "talents=TALENTS",
+			talents: "TALENTS",
 		},
 		{
 			name:    "Combo2",
@@ -77,7 +117,7 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 			finger1: baseRingLines()[0],
 			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
 			offHand: "off_hand=,",
-			talents: "talents=TALENTS",
+			talents: "TALENTS",
 		},
 		{
 			name:    "Combo3",
@@ -85,7 +125,7 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 			finger1: "finger1=,id=256985,gem_id=213491,bonus_id=12778/6652/13668",
 			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
 			offHand: "off_hand=,",
-			talents: "talents=TALENTS",
+			talents: "TALENTS",
 		},
 		{
 			name:    "Combo4",
@@ -93,7 +133,7 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 			finger1: baseRingLines()[0],
 			finger2: baseRingLines()[1],
 			offHand: "off_hand=,",
-			talents: "talents=TALENTS",
+			talents: "TALENTS",
 		},
 		{
 			name:    "Combo5",
@@ -101,7 +141,7 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 			finger1: baseRingLines()[0],
 			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
 			offHand: "off_hand=,",
-			talents: "talents=TALENTS",
+			talents: "TALENTS",
 		},
 		{
 			name:    "Combo6",
@@ -109,7 +149,7 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 			finger1: "finger1=,id=256985,gem_id=213491,bonus_id=12778/6652/13668",
 			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
 			offHand: "off_hand=,",
-			talents: "talents=TALENTS",
+			talents: "TALENTS",
 		},
 	}
 
@@ -122,14 +162,14 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 		talents string
 	}
 
-	gotSummaries := make([]profilesetSummary, 0, len(got))
-	for _, profile := range got {
+	gotSummaries := make([]profilesetSummary, 0, got.Len())
+	for _, profile := range got.profilesets {
 		gotSummaries = append(gotSummaries, profilesetSummary{
 			name:    profile.name,
-			head:    profile.head,
-			finger1: profile.finger1,
-			finger2: profile.finger2,
-			offHand: profile.offHand,
+			head:    got.equipment[profile.head].RawLine,
+			finger1: retargetEquipmentLine(got.equipment[profile.finger1].RawLine, api.Finger1),
+			finger2: retargetEquipmentLine(got.equipment[profile.finger2].RawLine, api.Finger2),
+			offHand: offHandSummaryLine(got, profile.offHand),
 			talents: profile.talents,
 		})
 	}
@@ -161,24 +201,30 @@ func TestGenerateTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *te
 		),
 	)
 
-	got, err := generateTopGearManifest(equipment, "TALENTS")
+	got, err := generateTopGearManifest(topGearConfig(equipment, "TALENTS"))
 	if err != nil {
 		t.Fatalf("generateTopGearProfilesets() error = %v", err)
 	}
-	if len(got) != 1 {
-		t.Fatalf("len(generateTopGearProfilesets()) = %d, want 1", len(got))
+	if got.Len() != 1 {
+		t.Fatalf("len(generateTopGearProfilesets()) = %d, want 1", got.Len())
 	}
-	if got[0].finger1 != baseRingLines()[0] ||
-		got[0].finger2 != "finger2=,id=256971,gem_id=240865,bonus_id=12769/6652/13668" {
+	if retargetEquipmentLine(
+		got.equipment[got.profilesets[0].finger1].RawLine,
+		api.Finger1,
+	) != baseRingLines()[0] ||
+		retargetEquipmentLine(
+			got.equipment[got.profilesets[0].finger2].RawLine,
+			api.Finger2,
+		) != "finger2=,id=256971,gem_id=240865,bonus_id=12769/6652/13668" {
 		t.Fatalf(
 			"ring pair = (%q, %q), want the two distinct copies of the same ring",
-			got[0].finger1,
-			got[0].finger2,
+			retargetEquipmentLine(got.equipment[got.profilesets[0].finger1].RawLine, api.Finger1),
+			retargetEquipmentLine(got.equipment[got.profilesets[0].finger2].RawLine, api.Finger2),
 		)
 	}
 }
 
-func TestCountTopGearProfilesetsRejectsImpossibleLoadout(t *testing.T) {
+func TestCountTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *testing.T) {
 	t.Parallel()
 
 	equipment := appendEquipment(
@@ -192,11 +238,11 @@ func TestCountTopGearProfilesetsRejectsImpossibleLoadout(t *testing.T) {
 	)
 
 	count, err := countTopGearProfilesets(equipment)
-	if err == nil {
-		t.Fatalf("countTopGearProfilesets() = %d, want error", count)
+	if err != nil {
+		t.Fatalf("countTopGearProfilesets() error = %v", err)
 	}
-	if !strings.Contains(err.Error(), "ring candidates") {
-		t.Fatalf("countTopGearProfilesets() error = %v, want ring-candidate error", err)
+	if count != 1 {
+		t.Fatalf("countTopGearProfilesets() = %d, want 1", count)
 	}
 }
 
@@ -205,7 +251,7 @@ func TestProcessTopGear(t *testing.T) {
 
 	worker := simulationWorker{
 		runner: stubRunner{},
-		store:  nil,
+		store:  stubStore{},
 	}
 
 	equipment := appendEquipment(
@@ -235,7 +281,7 @@ func TestProcessTopGearReturnsErrorWhenCombinationCountExceedsLimit(t *testing.T
 
 	worker := simulationWorker{
 		runner: stubRunner{},
-		store:  nil,
+		store:  stubStore{},
 	}
 
 	headLines := make([]string, 0, maxGeneratedProfilesets+1)
@@ -290,12 +336,12 @@ func mustParseEquippedEquipmentLines(
 
 func mustParseEquipmentLine(
 	t *testing.T,
-	source api.AddonExportEquipmentSource,
+	source api.EquipmentSource,
 	line string,
 ) api.EquipmentItem {
 	t.Helper()
 
-	item, ok := ParseEquipmentItem("", line, source)
+	item, ok := api_utils.ParseEquipmentItem("", line, source)
 	if !ok {
 		t.Fatalf("failed to parse item line %q", line)
 	}
@@ -310,22 +356,43 @@ func appendEquipment(
 	return append(base, items...)
 }
 
-func topGearOptions(equipment ...api.EquipmentItem) (api.SimulationOptions, error) {
-	topGear := api.SimulationConfigTopGear{
-		Kind:          api.TopGear,
-		CharacterName: "Dom",
-		Class:         api.Deathknight,
-		Spec:          "unholy",
-		Role:          "attack",
-		Equipment:     equipment,
-		TalentLoadout: api.AddonExportTalentLoadout{
-			Name:    nil,
-			Talents: "CwPAAAAAAAAAAAAAAAAAAAAAA",
+func topGearConfig(
+	equipment []api.EquipmentItem,
+	talents string,
+) api.SimulationConfigTopGear {
+	name := "Dom"
+
+	return api.SimulationConfigTopGear{
+		Kind:       api.SimulationConfigTopGearKindTopGear,
+		CoreConfig: api.SimulationCoreConfig{},
+		Equipment:  equipment,
+		Character: api.WowCharacter{
+			Name:                &name,
+			CharacterClass:      api.Deathknight,
+			EquippedItems:       []api.EquipmentItem{},
+			Level:               80,
+			Race:                "human",
+			Role:                stringPtr("attack"),
+			Spec:                "unholy",
+			ActiveTalents:       &api.CharacterTalentLoadout{Talents: talents},
+			TalentLoadouts:      nil,
+			BagItems:            nil,
+			LootSpec:            nil,
+			Professions:         nil,
+			Region:              nil,
+			Server:              nil,
+			CatalystCurrencies:  nil,
+			SlotHighWatermarks:  nil,
+			UpgradeAchievements: nil,
 		},
 	}
+}
+
+func topGearOptions(equipment ...api.EquipmentItem) (api.SimulationOptions, error) {
+	topGear := topGearConfig(equipment, "CwPAAAAAAAAAAAAAAAAAAAAAA")
 
 	var opts api.SimulationOptions
-	if err := opts.FromSimulationOptionsTopGear(topGear); err != nil {
+	if err := opts.FromSimulationConfigTopGear(topGear); err != nil {
 		return api.SimulationOptions{}, fmt.Errorf("encode top gear options: %w", err)
 	}
 
@@ -334,6 +401,18 @@ func topGearOptions(equipment ...api.EquipmentItem) (api.SimulationOptions, erro
 
 func intString(value int) string {
 	return strconv.Itoa(value)
+}
+
+func offHandSummaryLine(manifest topGearManifest, offHandIndex int) string {
+	if offHandIndex == noItemIndex {
+		return emptyOffHandLine
+	}
+
+	return retargetEquipmentLine(manifest.equipment[offHandIndex].RawLine, api.OffHand)
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
 
 func baseSingletonLines() []string {
