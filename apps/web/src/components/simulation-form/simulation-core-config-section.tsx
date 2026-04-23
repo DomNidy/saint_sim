@@ -5,6 +5,7 @@ import type {
 	zSimulationConfigBasic,
 	zSimulationConfigTopGear,
 	zSimulationCoreConfig,
+	zSimulationOptions,
 } from "@/lib/saint-api/generated/zod.gen";
 import {
 	FormControl,
@@ -30,17 +31,18 @@ function formatFightStyleLabel(fightStyle: string) {
 }
 
 // core config section is used as a subsection in multiple simulation
-// parent form types.
-type ParentForm =
-	| z.infer<typeof zSimulationConfigBasic>
-	| z.infer<typeof zSimulationConfigTopGear>;
+// parent form types. zSimulationOptions is the union type that the
+// simulation endpoint recevies. All types in that union should have a
+// core_config property at the root.
+type ParentForm = z.infer<typeof zSimulationOptions>;
+
 /**
  * A re-usable sub-form for the core simulation config.
  *
  * Intended usage:
  * - Use as a child inside a <FormProvider> hierarchy (or shadcn's <Form>)
- * - The parent provider's form type should be assignable a zSimulationConfigXXX type,
- *   as those carry the core config.
+ * - The parent provider's form type should be a zSimulationConfigXXX type
+ * as they carry core config at the same path
  */
 export function SimulationCoreConfigSection() {
 	const form = useFormContext<ParentForm>();
@@ -49,7 +51,7 @@ export function SimulationCoreConfigSection() {
 		console.error(
 			"SimulationCoreConfigSection must be used in a Form Context, and that form context must contain/be assignable to zSimulationCoreConfig",
 		);
-		return <></>;
+		return;
 	}
 	return (
 		<div className="flex flex-col gap-5">
