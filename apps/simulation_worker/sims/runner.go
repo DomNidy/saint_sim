@@ -13,22 +13,15 @@ import (
 const simcNoArgumentsExitCode = 50
 const simcProfileFileMode = 0o600
 
-// RunResult holds the artifacts produced by a single simc invocation.
-type RunResult struct {
-	// Stdout is the human‑readable log simc writes to standard output.
-	Stdout []byte
-
-	// JSON2 is the raw contents of the file produced by passing `json2=<path>`
-	// to simc — its structured report. Parse with ParseJSON2.
-	JSON2 []byte
-}
-
-// TODO: Bad encapsulation - we should just have a Run()
-// method on the runner that takes the top gear manifest
-// directly. To support a basic sim, Runner can either use
-// methods per-sim-kind (RunBasic, RunTopGear), or use generics.
-type Runner interface {
-	Run(ctx context.Context, profileText string) (RunResult, error)
+// Run executes a simulation end-to-end using the provided manifest as the
+// "plan"
+func Run[T Manifest](ctx context.Context, manifest T) (RunResult, error) {
+	// profileString, err := manifest.BuildSimcProfile()
+	// write to disk
+	// do what the current Run method does basically..
+	// run
+	// manifest.BuildResultFromJSON2()
+	return RunResult{}, nil
 }
 
 type simcRunner struct {
@@ -58,44 +51,44 @@ func (runner simcRunner) Version(ctx context.Context) (string, error) {
 
 // Run writes the profileText to a temporary profile on disk, performs the sim, returns the
 // results and cleans up the temp profile from disk.
-func (runner simcRunner) Run(ctx context.Context, profileText string) (RunResult, error) {
-	profilePath, cleanupFunc, err := runner.writeSimcProfileTemp(ctx, profileText)
-	if err == nil {
-		return RunResult{}, err
-	}
-	defer cleanupFunc()
+// func (runner simcRunner) Run(ctx context.Context, profileText string) (RunResult, error) {
+// 	profilePath, cleanupFunc, err := runner.writeSimcProfileTemp(ctx, profileText)
+// 	if err == nil {
+// 		return RunResult{}, err
+// 	}
+// 	defer cleanupFunc()
 
-	// Write the structured report next to the profile so the caller's temp‑dir
-	// cleanup (os.RemoveAll) sweeps it up automatically.
-	jsonPath := filepath.Join(filepath.Dir(profilePath), "output.json")
+// 	// Write the structured report next to the profile so the caller's temp‑dir
+// 	// cleanup (os.RemoveAll) sweeps it up automatically.
+// 	jsonPath := filepath.Join(filepath.Dir(profilePath), "output.json")
 
-	// #nosec G204 -- the binary path comes from deployment configuration and the
-	// profile/json paths are created locally by the worker.
-	command := exec.CommandContext(
-		ctx,
-		runner.binaryPath,
-		profilePath,
-		"json2="+jsonPath,
-	)
+// 	// #nosec G204 -- the binary path comes from deployment configuration and the
+// 	// profile/json paths are created locally by the worker.
+// 	command := exec.CommandContext(
+// 		ctx,
+// 		runner.binaryPath,
+// 		profilePath,
+// 		"json2="+jsonPath,
+// 	)
 
-	var stdout bytes.Buffer
-	command.Stdout = &stdout
-	command.Stderr = os.Stderr
+// 	var stdout bytes.Buffer
+// 	command.Stdout = &stdout
+// 	command.Stderr = os.Stderr
 
-	if err := command.Run(); err != nil {
-		return RunResult{}, fmt.Errorf("execute simc binary: %w", err)
-	}
+// 	if err := command.Run(); err != nil {
+// 		return RunResult{}, fmt.Errorf("execute simc binary: %w", err)
+// 	}
 
-	jsonBytes, err := os.ReadFile(jsonPath) // #nosec G304 -- path constructed above
-	if err != nil {
-		return RunResult{}, fmt.Errorf("read simc json2 output %q: %w", jsonPath, err)
-	}
+// 	jsonBytes, err := os.ReadFile(jsonPath) // #nosec G304 -- path constructed above
+// 	if err != nil {
+// 		return RunResult{}, fmt.Errorf("read simc json2 output %q: %w", jsonPath, err)
+// 	}
 
-	return RunResult{
-		Stdout: stdout.Bytes(),
-		JSON2:  jsonBytes,
-	}, nil
-}
+// 	return RunResult{
+// 		Stdout: stdout.Bytes(),
+// 		JSON2:  jsonBytes,
+// 	}, nil
+// }
 
 // write a simc profile to disk and return a cleanup function along with the
 // path to the profile

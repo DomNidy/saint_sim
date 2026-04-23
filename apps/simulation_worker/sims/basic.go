@@ -5,6 +5,9 @@ import (
 	"github.com/DomNidy/saint_sim/internal/api"
 )
 
+type BasicSimManifest struct {
+}
+
 // BuildBasicResult projects a completed basic‑sim run into the API's
 // `simulation_result_basic` DTO. The raw stdout is carried through as the
 // runLog so clients can still render simc's human‑readable report;

@@ -1,10 +1,8 @@
 package sims
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"log"
 	"sort"
 	"strings"
 
@@ -46,23 +44,23 @@ type TopGearManifest struct {
 }
 
 // BuildResultFromJSON2 joins the JSON2 output of the simulation to the api shape.
-func (manifest *TopGearManifest) BuildResultFromJSON2(
+func (manifest TopGearManifest) BuildResultFromJSON2(
 	out json2.JSON2Output,
-) (api.SimulationResultTopGear, error) {
+) (RunResult, error) {
 	if out.Sim.Profilesets == nil {
-		return api.SimulationResultTopGear{}, errSimcNoProfilesetsSection
+		return RunResult{}, errSimcNoProfilesetsSection
 	}
 
 	if manifest.Profilesets == nil {
-		return api.SimulationResultTopGear{}, errManifestHasNilProfilesets
+		return RunResult{}, errManifestHasNilProfilesets
 	}
 
 	if len(manifest.Profilesets) == 0 {
-		return api.SimulationResultTopGear{}, errManifestHasNoProfilesets
+		return RunResult{}, errManifestHasNoProfilesets
 	}
 
 	if len(out.Sim.Profilesets.Results) != len(manifest.Profilesets) {
-		return api.SimulationResultTopGear{}, errManifestAndOutputProfilesetsCountMismatch
+		return RunResult{}, errManifestAndOutputProfilesetsCountMismatch
 	}
 
 	// Index simc's results for O(1) lookup. Map size is bounded by
@@ -79,7 +77,7 @@ func (manifest *TopGearManifest) BuildResultFromJSON2(
 		name := manifestPset.Name
 		metric, ok := byName[name]
 		if !ok {
-			return api.SimulationResultTopGear{}, fmt.Errorf(
+			return RunResult{}, fmt.Errorf(
 				"%w: %q",
 				errSimcProfilesetUnmatched,
 				name,
@@ -103,12 +101,26 @@ func (manifest *TopGearManifest) BuildResultFromJSON2(
 		return entries[i].Mean > entries[j].Mean
 	})
 
-	return api.SimulationResultTopGear{
-		Kind:        api.SimulationResultTopGearKindTopGear,
-		Metric:      out.Sim.Profilesets.Metric,
-		Equipment:   manifest.Equipment(),
-		Profilesets: entries,
+	return RunResult{
+		JSON2:  out,
+		Stdout: make([]byte, 0),
+		Data: api.SimulationResultTopGear{
+			Kind:        api.SimulationResultTopGearKindTopGear,
+			Metric:      out.Sim.Profilesets.Metric,
+			Equipment:   manifest.Equipment(),
+			Profilesets: entries,
+		},
 	}, nil
+}
+
+func (manifest TopGearManifest) BuildSimcProfile() (simcProfileString, error) {
+	prof, err := manifest.SimcLines()
+	if err != nil {
+		return "", err
+	}
+
+	profText := strings.Join(prof, "\n")
+	return simcProfileString(profText), nil
 }
 
 // mapProfilesetToTopGearProfilesetItems does a simple mapping from
@@ -220,51 +232,51 @@ func NewTopGearManifest(
 // directly. To support a basic sim, Runner can either use
 // methods per-sim-kind (RunBasic, RunTopGear), or use generics.
 // Run performs / orchestrates the TopGear simulation
-func (manifest *TopGearManifest) Run(
-	ctx context.Context,
-	runner Runner,
-) (api.SimulationResultTopGear, json2.JSON2Output, error) {
-	if runner == nil {
-		panic("runner is nil")
-	}
+// func (manifest *TopGearManifest) Run(
+// 	ctx context.Context,
+// 	runner Runner,
+// ) (api.SimulationResultTopGear, json2.JSON2Output, error) {
+// 	if runner == nil {
+// 		panic("runner is nil")
+// 	}
 
-	profileLines, err := manifest.SimcLines()
-	if err != nil {
-		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
-			"build top gear profile text: %w",
-			err,
-		)
-	}
+// 	profileLines, err := manifest.SimcLines()
+// 	if err != nil {
+// 		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
+// 			"build top gear profile text: %w",
+// 			err,
+// 		)
+// 	}
 
-	profileText := strings.Join(profileLines, "\n")
-	log.Printf("%s", profileText[:1500])
+// 	profileText := strings.Join(profileLines, "\n")
+// 	log.Printf("%s", profileText[:1500])
 
-	run, err := runner.Run(ctx, profileText)
-	if err != nil {
-		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
-			"run simulation: %w",
-			err,
-		)
-	}
+// 	run, err := runner.Run(ctx, profileText)
+// 	if err != nil {
+// 		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
+// 			"run simulation: %w",
+// 			err,
+// 		)
+// 	}
 
-	parsedJson2, err := json2.ParseJSON2(run.JSON2)
-	if err != nil {
-		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
-			"failed to parse sim result: %w",
-			err,
-		)
-	}
+// 	parsedJson2, err := json2.ParseJSON2(run.JSON2)
+// 	if err != nil {
+// 		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
+// 			"failed to parse sim result: %w",
+// 			err,
+// 		)
+// 	}
 
-	res, err := manifest.BuildResultFromJSON2(parsedJson2)
-	if err != nil {
-		return api.SimulationResultTopGear{}, parsedJson2, fmt.Errorf(
-			"failed to parse sim result into api shape, but got json2: %w",
-			err,
-		)
-	}
+// 	res, err := manifest.BuildResultFromJSON2(parsedJson2)
+// 	if err != nil {
+// 		return api.SimulationResultTopGear{}, parsedJson2, fmt.Errorf(
+// 			"failed to parse sim result into api shape, but got json2: %w",
+// 			err,
+// 		)
+// 	}
 
-	return res, parsedJson2, err
-}
+// 	return res, parsedJson2, err
+// }
 
 func unorderedPairCount(itemCount int) int {
 	if itemCount < minPairedItems {
