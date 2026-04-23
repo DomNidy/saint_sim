@@ -12,9 +12,10 @@ import (
 	handlers "github.com/DomNidy/saint_sim/apps/api/handlers"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	dbqueries "github.com/DomNidy/saint_sim/internal/db"
+	"github.com/DomNidy/saint_sim/internal/platform/postgres"
+	"github.com/DomNidy/saint_sim/internal/platform/rabbitmq"
 	"github.com/DomNidy/saint_sim/internal/secrets"
 	simulationpostgres "github.com/DomNidy/saint_sim/internal/simulation/postgres"
-	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
 func newJWTAuthenticator(
@@ -41,7 +42,9 @@ func main() {
 	host := secrets.LoadSecret("RABBITMQ_HOST").Value()
 	port := secrets.LoadSecret("RABBITMQ_PORT").Value()
 
-	simulationQueue, err := utils.NewSimulationQueueClient("saint_api", user, pass, host, port)
+	simulationQueue, err := rabbitmq.New(
+		rabbitmq.Credentials{User: user, Password: pass, Host: host, Port: port},
+	)
 	if err != nil {
 		log.Panicf("ERROR: Failed to initialize connection to simulation queue: %v", err)
 
@@ -49,7 +52,14 @@ func main() {
 	}
 	defer simulationQueue.Close()
 
-	pool, err := utils.InitPostgresConnectionPool(context.Background())
+	pool, err := postgres.New(context.Background(), postgres.Credentials{
+		DBUser:     secrets.LoadSecret("DB_USER").Value(),
+		DBPassword: secrets.LoadSecret("DB_PASSWORD").Value(),
+		DBHost:     secrets.LoadSecret("DB_HOST").Value(),
+		DBName:     secrets.LoadSecret("DB_NAME").Value(),
+		DBPort:     "5432",
+	})
+
 	if err != nil {
 		log.Panicf("%s: could not make postgres pool", err)
 	}

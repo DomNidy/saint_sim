@@ -18,7 +18,8 @@ var (
 	ErrInvalidSimulationInput = errors.New("invalid simulation input")
 	// ErrMalformedSimulationInput indicates the request cannot be decoded as a supported union.
 	ErrMalformedSimulationInput = errors.New("malformed simulation input")
-	// ErrUnsupportedSimulationInput indicates the request decoded to a kind the use case cannot handle.
+	// ErrUnsupportedSimulationInput indicates the request decoded to a kind the use case cannot
+	// handle.
 	ErrUnsupportedSimulationInput = errors.New("unsupported simulation input")
 )
 
@@ -32,7 +33,7 @@ type SubmitSimulationRepository interface {
 
 // SimulationQueue publishes simulation jobs after they are created.
 type SimulationQueue interface {
-	Publish(simJob utils.SimulationJobMessage) error
+	Publish(simJob simulation.JobMessage) error
 }
 
 // SubmitSimulationInput contains the generated simulation options and resolved owner.
@@ -80,7 +81,7 @@ func (useCase *SubmitSimulationUseCase) Submit(
 		return uuid.UUID{}, fmt.Errorf("create queued simulation: %w", err)
 	}
 
-	simulationJobMessage := utils.SimulationJobMessage{
+	simulationJobMessage := simulation.JobMessage{
 		SimulationID: simulationID.String(),
 	}
 

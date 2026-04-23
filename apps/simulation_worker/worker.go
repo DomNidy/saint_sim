@@ -12,7 +12,6 @@ import (
 
 	workerusecases "github.com/DomNidy/saint_sim/apps/simulation_worker/usecases"
 	"github.com/DomNidy/saint_sim/internal/simulation"
-	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
 type simulationProcessor interface {
@@ -22,20 +21,6 @@ type simulationProcessor interface {
 type simulationWorker struct {
 	workerConfig
 	processor simulationProcessor
-}
-
-func (worker simulationWorker) Start(
-	ctx context.Context,
-	queue *utils.SimulationQueueClient,
-) error {
-	msgChan, err := queue.ConsumeSimulationJobMessages()
-	if err != nil {
-		return fmt.Errorf("register as simulation consumer: %w", err)
-	}
-
-	go worker.consumeLoop(ctx, msgChan)
-
-	return nil
 }
 
 func (worker simulationWorker) consumeLoop(ctx context.Context, msgChan <-chan amqp091.Delivery) {
@@ -88,7 +73,7 @@ func (worker simulationWorker) handleDelivery(
 }
 
 func parseSimulationRequestID(msg amqp091.Delivery) (uuid.UUID, error) {
-	var simRequestMsg utils.SimulationJobMessage
+	var simRequestMsg simulation.JobMessage
 
 	err := json.Unmarshal(msg.Body, &simRequestMsg)
 	if err != nil {

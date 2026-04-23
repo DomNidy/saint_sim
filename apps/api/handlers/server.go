@@ -7,11 +7,11 @@ import (
 
 	"github.com/DomNidy/saint_sim/apps/api/usecases"
 	api "github.com/DomNidy/saint_sim/internal/api"
-	"github.com/DomNidy/saint_sim/internal/utils"
+	"github.com/DomNidy/saint_sim/internal/simulation"
 )
 
 type simulationQueue interface {
-	Publish(simJob utils.SimulationJobMessage) error
+	Publish(simJob simulation.JobMessage) error
 }
 
 type submitSimulationUseCase interface {

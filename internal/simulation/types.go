@@ -40,3 +40,8 @@ type CompletedSimulation struct {
 type FailedSimulation struct {
 	ErrorText string
 }
+
+// JobMessage is sent to the simulation queue. Worker consumes this to perform sims.
+type JobMessage struct {
+	SimulationID string `json:"simulation_id"`
+}
