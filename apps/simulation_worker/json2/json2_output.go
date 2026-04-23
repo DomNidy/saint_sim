@@ -14,6 +14,10 @@ type JSON2Output struct {
 	Sim     JSON2Sim `json:"sim"`
 }
 
+func (j JSON2Output) Marshal() ([]byte, error) {
+	return json.Marshal(j)
+}
+
 type JSON2Sim struct {
 	// Players contains one entry per simmed actor. Basic sims have exactly
 	// one player; top‑gear sims also emit the player node (the "baseline"
