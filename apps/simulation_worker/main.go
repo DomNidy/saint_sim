@@ -4,13 +4,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os/signal"
 	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/rabbitmq/amqp091-go"
 
 	workerusecases "github.com/DomNidy/saint_sim/apps/simulation_worker/usecases"
 	"github.com/DomNidy/saint_sim/internal/platform/postgres"
@@ -20,13 +18,13 @@ import (
 )
 
 type workerConfig struct {
-	simcBinaryPath string
-	dbPool         *pgxpool.Pool
-	rabbitChannel  *amqp091.Channel
+	simcBinaryPath  string
+	dbPool          *pgxpool.Pool
+	simulationQueue simulationQueue
 }
 
 func loadWorkerConfig(ctx context.Context) (workerConfig, error) {
-	pool, err := postgres.New(context.Background(), postgres.Credentials{
+	pool, err := postgres.New(ctx, postgres.Credentials{
 		DBUser:     secrets.LoadSecret("DB_USER").Value(),
 		DBPassword: secrets.LoadSecret("DB_PASSWORD").Value(),
 		DBHost:     secrets.LoadSecret("DB_HOST").Value(),
@@ -38,7 +36,7 @@ func loadWorkerConfig(ctx context.Context) (workerConfig, error) {
 		log.Panicf("%s: could not make postgres pool", err)
 	}
 
-	rabbitChannel, err := rabbitmq.New(
+	simulationQueue, err := rabbitmq.New(
 		rabbitmq.Credentials{
 			User:     secrets.LoadSecret("RABBITMQ_USER").Value(),
 			Password: secrets.LoadSecret("RABBITMQ_PASS").Value(),
@@ -54,9 +52,9 @@ func loadWorkerConfig(ctx context.Context) (workerConfig, error) {
 	}
 
 	return workerConfig{
-		simcBinaryPath: secrets.LoadSecret("SIMC_BINARY_PATH").Value(),
-		dbPool:         pool,
-		rabbitChannel:  rabbitChannel,
+		simcBinaryPath:  secrets.LoadSecret("SIMC_BINARY_PATH").Value(),
+		dbPool:          pool,
+		simulationQueue: simulationQueue,
 	}, nil
 }
 
@@ -77,7 +75,11 @@ func run() error {
 	}
 
 	defer config.dbPool.Close()
-	defer config.rabbitChannel.Close()
+	defer func() {
+		if err := config.simulationQueue.Close(); err != nil {
+			log.Printf("WARNING: failed to close simulation queue: %v", err)
+		}
+	}()
 
 	simulationRepository := simulationpostgres.NewRepository(config.dbPool)
 	processor := workerusecases.NewProcessSimulationUseCase(
@@ -90,18 +92,10 @@ func run() error {
 		processor:    processor,
 	}
 
-	simChan, err := config.rabbitChannel.ConsumeWithContext(ctx,
-		"simulation_queue",
-		"",
-		false, // autoack
-		false, // exclusive
-		false,
-		false,
-		amqp091.NewConnectionProperties(),
-	)
+	simChan, err := config.simulationQueue.Consume(ctx)
 
 	if err != nil {
-		return fmt.Errorf("fail to start consuming from queue : %w", err)
+		return err
 	}
 
 	go worker.consumeLoop(ctx, simChan)
