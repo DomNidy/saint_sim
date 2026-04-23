@@ -14,7 +14,6 @@ func (err simulationValidationError) Error() string {
 
 const (
 	errSimulationOptionsRequired simulationValidationError = "simulation options are required"
-	errMissingSimcAddonExport    simulationValidationError = "simc addon export is required"
 )
 
 // ValidateSimulationConfigBasic validates the user-provided simulation options and reports the
