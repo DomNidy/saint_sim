@@ -1,67 +1,13 @@
-package handlers
+package api_utils
 
 import (
-	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 
 	api "github.com/DomNidy/saint_sim/internal/api"
-	"github.com/DomNidy/saint_sim/internal/utils"
 )
-
-// ParseAddonExport parses a SimC addon export and returns structured data.
-func (server *Server) ParseAddonExport(
-	_ context.Context,
-	request api.ParseAddonExportRequestObject,
-) (api.ParseAddonExportResponseObject, error) {
-	_ = server
-
-	if request.Body == nil {
-		return invalidParseAddonExportRequestResponse(), nil
-	}
-
-	normalizedExport := NormalizeLineEndings(request.Body.SimcAddonExport)
-	if strings.TrimSpace(normalizedExport) == "" {
-		return missingParseAddonExportResponse(), nil
-	}
-
-	addonExport := Parse(normalizedExport)
-	if !hasRecognizedData(addonExport) {
-		return unrecognizedParseAddonExportResponse(), nil
-	}
-
-	return api.ParseAddonExport200JSONResponse{
-		AddonExport: addonExport,
-	}, nil
-}
-
-func invalidParseAddonExportRequestResponse() api.ParseAddonExport400JSONResponse {
-	return api.ParseAddonExport400JSONResponse{
-		BadRequestErrorJSONResponse: api.BadRequestErrorJSONResponse{
-			Message: utils.StrPtr("Invalid parse addon export request"),
-		},
-	}
-}
-
-func missingParseAddonExportResponse() api.ParseAddonExport400JSONResponse {
-	return api.ParseAddonExport400JSONResponse{
-		BadRequestErrorJSONResponse: api.BadRequestErrorJSONResponse{
-			Message: utils.StrPtr("simc_addon_export is required"),
-		},
-	}
-}
-
-func unrecognizedParseAddonExportResponse() api.ParseAddonExport400JSONResponse {
-	return api.ParseAddonExport400JSONResponse{
-		BadRequestErrorJSONResponse: api.BadRequestErrorJSONResponse{
-			Message: utils.StrPtr("no recognizable addon export data found"),
-		},
-	}
-}
 
 type addonExportParseState struct {
 	inBagSection         bool
@@ -70,38 +16,11 @@ type addonExportParseState struct {
 	pendingLoadoutName   string
 }
 
-const exportHeaderSeparatorCount = 2
-
 // Parse converts a raw SimulationCraft addon export string into a structured
-// AddonExport API model.
-func Parse(tciString string) api.AddonExport {
-	talentLoadouts := []api.AddonExportTalentLoadout{}
-	equipment := []api.EquipmentItem{}
-	catalystCurrencies := map[string]int{}
-	slotHighWatermarks := map[string]api.AddonExportSlotHighWatermark{}
-	upgradeAchievements := []int{}
-
-	export := api.AddonExport{
-		CharacterName:       nil,
-		Class:               nil,
-		Level:               nil,
-		Race:                nil,
-		Region:              nil,
-		Server:              nil,
-		Role:                nil,
-		Professions:         nil,
-		Spec:                nil,
-		TalentLoadouts:      &talentLoadouts,
-		Checksum:            nil,
-		HeaderComment:       nil,
-		SimcAddonComment:    nil,
-		WowBuildComment:     nil,
-		RequiredSimcComment: nil,
-		LootSpec:            nil,
-		Equipment:           &equipment,
-		CatalystCurrencies:  &catalystCurrencies,
-		SlotHighWatermarks:  &slotHighWatermarks,
-		UpgradeAchievements: &upgradeAchievements,
+// WoW character API model.
+func ParseAddonExport(tciString string) api.WowCharacter {
+	export := api.WowCharacter{
+		EquippedItems: []api.EquipmentItem{},
 	}
 
 	lines := strings.Split(NormalizeLineEndings(tciString), "\n")
@@ -130,48 +49,8 @@ func Parse(tciString string) api.AddonExport {
 	return export
 }
 
-// hasRecognizedData reports whether Parse extracted any recognizable addon export data.
-func hasRecognizedData(export api.AddonExport) bool {
-	return hasRecognizedScalarData(export) ||
-		hasRecognizedSliceData(export) ||
-		hasRecognizedMapData(export)
-}
-
-func hasRecognizedScalarData(export api.AddonExport) bool {
-	return export.CharacterName != nil ||
-		export.Class != nil ||
-		export.Level != nil ||
-		export.Race != nil ||
-		export.Region != nil ||
-		export.Server != nil ||
-		export.Role != nil ||
-		hasRecognizedSupplementaryScalarData(export)
-}
-
-func hasRecognizedSupplementaryScalarData(export api.AddonExport) bool {
-	return export.Professions != nil ||
-		export.Spec != nil ||
-		export.Checksum != nil ||
-		export.HeaderComment != nil ||
-		export.SimcAddonComment != nil ||
-		export.WowBuildComment != nil ||
-		export.RequiredSimcComment != nil ||
-		export.LootSpec != nil
-}
-
-func hasRecognizedSliceData(export api.AddonExport) bool {
-	return export.TalentLoadouts != nil && len(*export.TalentLoadouts) > 0 ||
-		export.Equipment != nil && len(*export.Equipment) > 0 ||
-		export.UpgradeAchievements != nil && len(*export.UpgradeAchievements) > 0
-}
-
-func hasRecognizedMapData(export api.AddonExport) bool {
-	return export.CatalystCurrencies != nil && len(*export.CatalystCurrencies) > 0 ||
-		export.SlotHighWatermarks != nil && len(*export.SlotHighWatermarks) > 0
-}
-
 func parseCommentLine(
-	export *api.AddonExport,
+	export *api.WowCharacter,
 	state *addonExportParseState,
 	line string,
 ) {
@@ -192,13 +71,9 @@ func parseCommentLine(
 		return
 	}
 
-	if parseChecksumComment(export, comment) {
-		return
-	}
-
 	if state.inBagSection && looksLikeEquipmentLine(comment) {
 		if item, ok := ParseEquipmentItem(state.pendingEquipmentName, comment, api.Bag); ok {
-			*export.Equipment = append(*export.Equipment, item)
+			appendBagItem(export, item)
 		}
 
 		state.pendingEquipmentName = ""
@@ -211,12 +86,10 @@ func parseCommentLine(
 
 		return
 	}
-
-	parseHeaderComment(export, comment)
 }
 
 func parseAssignmentLine(
-	export *api.AddonExport,
+	export *api.WowCharacter,
 	state *addonExportParseState,
 	line string,
 ) {
@@ -226,12 +99,7 @@ func parseAssignmentLine(
 	}
 
 	if classValue, ok := parseClassIdentifier(key); ok {
-		export.Class = &classValue
-
-		characterName := strings.Trim(value, "\"")
-		if characterName != "" {
-			export.CharacterName = &characterName
-		}
+		export.CharacterClass = classValue
 
 		return
 	}
@@ -241,12 +109,21 @@ func parseAssignmentLine(
 	}
 
 	if looksLikeEquipmentLine(line) {
+		source := api.Equipped
+		if state.inBagSection {
+			source = api.Bag
+		}
+
 		if item, itemOK := ParseEquipmentItem(
 			state.pendingEquipmentName,
 			line,
-			api.Equipped, // api.Equipped source bc this is an assignment line
+			source,
 		); itemOK {
-			*export.Equipment = append(*export.Equipment, item)
+			if source == api.Bag {
+				appendBagItem(export, item)
+			} else {
+				export.EquippedItems = append(export.EquippedItems, item)
+			}
 		}
 
 		state.pendingEquipmentName = ""
@@ -273,25 +150,19 @@ func parseSectionComment(state *addonExportParseState, comment string) bool {
 }
 
 func parseStructuredComment(
-	export *api.AddonExport,
+	export *api.WowCharacter,
 	state *addonExportParseState,
 	comment string,
 ) bool {
 	if strings.HasPrefix(comment, "SimC Addon ") {
-		export.SimcAddonComment = strPtr(comment)
-
 		return true
 	}
 
 	if strings.HasPrefix(comment, "WoW ") {
-		export.WowBuildComment = strPtr(comment)
-
 		return true
 	}
 
 	if strings.HasPrefix(comment, "Requires SimulationCraft ") {
-		export.RequiredSimcComment = strPtr(comment)
-
 		return true
 	}
 
@@ -308,13 +179,17 @@ func parseStructuredComment(
 			return true
 		}
 	case "catalyst_currencies":
-		parsed := parseIntMap(value)
-		export.CatalystCurrencies = &parsed
+		parsed := parseCatalystCurrencies(value)
+		if len(parsed) > 0 {
+			export.CatalystCurrencies = &parsed
+		}
 
 		return true
 	case "slot_high_watermarks":
 		parsed := parseSlotHighWatermarks(value)
-		export.SlotHighWatermarks = &parsed
+		if len(parsed) > 0 {
+			export.SlotHighWatermarks = &parsed
+		}
 
 		return true
 	case "upgrade_achievements":
@@ -328,7 +203,7 @@ func parseStructuredComment(
 }
 
 func parseLoadoutComment(
-	export *api.AddonExport,
+	export *api.WowCharacter,
 	state *addonExportParseState,
 	comment string,
 ) bool {
@@ -343,13 +218,10 @@ func parseLoadoutComment(
 	// Named saved loadouts are emitted as comments; unnamed talent assignments are
 	// handled in parseMetadataAssignment as the active loadout.
 	if strings.HasPrefix(comment, "talents=") && state.pendingLoadoutName != "" {
-		*export.TalentLoadouts = append(
-			*export.TalentLoadouts,
-			api.AddonExportTalentLoadout{
-				Name:    utils.StrPtr(state.pendingLoadoutName),
-				Talents: strings.TrimSpace(strings.TrimPrefix(comment, "talents=")),
-			},
-		)
+		appendTalentLoadout(export, api.CharacterTalentLoadout{
+			Name:    strPtr(state.pendingLoadoutName),
+			Talents: strings.TrimSpace(strings.TrimPrefix(comment, "talents=")),
+		})
 		state.pendingLoadoutName = ""
 
 		return true
@@ -358,43 +230,41 @@ func parseLoadoutComment(
 	return false
 }
 
-func parseChecksumComment(export *api.AddonExport, comment string) bool {
-	if !strings.HasPrefix(comment, "Checksum:") {
-		return false
-	}
-
-	export.Checksum = strPtr(
-		strings.TrimSpace(strings.TrimPrefix(comment, "Checksum:")),
-	)
-
-	return true
-}
-
-func parseHeaderComment(export *api.AddonExport, comment string) {
-	if export.HeaderComment == nil && looksLikeExportHeaderComment(comment) {
-		export.HeaderComment = strPtr(comment)
-	}
-}
-
-func appendActiveTalentLoadout(export *api.AddonExport, value string) {
-	if export.TalentLoadouts == nil {
-		return
-	}
-
-	*export.TalentLoadouts = append(*export.TalentLoadouts, api.AddonExportTalentLoadout{
-		Name:    utils.StrPtr("Active"),
+func setActiveTalents(export *api.WowCharacter, value string) {
+	export.ActiveTalents = &api.CharacterTalentLoadout{
+		Name:    strPtr("Active"),
 		Talents: value,
-	})
+	}
+}
+
+func appendTalentLoadout(export *api.WowCharacter, loadout api.CharacterTalentLoadout) {
+	if export.TalentLoadouts == nil {
+		loadouts := []api.CharacterTalentLoadout{}
+		export.TalentLoadouts = &loadouts
+	}
+
+	*export.TalentLoadouts = append(*export.TalentLoadouts, loadout)
+}
+
+func appendBagItem(export *api.WowCharacter, item api.EquipmentItem) {
+	if export.BagItems == nil {
+		bagItems := []api.EquipmentItem{}
+		export.BagItems = &bagItems
+	}
+
+	*export.BagItems = append(*export.BagItems, item)
 }
 
 func parseMetadataAssignment(
-	export *api.AddonExport,
+	export *api.WowCharacter,
 	key string,
 	value string,
 ) bool {
 	switch key {
 	case "level":
-		export.Level = strPtr(value)
+		if level, err := strconv.Atoi(value); err == nil {
+			export.Level = level
+		}
 	case "race":
 		export.Race = strPtr(value)
 	case "region":
@@ -406,9 +276,9 @@ func parseMetadataAssignment(
 	case "professions":
 		export.Professions = strPtr(value)
 	case "spec":
-		export.Spec = strPtr(value)
+		export.Spec = value
 	case "talents":
-		appendActiveTalentLoadout(export, value)
+		setActiveTalents(export, value)
 	default:
 		return false
 	}
@@ -447,17 +317,13 @@ func looksLikeEquipmentNameComment(comment string) bool {
 	return true
 }
 
-func looksLikeExportHeaderComment(comment string) bool {
-	return strings.Count(comment, " - ") >= exportHeaderSeparatorCount
-}
-
 // ParseEquipmentItem takes a raw TCI line (and optional preceding comment to
 // attempt to extract item name from), and parses it into a structured item
 // representation.
 func ParseEquipmentItem(
 	commentName string,
 	rawLine string,
-	source api.AddonExportEquipmentSource,
+	source api.EquipmentSource,
 ) (api.EquipmentItem, bool) {
 	slot, attributes, foundAssignment := parseEquipmentAssignment(rawLine)
 	if !foundAssignment {
@@ -682,39 +548,54 @@ func firstNonNil(values ...*int) *int {
 	return nil
 }
 
-func fingerprintForItem(rawLine string, source api.AddonExportEquipmentSource) string {
-	normalized := strings.TrimSpace(strings.ToLower(rawLine)) + "|" + string(source)
-	hash := sha256.Sum256([]byte(normalized))
-
-	return hex.EncodeToString(hash[:])
-}
-
-func parseIntMap(value string) map[string]int {
-	result := map[string]int{}
+func parseCatalystCurrencies(value string) []struct {
+	Id       int `json:"id"`
+	Quantity int `json:"quantity"`
+} {
+	result := []struct {
+		Id       int `json:"id"`
+		Quantity int `json:"quantity"`
+	}{}
 	for _, entry := range strings.Split(value, "/") {
 		key, rawValue, ok := strings.Cut(strings.TrimSpace(entry), ":")
 		if !ok || key == "" {
 			continue
 		}
 
-		parsed, err := strconv.Atoi(rawValue)
-		if err != nil {
+		id, idErr := strconv.Atoi(key)
+		quantity, quantityErr := strconv.Atoi(rawValue)
+		if idErr != nil || quantityErr != nil {
 			continue
 		}
 
-		result[key] = parsed
+		result = append(result, struct {
+			Id       int `json:"id"`
+			Quantity int `json:"quantity"`
+		}{
+			Id:       id,
+			Quantity: quantity,
+		})
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Id < result[j].Id
+	})
 
 	return result
 }
 
 func parseSlotHighWatermarks(
 	value string,
-) map[string]api.AddonExportSlotHighWatermark {
-	result := map[string]api.AddonExportSlotHighWatermark{}
+) []api.CharacterSlotHighWatermark {
+	result := []api.CharacterSlotHighWatermark{}
 	for _, entry := range strings.Split(value, "/") {
 		parts := strings.Split(strings.TrimSpace(entry), ":")
 		if len(parts) != 3 || parts[0] == "" {
+			continue
+		}
+
+		slot, slotOK := parseEquipmentSlot(parts[0])
+		if !slotOK {
 			continue
 		}
 
@@ -724,10 +605,11 @@ func parseSlotHighWatermarks(
 			continue
 		}
 
-		result[parts[0]] = api.AddonExportSlotHighWatermark{
+		result = append(result, api.CharacterSlotHighWatermark{
 			CurrentItemLevel: currentItemLevel,
 			MaxItemLevel:     maxItemLevel,
-		}
+			Slot:             slot,
+		})
 	}
 
 	return result

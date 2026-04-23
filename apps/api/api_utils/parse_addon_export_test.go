@@ -1,66 +1,94 @@
 //nolint:exhaustruct
-package handlers
+package api_utils
 
 import (
-	"encoding/json"
 	"testing"
 
 	api "github.com/DomNidy/saint_sim/internal/api"
 )
 
-func TestParseAddonExport(t *testing.T) {
+func TestParseAddonExportToWowCharacter(t *testing.T) {
 	t.Parallel()
 
-	server := NewServer(stubSimulationStore{}, &stubQueue{})
+	got := ParseAddonExport(`priest="Example"
+level=80
+race=void_elf
+region=us
+server=area-52
+role=spell
+professions=alchemy=100/herbalism=100
+spec=shadow
+talents=ACTIVE_TALENTS
+# loot_spec=shadow
+# Saved Loadout: Dungeon
+# talents=DUNGEON_TALENTS
+# Host Commander's Casque (684)
+head=,id=250458,bonus_id=6652/12667,gem_id=240865,ilevel=684
+# Gear from Bags
+# Gnarlroot Spinecleaver (710)
+main_hand=,id=249671,bonus_id=6652,ilevel=710
+# Additional Character Info
+# catalyst_currencies=2912:1/3116:2
+# slot_high_watermarks=head:684:710/main_hand:710:720
+# upgrade_achievements=1/2`)
 
-	okResponse, err := server.ParseAddonExport(
-		t.Context(),
-		api.ParseAddonExportRequestObject{
-			Body: &api.ParseAddonExportRequest{
-				SimcAddonExport: "priest=\"Example\"\nlevel=80\nspec=shadow",
-			},
-		},
-	)
-	if err != nil {
-		t.Fatalf("ParseAddonExport() error = %v", err)
+	if got.CharacterClass != api.Priest {
+		t.Fatalf("character_class = %q, want %q", got.CharacterClass, api.Priest)
 	}
-
-	var payload map[string]any
-	okBody, marshalErr := json.Marshal(okResponse)
-	if marshalErr != nil {
-		t.Fatalf("marshal response: %v", marshalErr)
+	if got.Level != 80 {
+		t.Fatalf("level = %d, want 80", got.Level)
 	}
-	if err := json.Unmarshal(okBody, &payload); err != nil {
-		t.Fatalf("unmarshal response: %v", err)
+	if got.Spec != "shadow" {
+		t.Fatalf("spec = %q, want shadow", got.Spec)
 	}
-
-	addonExport, ok := payload["addon_export"].(map[string]any)
-	if !ok {
-		t.Fatalf("response missing addon_export: %v", payload)
+	if got.LootSpec == nil || *got.LootSpec != "shadow" {
+		t.Fatalf("loot_spec = %v, want shadow", got.LootSpec)
 	}
-
-	if addonExport["class"] != "priest" {
-		t.Fatalf("class = %v, want priest", addonExport["class"])
+	if got.ActiveTalents == nil || got.ActiveTalents.Talents != "ACTIVE_TALENTS" {
+		t.Fatalf("active_talents = %#v, want ACTIVE_TALENTS", got.ActiveTalents)
 	}
-
-	badResponse, err := server.ParseAddonExport(
-		t.Context(),
-		api.ParseAddonExportRequestObject{
-			Body: &api.ParseAddonExportRequest{
-				SimcAddonExport: "### comments only",
-			},
-		},
-	)
-	if err != nil {
-		t.Fatalf("ParseAddonExport() error = %v", err)
+	if got.TalentLoadouts == nil || len(*got.TalentLoadouts) != 1 {
+		t.Fatalf("talent_loadouts = %#v, want one non-active loadout", got.TalentLoadouts)
 	}
-
-	if _, ok := badResponse.(api.ParseAddonExport400JSONResponse); !ok {
+	if (*got.TalentLoadouts)[0].Name == nil || *(*got.TalentLoadouts)[0].Name != "Dungeon" {
+		t.Fatalf("talent loadout name = %#v, want Dungeon", (*got.TalentLoadouts)[0].Name)
+	}
+	if (*got.TalentLoadouts)[0].Talents != "DUNGEON_TALENTS" {
 		t.Fatalf(
-			"response type = %T, want %T",
-			badResponse,
-			api.ParseAddonExport400JSONResponse{},
+			"talent loadout talents = %q, want DUNGEON_TALENTS",
+			(*got.TalentLoadouts)[0].Talents,
 		)
+	}
+	if len(got.EquippedItems) != 1 {
+		t.Fatalf("equipped_items len = %d, want 1", len(got.EquippedItems))
+	}
+	if got.EquippedItems[0].Source != api.Equipped {
+		t.Fatalf("equipped item source = %q, want %q", got.EquippedItems[0].Source, api.Equipped)
+	}
+	if got.BagItems == nil || len(*got.BagItems) != 1 {
+		t.Fatalf("bag_items = %#v, want one bag item", got.BagItems)
+	}
+	if (*got.BagItems)[0].Source != api.Bag {
+		t.Fatalf("bag item source = %q, want %q", (*got.BagItems)[0].Source, api.Bag)
+	}
+	if got.CatalystCurrencies == nil || len(*got.CatalystCurrencies) != 2 {
+		t.Fatalf("catalyst_currencies = %#v, want two entries", got.CatalystCurrencies)
+	}
+	if (*got.CatalystCurrencies)[0].Id != 2912 || (*got.CatalystCurrencies)[0].Quantity != 1 {
+		t.Fatalf("first catalyst currency = %#v, want 2912:1", (*got.CatalystCurrencies)[0])
+	}
+	if got.SlotHighWatermarks == nil || len(*got.SlotHighWatermarks) != 2 {
+		t.Fatalf("slot_high_watermarks = %#v, want two entries", got.SlotHighWatermarks)
+	}
+	if (*got.SlotHighWatermarks)[0].Slot != api.Head {
+		t.Fatalf(
+			"first slot watermark slot = %q, want %q",
+			(*got.SlotHighWatermarks)[0].Slot,
+			api.Head,
+		)
+	}
+	if got.UpgradeAchievements == nil || len(*got.UpgradeAchievements) != 2 {
+		t.Fatalf("upgrade_achievements = %#v, want two entries", got.UpgradeAchievements)
 	}
 }
 

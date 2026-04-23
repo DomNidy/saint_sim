@@ -124,6 +124,7 @@ func logUnauthorizedRequest(ginContext *gin.Context, message string) {
 
 func abortWithError(ginContext *gin.Context, statusCode int, message string) {
 	ginContext.AbortWithStatusJSON(statusCode, api.ErrorResponse{
-		Message: &message,
+		Message: message,
+		Code:    "",
 	})
 }

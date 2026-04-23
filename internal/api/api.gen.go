@@ -28,12 +28,6 @@ const (
 	BearerAuthScopes = "BearerAuth.Scopes"
 )
 
-// Defines values for AddonExportEquipmentSource.
-const (
-	Bag      AddonExportEquipmentSource = "bag"
-	Equipped AddonExportEquipmentSource = "equipped"
-)
-
 // Defines values for CharacterClass.
 const (
 	Deathknight CharacterClass = "deathknight"
@@ -71,6 +65,12 @@ const (
 	Trinket2 EquipmentSlot = "trinket2"
 	Waist    EquipmentSlot = "waist"
 	Wrist    EquipmentSlot = "wrist"
+)
+
+// Defines values for EquipmentSource.
+const (
+	Bag      EquipmentSource = "bag"
+	Equipped EquipmentSource = "equipped"
 )
 
 // Defines values for SimulationConfigBasicKind.
@@ -120,41 +120,18 @@ const (
 	InQueue    SimulationStatus = "in_queue"
 )
 
-// AddonExport defines model for addon_export.
-type AddonExport struct {
-	CatalystCurrencies  *map[string]int                          `json:"catalyst_currencies,omitempty"`
-	CharacterName       *string                                  `json:"character_name"`
-	Checksum            *string                                  `json:"checksum"`
-	Class               *CharacterClass                          `json:"class,omitempty"`
-	Equipment           *[]EquipmentItem                         `json:"equipment,omitempty"`
-	HeaderComment       *string                                  `json:"header_comment"`
-	Level               *string                                  `json:"level"`
-	LootSpec            *string                                  `json:"loot_spec"`
-	Professions         *string                                  `json:"professions"`
-	Race                *string                                  `json:"race"`
-	Region              *string                                  `json:"region"`
-	RequiredSimcComment *string                                  `json:"required_simc_comment"`
-	Role                *string                                  `json:"role"`
-	Server              *string                                  `json:"server"`
-	SimcAddonComment    *string                                  `json:"simc_addon_comment"`
-	SlotHighWatermarks  *map[string]AddonExportSlotHighWatermark `json:"slot_high_watermarks,omitempty"`
-	Spec                *string                                  `json:"spec"`
-	TalentLoadouts      *[]AddonExportTalentLoadout              `json:"talent_loadouts,omitempty"`
-	UpgradeAchievements *[]int                                   `json:"upgrade_achievements,omitempty"`
-	WowBuildComment     *string                                  `json:"wow_build_comment"`
+// CharacterClass defines model for character_class.
+type CharacterClass string
+
+// CharacterSlotHighWatermark The character's current and highest unlocked upgrade track item levels for a specific gear slot from Additional Character Info.
+type CharacterSlotHighWatermark struct {
+	CurrentItemLevel int           `json:"current_item_level"`
+	MaxItemLevel     int           `json:"max_item_level"`
+	Slot             EquipmentSlot `json:"slot"`
 }
 
-// AddonExportEquipmentSource defines model for addon_export_equipment_source.
-type AddonExportEquipmentSource string
-
-// AddonExportSlotHighWatermark The character's current and highest unlocked upgrade track item levels for a specific gear slot from Additional Character Info.
-type AddonExportSlotHighWatermark struct {
-	CurrentItemLevel int `json:"current_item_level"`
-	MaxItemLevel     int `json:"max_item_level"`
-}
-
-// AddonExportTalentLoadout A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
-type AddonExportTalentLoadout struct {
+// CharacterTalentLoadout A saved talent loadout string, paired with the name of the loadout. You can export this from the Simc addon (or manually from talents menu in game).
+type CharacterTalentLoadout struct {
 	// Name The name of the talent loadout.
 	Name *string `json:"name,omitempty"`
 
@@ -162,48 +139,40 @@ type AddonExportTalentLoadout struct {
 	Talents string `json:"talents"`
 }
 
-// CharacterClass defines model for character_class.
-type CharacterClass string
-
 // EquipmentItem defines model for equipment_item.
 type EquipmentItem struct {
-	BonusIds        *[]int                     `json:"bonus_ids,omitempty"`
-	CraftedStats    *[]int                     `json:"crafted_stats,omitempty"`
-	CraftingQuality *int                       `json:"crafting_quality"`
-	DisplayName     string                     `json:"display_name"`
-	EnchantId       *int                       `json:"enchant_id"`
-	GemIds          *[]int                     `json:"gem_ids,omitempty"`
-	ItemId          int                        `json:"item_id"`
-	ItemLevel       *int                       `json:"item_level"`
-	Name            string                     `json:"name"`
-	RawLine         string                     `json:"raw_line"`
-	Slot            EquipmentSlot              `json:"slot"`
-	Source          AddonExportEquipmentSource `json:"source"`
+	BonusIds        *[]int          `json:"bonus_ids,omitempty"`
+	CraftedStats    *[]int          `json:"crafted_stats,omitempty"`
+	CraftingQuality *int            `json:"crafting_quality"`
+	DisplayName     string          `json:"display_name"`
+	EnchantId       *int            `json:"enchant_id"`
+	GemIds          *[]int          `json:"gem_ids,omitempty"`
+	ItemId          int             `json:"item_id"`
+	ItemLevel       *int            `json:"item_level"`
+	Name            string          `json:"name"`
+	RawLine         string          `json:"raw_line"`
+	Slot            EquipmentSlot   `json:"slot"`
+	Source          EquipmentSource `json:"source"`
 }
 
 // EquipmentSlot defines model for equipment_slot.
 type EquipmentSlot string
 
+// EquipmentSource defines model for equipment_source.
+type EquipmentSource string
+
 // ErrorResponse Error response returned by API when something goes wrong
 type ErrorResponse struct {
+	// Code Error code
+	Code string `json:"code"`
+
 	// Message Message explaining the error
-	Message *string `json:"message,omitempty"`
+	Message string `json:"message"`
 }
 
 // HealthResponse defines model for health_response.
 type HealthResponse struct {
 	Status string `json:"status"`
-}
-
-// ParseAddonExportRequest defines model for parse_addon_export_request.
-type ParseAddonExportRequest struct {
-	// SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
-	SimcAddonExport SimcAddonExport `json:"simc_addon_export"`
-}
-
-// ParseAddonExportResponse defines model for parse_addon_export_response.
-type ParseAddonExportResponse struct {
-	AddonExport AddonExport `json:"addon_export"`
 }
 
 // SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
@@ -227,8 +196,11 @@ type Simulation struct {
 
 // SimulationConfigBasic Specifies simulation options to send to the API.
 type SimulationConfigBasic struct {
+	// Character The representation of a wow character.
+	Character WowCharacter `json:"character"`
+
 	// CoreConfig Core simc config that is shared between all simulation kinds (basic, top gear, etc.)
-	CoreConfig *SimulationCoreConfig     `json:"core_config,omitempty"`
+	CoreConfig SimulationCoreConfig      `json:"core_config"`
 	Kind       SimulationConfigBasicKind `json:"kind"`
 
 	// SimcAddonExport Raw SimulationCraft addon export string supplied by the caller.
@@ -240,24 +212,15 @@ type SimulationConfigBasicKind string
 
 // SimulationConfigTopGear Top gear simulation options. The gear which we should try to find some optimal combination of.
 type SimulationConfigTopGear struct {
-	CharacterName string         `json:"character_name"`
-	Class         CharacterClass `json:"class"`
+	// Character The representation of a wow character.
+	Character WowCharacter `json:"character"`
 
 	// CoreConfig Core simc config that is shared between all simulation kinds (basic, top gear, etc.)
-	CoreConfig *SimulationCoreConfig `json:"core_config,omitempty"`
+	CoreConfig SimulationCoreConfig `json:"core_config"`
 
 	// Equipment The gear to consider in the simulation. We will try to find optimal combinations of these. Must have at least 1 item per slot so it is possible to form a full equipment set.
 	Equipment []EquipmentItem             `json:"equipment"`
 	Kind      SimulationConfigTopGearKind `json:"kind"`
-
-	// Role The role of the character
-	Role interface{} `json:"role"`
-
-	// Spec The spec of the character
-	Spec string `json:"spec"`
-
-	// TalentLoadout A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
-	TalentLoadout AddonExportTalentLoadout `json:"talent_loadout"`
 }
 
 // SimulationConfigTopGearKind defines model for SimulationConfigTopGear.Kind.
@@ -354,22 +317,54 @@ type TopGearProfilesetResult struct {
 	Name string `json:"name"`
 }
 
+// WowCharacter The representation of a wow character.
+type WowCharacter struct {
+	// ActiveTalents A saved talent loadout string, paired with the name of the loadout. You can export this from the Simc addon (or manually from talents menu in game).
+	ActiveTalents *CharacterTalentLoadout `json:"active_talents,omitempty"`
+
+	// BagItems Items in the character's bags
+	BagItems *[]EquipmentItem `json:"bag_items,omitempty"`
+
+	// CatalystCurrencies Catalyst charges
+	CatalystCurrencies *[]struct {
+		// Id The id of the currency
+		Id int `json:"id"`
+
+		// Quantity The quantity of the currency the character has
+		Quantity int `json:"quantity"`
+	} `json:"catalyst_currencies,omitempty"`
+	CharacterClass CharacterClass `json:"character_class"`
+
+	// EquippedItems Items that the character currently has equipped.
+	EquippedItems []EquipmentItem `json:"equipped_items"`
+	Level         int             `json:"level"`
+
+	// LootSpec The loot specialization of your character.
+	LootSpec           *string                       `json:"loot_spec,omitempty"`
+	Professions        *string                       `json:"professions"`
+	Race               *string                       `json:"race"`
+	Region             *string                       `json:"region"`
+	Role               *string                       `json:"role"`
+	Server             *string                       `json:"server"`
+	SlotHighWatermarks *[]CharacterSlotHighWatermark `json:"slot_high_watermarks,omitempty"`
+	Spec               string                        `json:"spec"`
+
+	// TalentLoadouts The talent loadouts that were not active
+	TalentLoadouts      *[]CharacterTalentLoadout `json:"talent_loadouts,omitempty"`
+	UpgradeAchievements *[]int                    `json:"upgrade_achievements,omitempty"`
+}
+
 // BadRequestError Error response returned by API when something goes wrong
 type BadRequestError = ErrorResponse
 
 // InternalError Error response returned by API when something goes wrong
 type InternalError = ErrorResponse
 
-// MalformedRequest defines model for malformed_request.
-type MalformedRequest struct {
-	Message string `json:"message"`
-}
+// MalformedRequest Error response returned by API when something goes wrong
+type MalformedRequest = ErrorResponse
 
 // NotFoundError Error response returned by API when something goes wrong
 type NotFoundError = ErrorResponse
-
-// ParseAddonExportJSONRequestBody defines body for ParseAddonExport for application/json ContentType.
-type ParseAddonExportJSONRequestBody = ParseAddonExportRequest
 
 // SimulateJSONRequestBody defines body for Simulate for application/json ContentType.
 type SimulateJSONRequestBody = SimulationOptions
@@ -558,9 +553,6 @@ type ServerInterface interface {
 	// (GET /health)
 	Health(c *gin.Context)
 
-	// (POST /simc/parse-addon-export)
-	ParseAddonExport(c *gin.Context)
-
 	// (POST /simulation)
 	Simulate(c *gin.Context)
 
@@ -588,19 +580,6 @@ func (siw *ServerInterfaceWrapper) Health(c *gin.Context) {
 	}
 
 	siw.Handler.Health(c)
-}
-
-// ParseAddonExport operation middleware
-func (siw *ServerInterfaceWrapper) ParseAddonExport(c *gin.Context) {
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		middleware(c)
-		if c.IsAborted() {
-			return
-		}
-	}
-
-	siw.Handler.ParseAddonExport(c)
 }
 
 // Simulate operation middleware
@@ -672,7 +651,6 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	}
 
 	router.GET(options.BaseURL+"/health", wrapper.Health)
-	router.POST(options.BaseURL+"/simc/parse-addon-export", wrapper.ParseAddonExport)
 	router.POST(options.BaseURL+"/simulation", wrapper.Simulate)
 	router.GET(options.BaseURL+"/simulation/:id", wrapper.GetSimulation)
 }
@@ -681,9 +659,7 @@ type BadRequestErrorJSONResponse ErrorResponse
 
 type InternalErrorJSONResponse ErrorResponse
 
-type MalformedRequestJSONResponse struct {
-	Message string `json:"message"`
-}
+type MalformedRequestJSONResponse ErrorResponse
 
 type NotFoundErrorJSONResponse ErrorResponse
 
@@ -699,41 +675,6 @@ type Health200JSONResponse HealthResponse
 func (response Health200JSONResponse) VisitHealthResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ParseAddonExportRequestObject struct {
-	Body *ParseAddonExportJSONRequestBody
-}
-
-type ParseAddonExportResponseObject interface {
-	VisitParseAddonExportResponse(w http.ResponseWriter) error
-}
-
-type ParseAddonExport200JSONResponse ParseAddonExportResponse
-
-func (response ParseAddonExport200JSONResponse) VisitParseAddonExportResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ParseAddonExport400JSONResponse struct{ BadRequestErrorJSONResponse }
-
-func (response ParseAddonExport400JSONResponse) VisitParseAddonExportResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type ParseAddonExport500JSONResponse struct{ InternalErrorJSONResponse }
-
-func (response ParseAddonExport500JSONResponse) VisitParseAddonExportResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -844,9 +785,6 @@ type StrictServerInterface interface {
 	// (GET /health)
 	Health(ctx context.Context, request HealthRequestObject) (HealthResponseObject, error)
 
-	// (POST /simc/parse-addon-export)
-	ParseAddonExport(ctx context.Context, request ParseAddonExportRequestObject) (ParseAddonExportResponseObject, error)
-
 	// (POST /simulation)
 	Simulate(ctx context.Context, request SimulateRequestObject) (SimulateResponseObject, error)
 
@@ -884,39 +822,6 @@ func (sh *strictHandler) Health(ctx *gin.Context) {
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(HealthResponseObject); ok {
 		if err := validResponse.VisitHealthResponse(ctx.Writer); err != nil {
-			ctx.Error(err)
-		}
-	} else if response != nil {
-		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// ParseAddonExport operation middleware
-func (sh *strictHandler) ParseAddonExport(ctx *gin.Context) {
-	var request ParseAddonExportRequestObject
-
-	var body ParseAddonExportJSONRequestBody
-	if err := ctx.ShouldBindJSON(&body); err != nil {
-		ctx.Status(http.StatusBadRequest)
-		ctx.Error(err)
-		return
-	}
-	request.Body = &body
-
-	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
-		return sh.ssi.ParseAddonExport(ctx, request.(ParseAddonExportRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "ParseAddonExport")
-	}
-
-	response, err := handler(ctx, request)
-
-	if err != nil {
-		ctx.Error(err)
-		ctx.Status(http.StatusInternalServerError)
-	} else if validResponse, ok := response.(ParseAddonExportResponseObject); ok {
-		if err := validResponse.VisitParseAddonExportResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
@@ -987,71 +892,71 @@ func (sh *strictHandler) GetSimulation(ctx *gin.Context, id openapi_types.UUID) 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
 
-	"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",
-	"T41Z6/X/BwAA///GAaqPCDkAAA==",
+	"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",
+	"jHCQ5x//H2r8ecpIf/8XAAD//8WUnYnRNgAA",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file
