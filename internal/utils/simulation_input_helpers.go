@@ -3,8 +3,6 @@
 package utils
 
 import (
-	"fmt"
-
 	"github.com/DomNidy/saint_sim/internal/api"
 )
 
@@ -24,10 +22,6 @@ const (
 func ValidateSimulationConfigBasic(options *api.SimulationConfigBasic) error {
 	if options == nil {
 		return errSimulationOptionsRequired
-	}
-
-	if options.SimcAddonExport == "" {
-		return fmt.Errorf("%w", errMissingSimcAddonExport)
 	}
 
 	return nil

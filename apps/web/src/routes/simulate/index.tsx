@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 declare global {
 	interface Window {
@@ -17,6 +17,12 @@ const WOWHEAD_CONFIG_SCRIPT =
 	"window.whTooltips={colorLinks:true,iconizeLinks:true,renameLinks:false};";
 
 export const Route = createFileRoute("/simulate/")({
+	beforeLoad: (ctx) => {
+		throw redirect({
+			to: "/simulate/basic",
+			replace: true,
+		});
+	},
 	component: () => <Outlet />,
 	head: () => ({
 		scripts: [
