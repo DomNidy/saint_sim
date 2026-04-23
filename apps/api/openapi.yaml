@@ -148,7 +148,6 @@ components:
         priest="Example"
         level=80
         spec=shadow
-      minLength: 1
 
     character_class:
       type: string
@@ -173,17 +172,21 @@ components:
         (basic, top gear, etc.)
       properties:
         fight_style:
-          type: string
-          enum:
-            - patchwerk
-            - dungeon_slice
-            - target_dummy
-            - execute_patchwerk
-            - hectic_add_cleave
-            - light_movement
-            - heavy_movement
-            - casting_patchwerk
-            - cleave_add
+          $ref: "#/components/schemas/fight_style"
+
+    fight_style:
+      type: string
+      description: Simc fight style
+      enum:
+        - patchwerk
+        - dungeon_slice
+        - target_dummy
+        - execute_patchwerk
+        - hectic_add_cleave
+        - light_movement
+        - heavy_movement
+        - casting_patchwerk
+        - cleave_add
 
     simulation_options:
       type: object

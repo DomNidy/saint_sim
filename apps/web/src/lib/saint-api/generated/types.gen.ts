@@ -35,8 +35,28 @@ export type CharacterClass = typeof CharacterClass[keyof typeof CharacterClass];
  * Core simc config that is shared between all simulation kinds (basic, top gear, etc.)
  */
 export type SimulationCoreConfig = {
-    fight_style?: 'patchwerk' | 'dungeon_slice' | 'target_dummy' | 'execute_patchwerk' | 'hectic_add_cleave' | 'light_movement' | 'heavy_movement' | 'casting_patchwerk' | 'cleave_add';
+    fight_style?: FightStyle;
 };
+
+/**
+ * Simc fight style
+ */
+export const FightStyle = {
+    PATCHWERK: 'patchwerk',
+    DUNGEON_SLICE: 'dungeon_slice',
+    TARGET_DUMMY: 'target_dummy',
+    EXECUTE_PATCHWERK: 'execute_patchwerk',
+    HECTIC_ADD_CLEAVE: 'hectic_add_cleave',
+    LIGHT_MOVEMENT: 'light_movement',
+    HEAVY_MOVEMENT: 'heavy_movement',
+    CASTING_PATCHWERK: 'casting_patchwerk',
+    CLEAVE_ADD: 'cleave_add'
+} as const;
+
+/**
+ * Simc fight style
+ */
+export type FightStyle = typeof FightStyle[keyof typeof FightStyle];
 
 export type SimulationOptions = ({
     kind: 'basic';

@@ -98,7 +98,7 @@ func (worker simulationWorker) handleDelivery(
 	// route request to the handler for the simulation kind
 	kind, err := request.options.Discriminator()
 	if err != nil {
-		log.Printf("got error checking for discriminator: %w", err)
+		log.Printf("got error checking for discriminator: %v", err)
 		markSimErrored(requestID)
 		return
 	}
@@ -268,7 +268,7 @@ func (worker simulationWorker) processTopGear(
 	}
 
 	profileText := strings.Join(profileLines, "\n")
-	log.Printf(profileText[:1500])
+	log.Printf("%s", profileText[:1500])
 
 	run, err := worker.runSimcOnProfile(ctx, profileText)
 	if err != nil {

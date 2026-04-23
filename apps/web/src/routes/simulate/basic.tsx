@@ -5,13 +5,15 @@ import {
 	useHydrated,
 	useNavigate,
 } from "@tanstack/react-router";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import type z from "zod";
 import { AddonExportTextarea } from "@/components/addon-export-textarea";
 import { EquipmentDisplayGroup } from "@/components/equipment-display-group/equipment-display-group";
-import { SimulationFormBasic } from "@/components/simulation-form/simulation-form-basic";
+import { SimulationCoreConfigSection } from "@/components/simulation-form/simulation-core-config-section";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -19,16 +21,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Form } from "@/components/ui/form";
 import { useParseAddonExport } from "@/hooks/use-parse-addon-export";
 import {
 	localStorageGet,
 	localStorageSet,
 	PREV_SIMC_PROFILE_KEY,
 } from "@/lib/local-storage";
-import {
-	zSimcAddonExport,
-	zSimulationConfigBasic,
-} from "@/lib/saint-api/generated/zod.gen";
+import { zSimulationConfigBasic } from "@/lib/saint-api/generated/zod.gen";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
 
 export const Route = createFileRoute("/simulate/basic")({
@@ -43,6 +43,7 @@ function SimulationPage() {
 		resolver: zodResolver(zSimulationConfigBasic),
 		defaultValues: {
 			kind: "basic",
+			simc_addon_export: "",
 		},
 		resetOptions: {
 			keepErrors: true,
@@ -119,22 +120,62 @@ function SimulationPage() {
 						onChange={(e) => setSimcExport(e.target.value)}
 					/>
 
-					<SimulationFormBasic
-						form={form}
-						isSubmitPending={submitMutation.isPending}
-						resetHandler={() => form.reset({ kind: "basic" })}
-						submitHandler={(values) => {
-							void submitMutation.mutateAsync({ data: values });
-							// write to local storage so users can see the profile again
-							// whenever they visit the site/refresh
-							if (hydrated) {
-								localStorageSet(
-									PREV_SIMC_PROFILE_KEY,
-									values.simc_addon_export,
-								);
-							}
-						}}
-					/>
+					<Form {...form}>
+						<form
+							className="flex flex-col gap-5"
+							onSubmit={(e) => {
+								e.preventDefault();
+								void submitMutation.mutateAsync({ data: form.getValues() });
+								// write to local storage so users can see the profile again
+								// whenever they visit the site/refresh
+								if (hydrated) {
+									localStorageSet(
+										PREV_SIMC_PROFILE_KEY,
+										form.getValues().simc_addon_export,
+									);
+								}
+							}}
+						>
+							{form.formState?.errors?.root?.server?.message && (
+								<Alert variant={"destructive"}>
+									{form.formState?.errors?.root?.server?.message}
+								</Alert>
+							)}
+
+							{form.formState?.errors && (
+								<Alert variant={"destructive"}>
+									{JSON.stringify(form.formState.errors)}
+								</Alert>
+							)}
+
+							<div className="flex flex-wrap items-center gap-3">
+								<Button disabled={submitMutation.isPending} type="submit">
+									{submitMutation.isPending ? (
+										<>
+											<LoaderCircle
+												data-icon="inline-start"
+												className="animate-spin"
+											/>
+											Sending request
+										</>
+									) : (
+										<>
+											<Sparkles data-icon="inline-start" />
+											Run simulation
+										</>
+									)}
+								</Button>
+								<Button
+									type="button"
+									variant="secondary"
+									onClick={() => form.reset()}
+								>
+									Clear
+								</Button>
+							</div>
+						</form>
+						<SimulationCoreConfigSection />
+					</Form>
 
 					{/* Display list of all parsed gear */}
 					<div className="space-y-4 border-t pt-4">

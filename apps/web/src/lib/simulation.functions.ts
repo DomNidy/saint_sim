@@ -15,6 +15,8 @@ export const submitSimulationRequest = createServerFn({ method: "POST" })
 			body: data,
 		});
 
+		console.log("response", response);
+
 		if (response.error || !response.data) {
 			throw new Error(
 				readSaintApiErrorMessage(
