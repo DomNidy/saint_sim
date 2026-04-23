@@ -1,4 +1,4 @@
-package main
+package sims
 
 import (
 	"bytes"
@@ -23,8 +23,12 @@ type RunResult struct {
 	JSON2 []byte
 }
 
+// TODO: Bad encapsulation - we should just have a Run()
+// method on the runner that takes the top gear manifest
+// directly. To support a basic sim, Runner can either use
+// methods per-sim-kind (RunBasic, RunTopGear), or use generics.
 type Runner interface {
-	Run(ctx context.Context, profilePath string) (RunResult, error)
+	Run(ctx context.Context, profileText string) (RunResult, error)
 }
 
 type simcRunner struct {
@@ -52,7 +56,15 @@ func (runner simcRunner) Version(ctx context.Context) (string, error) {
 	return strings.TrimSpace(output.String()), nil
 }
 
-func (runner simcRunner) Run(ctx context.Context, profilePath string) (RunResult, error) {
+// Run writes the profileText to a temporary profile on disk, performs the sim, returns the
+// results and cleans up the temp profile from disk.
+func (runner simcRunner) Run(ctx context.Context, profileText string) (RunResult, error) {
+	profilePath, cleanupFunc, err := runner.writeSimcProfileTemp(ctx, profileText)
+	if err == nil {
+		return RunResult{}, err
+	}
+	defer cleanupFunc()
+
 	// Write the structured report next to the profile so the caller's temp‑dir
 	// cleanup (os.RemoveAll) sweeps it up automatically.
 	jsonPath := filepath.Join(filepath.Dir(profilePath), "output.json")
@@ -83,4 +95,30 @@ func (runner simcRunner) Run(ctx context.Context, profilePath string) (RunResult
 		Stdout: stdout.Bytes(),
 		JSON2:  jsonBytes,
 	}, nil
+}
+
+// write a simc profile to disk and return a cleanup function along with the
+// path to the profile
+// must call the cleanup function.
+func (runner simcRunner) writeSimcProfileTemp(
+	ctx context.Context,
+	profileText string,
+) (string, func(), error) {
+	tempDir, err := os.MkdirTemp("", "saint-simc-*")
+	if err != nil {
+		return "", func() {}, fmt.Errorf("create simc temp dir: %w", err)
+	}
+
+	cleanupFunc := func() {
+		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
+			fmt.Fprintf(os.Stderr, "remove simc temp dir: %v\n", removeErr)
+		}
+	}
+
+	profilePath := filepath.Join(tempDir, "input.simc")
+	if err := os.WriteFile(profilePath, []byte(profileText), simcProfileFileMode); err != nil {
+		return "", func() {}, fmt.Errorf("write simc profile: %w", err)
+	}
+
+	return profilePath, cleanupFunc, nil
 }

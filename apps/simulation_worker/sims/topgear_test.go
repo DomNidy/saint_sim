@@ -1,4 +1,4 @@
-package main
+package sims
 
 import (
 	"context"
@@ -75,12 +75,12 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...,
 	)
 
-	gotCount, err := countTopGearProfilesets(equipment)
+	gotCount, err := CountProfilesets(equipment)
 	if err != nil {
-		t.Fatalf("countTopGearProfilesets() error = %v", err)
+		t.Fatalf("CountProfilesets() error = %v", err)
 	}
 	if gotCount != 6 {
-		t.Fatalf("countTopGearProfilesets() = %d, want 6", gotCount)
+		t.Fatalf("CountProfilesets() = %d, want 6", gotCount)
 	}
 
 	got, err := generateTopGearManifest(topGearConfig(equipment, "TALENTS"))
@@ -224,7 +224,7 @@ func TestGenerateTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *te
 	}
 }
 
-func TestCountTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *testing.T) {
+func TestCountProfilesetsAllowsDuplicateRingFromDifferentSources(t *testing.T) {
 	t.Parallel()
 
 	equipment := appendEquipment(
@@ -237,12 +237,12 @@ func TestCountTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *testi
 		mustParseEquipmentLine(t, api.Equipped, baseRingLines()[0]),
 	)
 
-	count, err := countTopGearProfilesets(equipment)
+	count, err := CountProfilesets(equipment)
 	if err != nil {
-		t.Fatalf("countTopGearProfilesets() error = %v", err)
+		t.Fatalf("CountProfilesets() error = %v", err)
 	}
 	if count != 1 {
-		t.Fatalf("countTopGearProfilesets() = %d, want 1", count)
+		t.Fatalf("CountProfilesets() = %d, want 1", count)
 	}
 }
 
