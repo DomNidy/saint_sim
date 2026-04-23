@@ -6,9 +6,10 @@ import {
 	useNavigate,
 } from "@tanstack/react-router";
 import { LoaderCircle } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import type z from "zod";
+import { AddonExportTextarea } from "@/components/addon-export-textarea";
 import { EquipmentDisplayGroup } from "@/components/equipment-display-group/equipment-display-group";
 import { SimulationFormBasic } from "@/components/simulation-form/simulation-form-basic";
 import {
@@ -42,28 +43,23 @@ function SimulationPage() {
 		resolver: zodResolver(zSimulationConfigBasic),
 		defaultValues: {
 			kind: "basic",
-			simc_addon_export: "",
 		},
 		resetOptions: {
 			keepErrors: true,
 		},
 	});
 
-	const simcExport = useWatch({
-		control: form.control,
-		name: "simc_addon_export",
-		defaultValue: "",
-	});
+	const [simcExport, setSimcExport] = useState<string>("");
 
 	// Use previous simc export as default value
 	useEffect(() => {
 		if (hydrated) {
 			const prevProfile = localStorageGet(PREV_SIMC_PROFILE_KEY);
 			if (prevProfile !== null) {
-				form.reset({ kind: "basic", simc_addon_export: prevProfile });
+				setSimcExport(prevProfile);
 			}
 		}
-	}, [hydrated, form]);
+	}, [hydrated]);
 
 	const submitMutation = useMutation({
 		mutationFn: submitSimulationRequest,
@@ -90,13 +86,17 @@ function SimulationPage() {
 		errorMessage: parseAddonExportError,
 	} = useParseAddonExport(simcExport, parseAddonExportEnabled);
 
+	// ensure image icons re-render
 	useEffect(() => {
-		if (equipmentGroups?.length === 0) {
-			return;
-		}
-
+		if (equipmentGroups?.length === 0) return;
 		window.$WowheadPower?.refreshLinks?.();
 	}, [equipmentGroups]);
+
+	// autoupdate form state
+	useEffect(() => {
+		// biome-ignore lint/style/noNonNullAssertion: we want to allow character to be null so we can reset that field and only that field
+		form.setValue("character", wowCharacter!);
+	}, [wowCharacter, form]);
 
 	return (
 		<section className="w-full pb-10 pt-12">
@@ -108,9 +108,21 @@ function SimulationPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="flex flex-col gap-6">
+					<AddonExportTextarea
+						placeholder={'priest="Example"\nlevel=80\nspec=shadow'}
+						autoComplete="off"
+						autoCapitalize="none"
+						autoCorrect="off"
+						className="h-32"
+						spellCheck={false}
+						value={simcExport}
+						onChange={(e) => setSimcExport(e.target.value)}
+					/>
+
 					<SimulationFormBasic
 						form={form}
 						isSubmitPending={submitMutation.isPending}
+						resetHandler={() => form.reset({ kind: "basic" })}
 						submitHandler={(values) => {
 							void submitMutation.mutateAsync({ data: values });
 							// write to local storage so users can see the profile again
