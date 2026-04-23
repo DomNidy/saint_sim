@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	amqp091 "github.com/rabbitmq/amqp091-go"
 
 	workerusecases "github.com/DomNidy/saint_sim/apps/simulation_worker/usecases"
 	"github.com/DomNidy/saint_sim/internal/platform/postgres"
@@ -16,6 +17,11 @@ import (
 	secrets "github.com/DomNidy/saint_sim/internal/secrets"
 	simulationpostgres "github.com/DomNidy/saint_sim/internal/simulation/postgres"
 )
+
+type simulationQueue interface {
+	Consume(ctx context.Context) (<-chan amqp091.Delivery, error)
+	Close() error
+}
 
 type workerConfig struct {
 	simcBinaryPath  string
@@ -88,8 +94,7 @@ func run() error {
 	)
 
 	worker := simulationWorker{
-		workerConfig: config,
-		processor:    processor,
+		processor: processor,
 	}
 
 	simChan, err := config.simulationQueue.Consume(ctx)
