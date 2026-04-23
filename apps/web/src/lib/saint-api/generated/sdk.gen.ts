@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetSimulationData, GetSimulationErrors, GetSimulationResponses, HealthData, HealthResponses, ParseAddonExportData, ParseAddonExportErrors, ParseAddonExportResponses, SimulateData, SimulateErrors, SimulateResponses } from './types.gen';
+import type { GetSimulationData, GetSimulationErrors, GetSimulationResponses, HealthData, HealthResponses, SimulateData, SimulateErrors, SimulateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -34,18 +34,6 @@ export const getSimulation = <ThrowOnError extends boolean = false>(options: Opt
 export const simulate = <ThrowOnError extends boolean = false>(options: Options<SimulateData, ThrowOnError>) => (options.client ?? client).post<SimulateResponses, SimulateErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }, { name: 'Api-Key', type: 'apiKey' }],
     url: '/simulation',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-/**
- * Parse a SimC addon export and return structured addon export data.
- */
-export const parseAddonExport = <ThrowOnError extends boolean = false>(options: Options<ParseAddonExportData, ThrowOnError>) => (options.client ?? client).post<ParseAddonExportResponses, ParseAddonExportErrors, ThrowOnError>({
-    url: '/simc/parse-addon-export',
     ...options,
     headers: {
         'Content-Type': 'application/json',

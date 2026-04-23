@@ -25,7 +25,8 @@ func (server *Server) Simulate(
 ) (api.SimulateResponseObject, error) {
 	if request.Body == nil {
 		return api.Simulate400JSONResponse{
-			Message: utils.StrPtr("Invalid simulation options"),
+			Message: "Invalid simulation options",
+			Code:    "",
 		}, nil
 	}
 
@@ -33,7 +34,8 @@ func (server *Server) Simulate(
 	if !authResolved {
 		log.Printf("simulate unauthorized: auth context missing from request context")
 		return api.Simulate401JSONResponse{
-			Message: utils.StrPtr("Unauthorized"),
+			Message: "Unauthorized",
+			Code:    "",
 		}, nil
 	}
 
@@ -60,7 +62,8 @@ func (server *Server) Simulate(
 	// so 500 error
 	return api.Simulate500JSONResponse{
 		InternalErrorJSONResponse: api.InternalErrorJSONResponse{
-			Message: utils.StrPtr("Internal server error try again later"),
+			Message: "Internal server error try again later",
+			Code:    "",
 		},
 	}, nil
 }
@@ -70,8 +73,6 @@ func (server *Server) handleSimulationBasic(
 	authContext auth.AuthContext,
 	simConfig api.SimulationConfigBasic,
 ) (api.SimulateResponseObject, error) {
-	simConfig.SimcAddonExport = NormalizeLineEndings(simConfig.SimcAddonExport)
-
 	validationFailure := validateSimulationRequestBasic(ctx, simConfig)
 	if validationFailure != nil {
 		return api.Simulate400JSONResponse(validationFailure.response), nil
@@ -89,7 +90,8 @@ func (server *Server) handleSimulationBasic(
 
 		return api.Simulate500JSONResponse{
 			InternalErrorJSONResponse: api.InternalErrorJSONResponse{
-				Message: utils.StrPtr("Internal server error"),
+				Message: "Internal server error",
+				Code:    "",
 			},
 		}, nil
 	}
@@ -104,7 +106,8 @@ func (server *Server) handleSimulationBasic(
 
 		return api.Simulate500JSONResponse{
 			InternalErrorJSONResponse: api.InternalErrorJSONResponse{
-				Message: utils.StrPtr("An internal server error occurred. Please try again later."),
+				Message: "An internal server error occurred. Please try again later.",
+				Code:    "",
 			},
 		}, nil
 	}
@@ -133,7 +136,8 @@ func (server *Server) handleSimulationTopGear(
 
 		return api.Simulate500JSONResponse{
 			InternalErrorJSONResponse: api.InternalErrorJSONResponse{
-				Message: utils.StrPtr("Internal server error"),
+				Message: "Internal server error",
+				Code:    "",
 			},
 		}, nil
 	}
@@ -148,7 +152,8 @@ func (server *Server) handleSimulationTopGear(
 
 		return api.Simulate500JSONResponse{
 			InternalErrorJSONResponse: api.InternalErrorJSONResponse{
-				Message: utils.StrPtr("An internal server error occurred. Please try again later."),
+				Message: "An internal server error occurred. Please try again later.",
+				Code:    "",
 			},
 		}, nil
 	}
@@ -180,7 +185,8 @@ func validateSimulationRequestBasic(
 		return &simulationValidationError{
 			statusCode: http.StatusBadRequest,
 			response: api.ErrorResponse{
-				Message: utils.StrPtr("Bad request"),
+				Message: "Bad request",
+				Code:    "",
 			},
 		}
 	}

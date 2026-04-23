@@ -49,7 +49,8 @@ export type SimulationOptions = ({
  */
 export type SimulationConfigBasic = {
     kind: 'basic';
-    core_config?: SimulationCoreConfig;
+    character: WowCharacter;
+    core_config: SimulationCoreConfig;
     simc_addon_export: SimcAddonExport;
 };
 
@@ -58,31 +59,17 @@ export type SimulationConfigBasic = {
  */
 export type SimulationConfigTopGear = {
     kind: 'topGear';
-    core_config?: SimulationCoreConfig;
-    character_name: string;
-    class: CharacterClass;
-    /**
-     * The spec of the character
-     */
-    spec: string;
-    /**
-     * The role of the character
-     */
-    role: unknown;
-    talent_loadout: AddonExportTalentLoadout;
+    character: WowCharacter;
+    core_config: SimulationCoreConfig;
     /**
      * The gear to consider in the simulation. We will try to find optimal combinations of these. Must have at least 1 item per slot so it is possible to form a full equipment set.
      */
     equipment: Array<EquipmentItem>;
 };
 
-export type ParseAddonExportRequest = {
-    simc_addon_export: SimcAddonExport;
-};
+export const EquipmentSource = { EQUIPPED: 'equipped', BAG: 'bag' } as const;
 
-export const AddonExportEquipmentSource = { EQUIPPED: 'equipped', BAG: 'bag' } as const;
-
-export type AddonExportEquipmentSource = typeof AddonExportEquipmentSource[keyof typeof AddonExportEquipmentSource];
+export type EquipmentSource = typeof EquipmentSource[keyof typeof EquipmentSource];
 
 export const EquipmentSlot = {
     HEAD: 'head',
@@ -108,9 +95,9 @@ export const EquipmentSlot = {
 export type EquipmentSlot = typeof EquipmentSlot[keyof typeof EquipmentSlot];
 
 /**
- * A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
+ * A saved talent loadout string, paired with the name of the loadout. You can export this from the Simc addon (or manually from talents menu in game).
  */
-export type AddonExportTalentLoadout = {
+export type CharacterTalentLoadout = {
     /**
      * The name of the talent loadout.
      */
@@ -124,7 +111,8 @@ export type AddonExportTalentLoadout = {
 /**
  * The character's current and highest unlocked upgrade track item levels for a specific gear slot from Additional Character Info.
  */
-export type AddonExportSlotHighWatermark = {
+export type CharacterSlotHighWatermark = {
+    slot: EquipmentSlot;
     current_item_level: number;
     max_item_level: number;
 };
@@ -140,39 +128,8 @@ export type EquipmentItem = {
     bonus_ids?: Array<number>;
     gem_ids?: Array<number>;
     crafted_stats?: Array<number>;
-    source: AddonExportEquipmentSource;
+    source: EquipmentSource;
     raw_line: string;
-};
-
-export type AddonExport = {
-    character_name?: string | null;
-    class?: CharacterClass;
-    level?: string | null;
-    race?: string | null;
-    region?: string | null;
-    server?: string | null;
-    role?: string | null;
-    professions?: string | null;
-    spec?: string | null;
-    talent_loadouts?: Array<AddonExportTalentLoadout>;
-    equipment?: Array<EquipmentItem>;
-    checksum?: string | null;
-    header_comment?: string | null;
-    simc_addon_comment?: string | null;
-    wow_build_comment?: string | null;
-    required_simc_comment?: string | null;
-    loot_spec?: string | null;
-    catalyst_currencies?: {
-        [key: string]: number;
-    };
-    slot_high_watermarks?: {
-        [key: string]: AddonExportSlotHighWatermark;
-    };
-    upgrade_achievements?: Array<number>;
-};
-
-export type ParseAddonExportResponse = {
-    addon_export: AddonExport;
 };
 
 /**
@@ -309,13 +266,63 @@ export const SimulationStatus = {
 export type SimulationStatus = typeof SimulationStatus[keyof typeof SimulationStatus];
 
 /**
+ * The representation of a wow character.
+ */
+export type WowCharacter = {
+    character_class: CharacterClass;
+    level: number;
+    /**
+     * The loot specialization of your character.
+     */
+    loot_spec?: string;
+    race?: string | null;
+    region?: string | null;
+    server?: string | null;
+    role?: string | null;
+    professions?: string | null;
+    spec: string;
+    /**
+     * Items that the character currently has equipped.
+     */
+    equipped_items: Array<EquipmentItem>;
+    /**
+     * Items in the character's bags
+     */
+    bag_items?: Array<EquipmentItem>;
+    active_talents?: CharacterTalentLoadout;
+    /**
+     * The talent loadouts that were not active
+     */
+    talent_loadouts?: Array<CharacterTalentLoadout>;
+    /**
+     * Catalyst charges
+     */
+    catalyst_currencies?: Array<{
+        /**
+         * The id of the currency
+         */
+        id: number;
+        /**
+         * The quantity of the currency the character has
+         */
+        quantity: number;
+    }>;
+    slot_high_watermarks?: Array<CharacterSlotHighWatermark>;
+    upgrade_achievements?: Array<number>;
+};
+
+/**
  * Error response returned by API when something goes wrong
  */
 export type ErrorResponse = {
     /**
      * Message explaining the error
      */
-    message?: string;
+    message: string;
+    /**
+     * Error code
+     */
+    code: string;
 };
 
 export type HealthData = {
@@ -392,11 +399,9 @@ export type SimulateErrors = {
      */
     404: ErrorResponse;
     /**
-     * Error response returned by API when user input failed semantic
+     * Error response returned by API when user input failed semantic validation
      */
-    422: {
-        message: string;
-    };
+    422: ErrorResponse;
     /**
      * Returned whenever an internal server error occurs. This usually means the cause for the error was out of the control of the caller.
      */
@@ -418,32 +423,3 @@ export type SimulateResponses = {
 };
 
 export type SimulateResponse = SimulateResponses[keyof SimulateResponses];
-
-export type ParseAddonExportData = {
-    body: ParseAddonExportRequest;
-    path?: never;
-    query?: never;
-    url: '/simc/parse-addon-export';
-};
-
-export type ParseAddonExportErrors = {
-    /**
-     * Returned when the request is malformed or contains invalid input.
-     */
-    400: ErrorResponse;
-    /**
-     * Returned whenever an internal server error occurs. This usually means the cause for the error was out of the control of the caller.
-     */
-    500: ErrorResponse;
-};
-
-export type ParseAddonExportError = ParseAddonExportErrors[keyof ParseAddonExportErrors];
-
-export type ParseAddonExportResponses = {
-    /**
-     * Structured parsed data for the addon export.
-     */
-    200: ParseAddonExportResponse;
-};
-
-export type ParseAddonExportResponse2 = ParseAddonExportResponses[keyof ParseAddonExportResponses];

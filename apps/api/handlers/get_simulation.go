@@ -10,7 +10,6 @@ import (
 
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
-	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
 // GetSimulation returns the current state of a simulation job. The response
@@ -80,7 +79,8 @@ func loadSimulation(
 func simulationNotFoundResponse() api.GetSimulation404JSONResponse {
 	return api.GetSimulation404JSONResponse{
 		NotFoundErrorJSONResponse: api.NotFoundErrorJSONResponse{
-			Message: utils.StrPtr("Simulation not found"),
+			Message: "Simulation not found",
+			Code:    "",
 		},
 	}
 }
@@ -88,7 +88,8 @@ func simulationNotFoundResponse() api.GetSimulation404JSONResponse {
 func internalErrorResponse() api.GetSimulation500JSONResponse {
 	return api.GetSimulation500JSONResponse{
 		InternalErrorJSONResponse: api.InternalErrorJSONResponse{
-			Message: utils.StrPtr("Internal server error"),
+			Message: "Internal server error",
+			Code:    "",
 		},
 	}
 }

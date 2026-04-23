@@ -87,27 +87,6 @@ paths:
           $ref: "#/components/responses/malformed_request"
         "500":
           $ref: "#/components/responses/internal_error"
-  /simc/parse-addon-export:
-    post:
-      operationId: parseAddonExport
-      description: Parse a SimC addon export and return structured addon export data.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/parse_addon_export_request"
-      responses:
-        "200":
-          description: Structured parsed data for the addon export.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/parse_addon_export_response"
-        "400":
-          $ref: "#/components/responses/bad_request_error"
-        "500":
-          $ref: "#/components/responses/internal_error"
 components:
   responses:
     bad_request_error:
@@ -130,15 +109,12 @@ components:
           schema:
             $ref: "#/components/schemas/error_response"
     malformed_request:
-      description: Error response returned by API when user input failed semantic
+      description: Error response returned by API when user input failed semantic validation
       content:
         application/json:
           schema:
-            required:
-              - message
-            properties:
-              message:
-                type: string
+            $ref: "#/components/schemas/error_response"
+
   securitySchemes:
     BearerAuth:
       description: |
@@ -227,6 +203,8 @@ components:
       required:
         - simc_addon_export
         - kind
+        - character
+        - core_config
       properties:
         kind:
           # note: we don't use the simulation_kind enum here;
@@ -240,6 +218,9 @@ components:
           # $ref: "#/components/schemas/simulation_kind"
           type: string
           enum: [ basic ]
+        character:
+          description: The character we are optimizing/simulating on
+          $ref: "#/components/schemas/wow_character"
         core_config:
           $ref: "#/components/schemas/simulation_core_config"
         simc_addon_export:
@@ -250,33 +231,20 @@ components:
       description: Top gear simulation options. The gear which we should try to find
         some optimal combination of.
       required:
-        - character_name
+        - core_config
         - equipment
-        - talent_loadout
-        - class
-        - spec
-        - role
         - kind
+        - character
       properties:
         kind:
           # $ref: "#/components/schemas/simulation_kind"
           type: string
           enum: [ topGear ]
+        character:
+          description: The character we are optimizing/simulating on
+          $ref: "#/components/schemas/wow_character"
         core_config:
           $ref: "#/components/schemas/simulation_core_config"
-        character_name:
-          type: string
-        class:
-          description: The class the character is
-          $ref: "#/components/schemas/character_class"
-        spec:
-          description: The spec of the character
-          type: string
-        role:
-          description: The role of the character
-        talent_loadout:
-          description: The talent loadout to use in the simulation.
-          $ref: "#/components/schemas/addon_export_talent_loadout"
         equipment:
           description: The gear to consider in the simulation. We will try to find optimal
             combinations of these. Must have at least 1 item per slot so it is
@@ -285,15 +253,7 @@ components:
           items:
             $ref: "#/components/schemas/equipment_item"
 
-    parse_addon_export_request:
-      type: object
-      required:
-        - simc_addon_export
-      properties:
-        simc_addon_export:
-          $ref: "#/components/schemas/simc_addon_export"
-
-    addon_export_equipment_source:
+    equipment_source:
       type: string
       enum:
         - equipped
@@ -321,10 +281,11 @@ components:
         - shirt
         - tabard
 
-    addon_export_talent_loadout:
+    character_talent_loadout:
       type: object
-      description: A saved talent loadout exported by the SimC addon, pairing the
-        loadout label with its raw talents string.
+      description: A saved talent loadout string, paired with the name of the loadout.
+        You can export this from the Simc addon (or manually from talents menu
+        in game).
       required:
         - talents
       properties:
@@ -335,14 +296,18 @@ components:
           description: The WoW talent string
           type: string
 
-    addon_export_slot_high_watermark:
+    character_slot_high_watermark:
       type: object
       description: The character's current and highest unlocked upgrade track item
         levels for a specific gear slot from Additional Character Info.
       required:
+        - slot
         - current_item_level
         - max_item_level
       properties:
+        slot:
+          description: The slot which this watermark is for
+          $ref: "#/components/schemas/equipment_slot"
         current_item_level:
           type: integer
         max_item_level:
@@ -388,86 +353,9 @@ components:
           items:
             type: integer
         source:
-          $ref: "#/components/schemas/addon_export_equipment_source"
+          $ref: "#/components/schemas/equipment_source"
         raw_line:
           type: string
-
-    addon_export:
-      type: object
-      properties:
-        character_name:
-          type: string
-          nullable: true
-        class:
-          $ref: "#/components/schemas/character_class"
-          nullable: true
-        level:
-          type: string
-          nullable: true
-        race:
-          type: string
-          nullable: true
-        region:
-          type: string
-          nullable: true
-        server:
-          type: string
-          nullable: true
-        role:
-          type: string
-          nullable: true
-        professions:
-          type: string
-          nullable: true
-        spec:
-          type: string
-          nullable: true
-        talent_loadouts:
-          type: array
-          items:
-            $ref: "#/components/schemas/addon_export_talent_loadout"
-        equipment:
-          type: array
-          items:
-            $ref: "#/components/schemas/equipment_item"
-        checksum:
-          type: string
-          nullable: true
-        header_comment:
-          type: string
-          nullable: true
-        simc_addon_comment:
-          type: string
-          nullable: true
-        wow_build_comment:
-          type: string
-          nullable: true
-        required_simc_comment:
-          type: string
-          nullable: true
-        loot_spec:
-          type: string
-          nullable: true
-        catalyst_currencies:
-          type: object
-          additionalProperties:
-            type: integer
-        slot_high_watermarks:
-          type: object
-          additionalProperties:
-            $ref: "#/components/schemas/addon_export_slot_high_watermark"
-        upgrade_achievements:
-          type: array
-          items:
-            type: integer
-
-    parse_addon_export_response:
-      type: object
-      required:
-        - addon_export
-      properties:
-        addon_export:
-          $ref: "#/components/schemas/addon_export"
 
     simulation:
       type: object
@@ -651,10 +539,93 @@ components:
         - error # failed
         - complete
 
-    error_response:
+    wow_character:
+      description: The representation of a wow character.
       type: object
+      required:
+        - level
+        - character_class
+        - equipped_items
+        - spec
+      properties:
+        character_class:
+          $ref: "#/components/schemas/character_class"
+        level:
+          type: integer
+          minimum: 1
+        loot_spec:
+          type: string
+          description: The loot specialization of your character.
+        race:
+          type: string
+          nullable: true
+        region:
+          type: string
+          nullable: true
+        server:
+          type: string
+          nullable: true
+        role:
+          type: string
+          nullable: true
+        professions:
+          type: string
+          nullable: true
+        spec:
+          type: string
+        equipped_items:
+          type: array
+          description: Items that the character currently has equipped.
+          items:
+            $ref: "#/components/schemas/equipment_item"
+        bag_items:
+          type: array
+          description: Items in the character's bags
+          items:
+            $ref: "#/components/schemas/equipment_item"
+        active_talents:
+          description: The character's current active talent loadout
+          $ref: "#/components/schemas/character_talent_loadout"
+        talent_loadouts:
+          description: The talent loadouts that were not active
+          type: array
+          items:
+            $ref: "#/components/schemas/character_talent_loadout"
+
+        catalyst_currencies:
+          description: Catalyst charges
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - quantity
+            properties:
+              id:
+                type: integer
+                description: The id of the currency
+              quantity:
+                type: integer
+                description: The quantity of the currency the character has
+        slot_high_watermarks:
+          type: array
+          items:
+            $ref: "#/components/schemas/character_slot_high_watermark"
+        upgrade_achievements:
+          type: array
+          items:
+            type: integer
+
+    error_response:
       description: Error response returned by API when something goes wrong
+      type: object
+      required:
+        - message
+        - code
       properties:
         message:
           type: string
           description: Message explaining the error
+        code:
+          type: string
+          description: Error code

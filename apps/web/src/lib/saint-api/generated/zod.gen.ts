@@ -44,20 +44,7 @@ export const zSimulationCoreConfig = z.object({
     ]).optional()
 });
 
-/**
- * Specifies simulation options to send to the API.
- */
-export const zSimulationConfigBasic = z.object({
-    kind: z.enum(['basic']),
-    core_config: zSimulationCoreConfig.optional(),
-    simc_addon_export: zSimcAddonExport
-});
-
-export const zParseAddonExportRequest = z.object({
-    simc_addon_export: zSimcAddonExport
-});
-
-export const zAddonExportEquipmentSource = z.enum(['equipped', 'bag']);
+export const zEquipmentSource = z.enum(['equipped', 'bag']);
 
 export const zEquipmentSlot = z.enum([
     'head',
@@ -81,9 +68,9 @@ export const zEquipmentSlot = z.enum([
 ]);
 
 /**
- * A saved talent loadout exported by the SimC addon, pairing the loadout label with its raw talents string.
+ * A saved talent loadout string, paired with the name of the loadout. You can export this from the Simc addon (or manually from talents menu in game).
  */
-export const zAddonExportTalentLoadout = z.object({
+export const zCharacterTalentLoadout = z.object({
     name: z.string().optional(),
     talents: z.string()
 });
@@ -91,7 +78,8 @@ export const zAddonExportTalentLoadout = z.object({
 /**
  * The character's current and highest unlocked upgrade track item levels for a specific gear slot from Additional Character Info.
  */
-export const zAddonExportSlotHighWatermark = z.object({
+export const zCharacterSlotHighWatermark = z.object({
+    slot: zEquipmentSlot,
     current_item_level: z.int(),
     max_item_level: z.int()
 });
@@ -107,58 +95,8 @@ export const zEquipmentItem = z.object({
     bonus_ids: z.array(z.int()).optional(),
     gem_ids: z.array(z.int()).optional(),
     crafted_stats: z.array(z.int()).optional(),
-    source: zAddonExportEquipmentSource,
+    source: zEquipmentSource,
     raw_line: z.string()
-});
-
-/**
- * Top gear simulation options. The gear which we should try to find some optimal combination of.
- */
-export const zSimulationConfigTopGear = z.object({
-    kind: z.enum(['topGear']),
-    core_config: zSimulationCoreConfig.optional(),
-    character_name: z.string(),
-    class: zCharacterClass,
-    spec: z.string(),
-    role: z.unknown(),
-    talent_loadout: zAddonExportTalentLoadout,
-    equipment: z.array(zEquipmentItem)
-});
-
-export const zSimulationOptions = z.union([
-    z.object({
-        kind: z.literal('basic')
-    }).and(zSimulationConfigBasic),
-    z.object({
-        kind: z.literal('topGear')
-    }).and(zSimulationConfigTopGear)
-]);
-
-export const zAddonExport = z.object({
-    character_name: z.string().nullish(),
-    class: zCharacterClass.optional(),
-    level: z.string().nullish(),
-    race: z.string().nullish(),
-    region: z.string().nullish(),
-    server: z.string().nullish(),
-    role: z.string().nullish(),
-    professions: z.string().nullish(),
-    spec: z.string().nullish(),
-    talent_loadouts: z.array(zAddonExportTalentLoadout).optional(),
-    equipment: z.array(zEquipmentItem).optional(),
-    checksum: z.string().nullish(),
-    header_comment: z.string().nullish(),
-    simc_addon_comment: z.string().nullish(),
-    wow_build_comment: z.string().nullish(),
-    required_simc_comment: z.string().nullish(),
-    loot_spec: z.string().nullish(),
-    catalyst_currencies: z.record(z.string(), z.int()).optional(),
-    slot_high_watermarks: z.record(z.string(), zAddonExportSlotHighWatermark).optional(),
-    upgrade_achievements: z.array(z.int()).optional()
-});
-
-export const zParseAddonExportResponse = z.object({
-    addon_export: zAddonExport
 });
 
 /**
@@ -253,10 +191,65 @@ export const zSimulation = z.object({
 });
 
 /**
+ * The representation of a wow character.
+ */
+export const zWowCharacter = z.object({
+    character_class: zCharacterClass,
+    level: z.int().gte(1),
+    loot_spec: z.string().optional(),
+    race: z.string().nullish(),
+    region: z.string().nullish(),
+    server: z.string().nullish(),
+    role: z.string().nullish(),
+    professions: z.string().nullish(),
+    spec: z.string(),
+    equipped_items: z.array(zEquipmentItem),
+    bag_items: z.array(zEquipmentItem).optional(),
+    active_talents: zCharacterTalentLoadout.optional(),
+    talent_loadouts: z.array(zCharacterTalentLoadout).optional(),
+    catalyst_currencies: z.array(z.object({
+        id: z.int(),
+        quantity: z.int()
+    })).optional(),
+    slot_high_watermarks: z.array(zCharacterSlotHighWatermark).optional(),
+    upgrade_achievements: z.array(z.int()).optional()
+});
+
+/**
+ * Specifies simulation options to send to the API.
+ */
+export const zSimulationConfigBasic = z.object({
+    kind: z.enum(['basic']),
+    character: zWowCharacter,
+    core_config: zSimulationCoreConfig,
+    simc_addon_export: zSimcAddonExport
+});
+
+/**
+ * Top gear simulation options. The gear which we should try to find some optimal combination of.
+ */
+export const zSimulationConfigTopGear = z.object({
+    kind: z.enum(['topGear']),
+    character: zWowCharacter,
+    core_config: zSimulationCoreConfig,
+    equipment: z.array(zEquipmentItem)
+});
+
+export const zSimulationOptions = z.union([
+    z.object({
+        kind: z.literal('basic')
+    }).and(zSimulationConfigBasic),
+    z.object({
+        kind: z.literal('topGear')
+    }).and(zSimulationConfigTopGear)
+]);
+
+/**
  * Error response returned by API when something goes wrong
  */
 export const zErrorResponse = z.object({
-    message: z.string().optional()
+    message: z.string(),
+    code: z.string()
 });
 
 /**
@@ -284,10 +277,3 @@ export const zSimulateBody = zSimulationOptions;
 export const zSimulateResponse = z.object({
     simulation_id: z.string().optional()
 });
-
-export const zParseAddonExportBody = zParseAddonExportRequest;
-
-/**
- * Structured parsed data for the addon export.
- */
-export const zParseAddonExportResponse2 = zParseAddonExportResponse;
