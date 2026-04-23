@@ -18,6 +18,11 @@ type simulationProcessor interface {
 	Process(ctx context.Context, requestID uuid.UUID) error
 }
 
+type simulationQueue interface {
+	Consume(ctx context.Context) (<-chan amqp091.Delivery, error)
+	Close() error
+}
+
 type simulationWorker struct {
 	workerConfig
 	processor simulationProcessor

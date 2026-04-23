@@ -13,14 +13,13 @@ import (
 	"github.com/DomNidy/saint_sim/apps/api/auth"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/simulation"
-	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
 type stubQueue struct {
-	publish func(job utils.SimulationJobMessage) error
+	publish func(job simulation.JobMessage) error
 }
 
-func (q *stubQueue) Publish(job utils.SimulationJobMessage) error {
+func (q *stubQueue) Publish(job simulation.JobMessage) error {
 	if q.publish != nil {
 		return q.publish(job)
 	}
@@ -237,7 +236,7 @@ func testPublishSimulationJob(
 			},
 		},
 		&stubQueue{
-			publish: func(_ utils.SimulationJobMessage) error {
+			publish: func(_ simulation.JobMessage) error {
 				if !didWriteToStore {
 					t.Fatal(
 						"got: published to queue before we created sim in store, want: create sim in store, then publish to queue",

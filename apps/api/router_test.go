@@ -18,7 +18,6 @@ import (
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/db"
 	"github.com/DomNidy/saint_sim/internal/simulation"
-	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
 var (
@@ -59,10 +58,10 @@ func (store routerStubStore) GetSimulation(
 }
 
 type routerStubQueue struct {
-	publish func(utils.SimulationJobMessage) error
+	publish func(simulation.JobMessage) error
 }
 
-func (queue routerStubQueue) Publish(job utils.SimulationJobMessage) error {
+func (queue routerStubQueue) Publish(job simulation.JobMessage) error {
 	if queue.publish != nil {
 		return queue.publish(job)
 	}

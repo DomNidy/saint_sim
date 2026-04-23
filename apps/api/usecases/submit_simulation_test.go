@@ -9,7 +9,6 @@ import (
 
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/simulation"
-	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
 var (
@@ -29,10 +28,10 @@ func (repo stubSubmitRepository) CreateQueuedSimulation(
 }
 
 type stubSimulationQueue struct {
-	publish func(utils.SimulationJobMessage) error
+	publish func(simulation.JobMessage) error
 }
 
-func (queue stubSimulationQueue) Publish(message utils.SimulationJobMessage) error {
+func (queue stubSimulationQueue) Publish(message simulation.JobMessage) error {
 	return queue.publish(message)
 }
 
@@ -57,7 +56,7 @@ func TestSubmitSimulationCreatesBeforePublishing(t *testing.T) {
 			},
 		},
 		stubSimulationQueue{
-			publish: func(message utils.SimulationJobMessage) error {
+			publish: func(message simulation.JobMessage) error {
 				if !created {
 					t.Fatal("published simulation job before creating queued simulation")
 				}
@@ -72,7 +71,7 @@ func TestSubmitSimulationCreatesBeforePublishing(t *testing.T) {
 
 	gotID, err := useCase.Submit(t.Context(), SubmitSimulationInput{
 		Options: basicSimulationOptions(t),
-		OwnerID: utils.StrPtr("user-123"),
+		OwnerID: stringPtr("user-123"),
 	})
 	if err != nil {
 		t.Fatalf("Submit() error = %v", err)
@@ -80,6 +79,10 @@ func TestSubmitSimulationCreatesBeforePublishing(t *testing.T) {
 	if gotID != simulationID {
 		t.Fatalf("Submit() id = %s, want %s", gotID, simulationID)
 	}
+}
+
+func stringPtr(value string) *string {
+	return &value
 }
 
 func TestSubmitSimulationPropagatesRepositoryError(t *testing.T) {
@@ -95,7 +98,7 @@ func TestSubmitSimulationPropagatesRepositoryError(t *testing.T) {
 			},
 		},
 		stubSimulationQueue{
-			publish: func(utils.SimulationJobMessage) error {
+			publish: func(simulation.JobMessage) error {
 				t.Fatal("Publish() called after repository error")
 				return nil
 			},
@@ -123,7 +126,7 @@ func TestSubmitSimulationPropagatesPublishError(t *testing.T) {
 			},
 		},
 		stubSimulationQueue{
-			publish: func(utils.SimulationJobMessage) error {
+			publish: func(simulation.JobMessage) error {
 				return errQueueBoom
 			},
 		},
