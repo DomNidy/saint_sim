@@ -6,9 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,7 +21,7 @@ import (
 )
 
 type simulationWorker struct {
-	runner Runner
+	runner sims.Runner
 	store  Store
 }
 
@@ -183,7 +180,7 @@ func (worker simulationWorker) processBasic(
 		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
 	}
 
-	run, err := worker.runSimcOnProfile(ctx, config.SimcAddonExport)
+	run, err := worker.runner.Run(ctx, config.SimcAddonExport)
 	if err != nil {
 		return fmt.Errorf("run simulation: %w", err)
 	}
@@ -193,7 +190,7 @@ func (worker simulationWorker) processBasic(
 		return fmt.Errorf("parse simc json2 output: %w", err)
 	}
 
-	basicResult, err := buildBasicResult(run, parsed)
+	basicResult, err := sims.BuildBasicResult(string(run.Stdout), parsed)
 	if err != nil {
 		return fmt.Errorf("build basic result: %w", err)
 	}
@@ -229,27 +226,9 @@ func (worker simulationWorker) processTopGear(
 		return fmt.Errorf("could not cast to topGear: %w", err)
 	}
 
-	if opts.Equipment == nil {
-		return errTopGearMissingEquipment
-	}
-
-	profilesetCount, err := countTopGearProfilesets(opts.Equipment)
+	manifest, err := sims.NewTopGearManifest(opts)
 	if err != nil {
-		return fmt.Errorf("count top gear profilesets: %w", err)
-	}
-
-	if profilesetCount > maxGeneratedProfilesets {
-		return fmt.Errorf(
-			"%w: generated %d, max %d",
-			errTopGearProfilesetLimit,
-			profilesetCount,
-			maxGeneratedProfilesets,
-		)
-	}
-
-	manifest, err := generateTopGearManifest(opts)
-	if err != nil {
-		return fmt.Errorf("generate top gear profilesets: %w", err)
+		return err
 	}
 
 	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
@@ -264,38 +243,32 @@ func (worker simulationWorker) processTopGear(
 		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
 	}
 
-	profileLines, err := manifest.SimcLines()
+	simResult, rawJson2, err := manifest.Run(ctx, worker.runner)
 	if err != nil {
-		return fmt.Errorf("build top gear profile text: %w", err)
+		return fmt.Errorf("error performing sim gear result: %w", err)
 	}
 
-	profileText := strings.Join(profileLines, "\n")
-	log.Printf("%s", profileText[:1500])
-
-	run, err := worker.runSimcOnProfile(ctx, profileText)
+	// if we fail to marshal the raw json 2 into byte array - try to continue still
+	var json2Bytes []byte
+	json2Bytes, err = json.Marshal(rawJson2)
 	if err != nil {
-		return fmt.Errorf("run simulation: %w", err)
+		log.Printf(
+			"WARN: failed to marshal rawJson2 into a byte array - db will be missing raw JSON2 output for this sim!",
+		)
 	}
 
-	parsed, err := json2.ParseJSON2(run.JSON2)
+	// if we fail to marshal the api shape result object, then we need to fail since
+	// we have nothing to show the user
+	simResultBytes, err := json.Marshal(simResult)
 	if err != nil {
-		return fmt.Errorf("parse simc json2 output: %w", err)
-	}
-
-	topGearResult, err := sims.()(&manifest, parsed)
-	if err != nil {
-		return fmt.Errorf("build top gear result: %w", err)
-	}
-
-	simResultBytes, err := marshalResultAsTopGear(topGearResult)
-	if err != nil {
-		return fmt.Errorf("marshal top gear result: %w", err)
+		return fmt.Errorf(
+			"WARN: failed to marshal the simulation results into a byte array. failing the sim!")
 	}
 
 	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
 		ID:           request.id,
 		SimResult:    simResultBytes,
-		SimcRawJson2: run.JSON2,
+		SimcRawJson2: json2Bytes,
 		CompletedAt:  nowTimestamptz(),
 		Status: db.NullSimulationStatus{
 			SimulationStatus: db.SimulationStatusComplete,
@@ -307,31 +280,6 @@ func (worker simulationWorker) processTopGear(
 	}
 
 	return nil
-}
-
-// runSimcOnProfile is the temp-dir / write / exec dance shared by both
-// processBasic and processTopGear. Lives here rather than on Runner because
-// it's scoped to how the worker consumes the runner.
-func (worker simulationWorker) runSimcOnProfile(
-	ctx context.Context,
-	profileText string,
-) (RunResult, error) {
-	tempDir, err := os.MkdirTemp("", "saint-simc-*")
-	if err != nil {
-		return RunResult{}, fmt.Errorf("create simc temp dir: %w", err)
-	}
-	defer func() {
-		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
-			fmt.Fprintf(os.Stderr, "remove simc temp dir: %v\n", removeErr)
-		}
-	}()
-
-	profilePath := filepath.Join(tempDir, "input.simc")
-	if err := os.WriteFile(profilePath, []byte(profileText), simcProfileFileMode); err != nil {
-		return RunResult{}, fmt.Errorf("write simc profile: %w", err)
-	}
-
-	return worker.runner.Run(ctx, profilePath)
 }
 
 // marshalResultAsBasic wraps a basic result in the SimulationResult union

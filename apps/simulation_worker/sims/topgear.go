@@ -1,8 +1,10 @@
 package sims
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 
@@ -43,7 +45,7 @@ type TopGearManifest struct {
 	Profilesets []Profileset
 }
 
-// BuldResultFromJSON2 joins the JSON2 output of the simulation to the api shape.
+// BuildResultFromJSON2 joins the JSON2 output of the simulation to the api shape.
 func (manifest *TopGearManifest) BuildResultFromJSON2(
 	out json2.JSON2Output,
 ) (api.SimulationResultTopGear, error) {
@@ -107,7 +109,6 @@ func (manifest *TopGearManifest) BuildResultFromJSON2(
 		Equipment:   manifest.Equipment(),
 		Profilesets: entries,
 	}, nil
-
 }
 
 // mapProfilesetToTopGearProfilesetItems does a simple mapping from
@@ -134,11 +135,11 @@ func mapProfilesetToTopGearProfilesetItems(pset Profileset) api.TopGearProfilese
 	}
 }
 
-// generateTopGearManifest expands the equipment pools into deterministic
+// NewTopGearManifest expands the equipment pools into deterministic
 // profilesets. The recursive singleton walk mirrors the counting logic so the
 // generated order remains intuitive: earlier input candidates appear earlier in
 // the resulting Combo1/Combo2/... sequence.
-func generateTopGearManifest(
+func NewTopGearManifest(
 	config api.SimulationConfigTopGear,
 ) (TopGearManifest, error) {
 	pools, err := buildTopGearCandidatePools(config.Equipment)
@@ -146,7 +147,11 @@ func generateTopGearManifest(
 		return TopGearManifest{}, err
 	}
 
-	count, err := countTopGearProfilesets(config.Equipment)
+	manifest := TopGearManifest{
+		equipment: config.Equipment,
+	}
+
+	count, err := manifest.CountProfilesets()
 	if err != nil {
 		return TopGearManifest{}, err
 	}
@@ -177,6 +182,7 @@ func generateTopGearManifest(
 				offHandOptions,
 				comboIndex,
 			)
+
 			return
 		}
 
@@ -197,6 +203,7 @@ func generateTopGearManifest(
 	if config.Character.Name == nil || *config.Character.Name == "" {
 		characterName = "UnknownCharacter"
 	}
+
 	return TopGearManifest{
 		Profilesets:    profilesets,
 		equipment:      eqCopy,
@@ -208,10 +215,62 @@ func generateTopGearManifest(
 	}, nil
 }
 
+// TODO: Bad encapsulation - we should just have a Run()
+// method on the runner that takes the top gear manifest
+// directly. To support a basic sim, Runner can either use
+// methods per-sim-kind (RunBasic, RunTopGear), or use generics.
+// Run performs / orchestrates the TopGear simulation
+func (manifest *TopGearManifest) Run(
+	ctx context.Context,
+	runner Runner,
+) (api.SimulationResultTopGear, json2.JSON2Output, error) {
+	if runner == nil {
+		panic("runner is nil")
+	}
+
+	profileLines, err := manifest.SimcLines()
+	if err != nil {
+		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
+			"build top gear profile text: %w",
+			err,
+		)
+	}
+
+	profileText := strings.Join(profileLines, "\n")
+	log.Printf("%s", profileText[:1500])
+
+	run, err := runner.Run(ctx, profileText)
+	if err != nil {
+		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
+			"run simulation: %w",
+			err,
+		)
+	}
+
+	parsedJson2, err := json2.ParseJSON2(run.JSON2)
+	if err != nil {
+		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
+			"failed to parse sim result: %w",
+			err,
+		)
+	}
+
+	res, err := manifest.BuildResultFromJSON2(parsedJson2)
+	if err != nil {
+		return api.SimulationResultTopGear{}, parsedJson2, fmt.Errorf(
+			"failed to parse sim result into api shape, but got json2: %w",
+			err,
+		)
+	}
+
+	return res, parsedJson2, err
+}
+
 func unorderedPairCount(itemCount int) int {
 	if itemCount < minPairedItems {
 		return 0
 	}
+
 	return itemCount * (itemCount - 1) / minPairedItems
 }
 
@@ -222,6 +281,7 @@ func makeUnorderedPairs(indices []int) []slotPair {
 			pairs = append(pairs, slotPair{first: indices[left], second: indices[right]})
 		}
 	}
+
 	return pairs
 }
 
@@ -230,12 +290,14 @@ func retargetEquipmentLine(line string, slot api.EquipmentSlot) string {
 	if !found {
 		return line
 	}
+
 	return string(slot) + "=" + rest
 }
 
-// countTopGearProfilesets computes the number of valid profilesets implied by
+// CountProfilesets computes the number of valid profilesets implied by
 // the equipment payload without allocating the final profileset slice.
-func countTopGearProfilesets(equipment []api.EquipmentItem) (int, error) {
+func (manifest *TopGearManifest) CountProfilesets() (int, error) {
+	equipment := manifest.equipment
 	pools, err := buildTopGearCandidatePools(equipment)
 	if err != nil {
 		return 0, err
@@ -271,7 +333,7 @@ func countTopGearProfilesets(equipment []api.EquipmentItem) (int, error) {
 // SimcLines renders the manifest to a complete simc profile.
 //
 // We define the base profile, and then append the lines of all profilesets:
-// `profileset."ComboN"+=…`
+// `profileset."ComboN"+=…`.
 func (m *TopGearManifest) SimcLines() ([]string, error) {
 	if m.Profilesets == nil {
 		return nil, errManifestHasNilProfilesets
@@ -331,6 +393,7 @@ func (m *TopGearManifest) SimcLines() ([]string, error) {
 	for i := range m.Profilesets {
 		out = append(out, m.Profilesets[i].lines(m.equipment)...)
 	}
+
 	return out, nil
 }
 
