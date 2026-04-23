@@ -112,7 +112,11 @@ func (useCase *ProcessSimulationUseCase) processBasic(
 	}
 
 	if err := utils.ValidateSimulationConfigBasic(&config); err != nil {
-		return useCase.failRequest(ctx, request.ID, fmt.Errorf("validate simulation options: %w", err))
+		return useCase.failRequest(
+			ctx,
+			request.ID,
+			fmt.Errorf("validate simulation options: %w", err),
+		)
 	}
 
 	if err := useCase.repository.MarkInProgress(ctx, request.ID); err != nil {

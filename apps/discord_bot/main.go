@@ -11,7 +11,8 @@ import (
 	"github.com/DomNidy/saint_sim/apps/discord_bot/commands"
 	"github.com/DomNidy/saint_sim/apps/discord_bot/constants"
 	resultlistener "github.com/DomNidy/saint_sim/apps/discord_bot/result_listener"
-	saintutils "github.com/DomNidy/saint_sim/internal/utils"
+	"github.com/DomNidy/saint_sim/internal/platform/postgres"
+	"github.com/DomNidy/saint_sim/internal/secrets"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -39,8 +40,14 @@ func init() {
 
 func main() {
 	ctx := context.Background()
-	// Setup postgres connection
-	pool, err := saintutils.InitPostgresConnectionPool(ctx)
+	pool, err := postgres.New(context.Background(), postgres.Credentials{
+		DBUser:     secrets.LoadSecret("DB_USER").Value(),
+		DBPassword: secrets.LoadSecret("DB_PASSWORD").Value(),
+		DBHost:     secrets.LoadSecret("DB_HOST").Value(),
+		DBName:     secrets.LoadSecret("DB_NAME").Value(),
+		DBPort:     "5432",
+	})
+
 	if err != nil {
 		log.Panicf("%s: could not create postgres pool", err)
 	}
