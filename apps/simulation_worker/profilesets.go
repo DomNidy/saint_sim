@@ -315,7 +315,7 @@ func generateTopGearManifest(
 
 	profilesets := make([]profileset, 0, count)
 	base := newProfileset()
-	base.talents = config.TalentLoadout.Talents
+	base.talents = config.Character.ActiveTalents.Talents
 
 	offHandOptions := pools.offHand
 	if len(offHandOptions) == 0 {
@@ -351,14 +351,18 @@ func generateTopGearManifest(
 	eqCopy := make([]api.EquipmentItem, len(config.Equipment))
 	copy(eqCopy, config.Equipment)
 
+	var characterName string
+	if config.Character.Name == nil || *config.Character.Name == "" {
+		characterName = "UnknownCharacter"
+	}
 	return topGearManifest{
 		profilesets:    profilesets,
 		equipment:      eqCopy,
-		characterName:  config.CharacterName,
-		level:          90,      /* TODO: assuming 90 for now, thread it through the api later */
-		race:           "human", /*TODO: assuming human for now, thread through api */
-		characterClass: config.Class,
-		spec:           config.Spec,
+		characterName:  characterName,
+		level:          config.Character.Level,
+		race:           config.Character.Race,
+		characterClass: config.Character.CharacterClass,
+		spec:           config.Character.Spec,
 	}, nil
 }
 

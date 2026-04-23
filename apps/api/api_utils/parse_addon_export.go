@@ -266,7 +266,7 @@ func parseMetadataAssignment(
 			export.Level = level
 		}
 	case "race":
-		export.Race = strPtr(value)
+		export.Race = value
 	case "region":
 		export.Region = strPtr(value)
 	case "server":
