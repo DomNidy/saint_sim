@@ -12,7 +12,7 @@ import (
 
 	"github.com/DomNidy/saint_sim/apps/api/auth"
 	api "github.com/DomNidy/saint_sim/internal/api"
-	"github.com/DomNidy/saint_sim/internal/db"
+	"github.com/DomNidy/saint_sim/internal/simulation"
 	"github.com/DomNidy/saint_sim/internal/utils"
 )
 
@@ -29,8 +29,11 @@ func (q *stubQueue) Publish(job utils.SimulationJobMessage) error {
 }
 
 type stubSimulationStore struct {
-	createSimulation func(context.Context, db.CreateSimulationParams) (db.Simulation, error)
-	getSimulation    func(context.Context, uuid.UUID) (db.Simulation, error)
+	createQueuedSimulation func(
+		context.Context,
+		simulation.CreateQueuedSimulationInput,
+	) (uuid.UUID, error)
+	getSimulation func(context.Context, uuid.UUID) (api.Simulation, error)
 }
 
 const basicSimulationRequestBody = `{
@@ -69,26 +72,26 @@ const topGearSimulationRequestBody = `{
 	]
 }`
 
-func (s stubSimulationStore) CreateSimulation(
+func (s stubSimulationStore) CreateQueuedSimulation(
 	ctx context.Context,
-	arg db.CreateSimulationParams,
-) (db.Simulation, error) {
-	if s.createSimulation != nil {
-		return s.createSimulation(ctx, arg)
+	arg simulation.CreateQueuedSimulationInput,
+) (uuid.UUID, error) {
+	if s.createQueuedSimulation != nil {
+		return s.createQueuedSimulation(ctx, arg)
 	}
 
-	return db.Simulation{}, nil
+	return uuid.Nil, nil
 }
 
 func (s stubSimulationStore) GetSimulation(
 	ctx context.Context,
 	id uuid.UUID,
-) (db.Simulation, error) {
+) (api.Simulation, error) {
 	if s.getSimulation != nil {
 		return s.getSimulation(ctx, id)
 	}
 
-	return db.Simulation{}, nil
+	return api.Simulation{}, nil
 }
 
 func decodeTopGearSimulationRequestBody(t *testing.T) api.SimulationOptions {
@@ -113,16 +116,16 @@ func decodeBasicSimulationRequestBody(t *testing.T) api.SimulationOptions {
 	return requestBody
 }
 
-func assertBasicCreateSimulationParams(t *testing.T, arg db.CreateSimulationParams) {
+func assertBasicCreateSimulationParams(t *testing.T, arg simulation.CreateQueuedSimulationInput) {
 	t.Helper()
 
-	if arg.Kind != db.SimulationKindBasic {
-		t.Fatalf("kind = %q, want %q", arg.Kind, db.SimulationKindBasic)
+	if arg.Kind != api.SimulationKindBasic {
+		t.Fatalf("kind = %q, want %q", arg.Kind, api.SimulationKindBasic)
 	}
 
-	var basicConfig api.SimulationConfigBasic
-	if err := json.Unmarshal(arg.SimConfig, &basicConfig); err != nil {
-		t.Fatalf("unmarshal basic sim config: %v", err)
+	basicConfig, err := arg.Options.AsSimulationConfigBasic()
+	if err != nil {
+		t.Fatalf("read basic sim config: %v", err)
 	}
 
 	expectedExport := "priest=\"Example\"\r\nlevel=80\rspec=shadow"
@@ -135,16 +138,16 @@ func assertBasicCreateSimulationParams(t *testing.T, arg db.CreateSimulationPara
 	}
 }
 
-func assertTopGearCreateSimulationParams(t *testing.T, arg db.CreateSimulationParams) {
+func assertTopGearCreateSimulationParams(t *testing.T, arg simulation.CreateQueuedSimulationInput) {
 	t.Helper()
 
-	if arg.Kind != db.SimulationKindTopGear {
-		t.Fatalf("kind = %q, want %q", arg.Kind, db.SimulationKindTopGear)
+	if arg.Kind != api.SimulationKindTopGear {
+		t.Fatalf("kind = %q, want %q", arg.Kind, api.SimulationKindTopGear)
 	}
 
-	var topGearConfig api.SimulationConfigTopGear
-	if err := json.Unmarshal(arg.SimConfig, &topGearConfig); err != nil {
-		t.Fatalf("unmarshal top gear sim config: %v", err)
+	topGearConfig, err := arg.Options.AsSimulationConfigTopGear()
+	if err != nil {
+		t.Fatalf("read top gear sim config: %v", err)
 	}
 
 	if topGearConfig.Character.CharacterClass != api.Deathknight {
@@ -197,7 +200,7 @@ func assertAcceptedSimulationResponse(
 func testPublishSimulationJob(
 	t *testing.T,
 	requestBody api.SimulationOptions,
-	assertCreateParams func(*testing.T, db.CreateSimulationParams),
+	assertCreateParams func(*testing.T, simulation.CreateQueuedSimulationInput),
 ) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -215,10 +218,10 @@ func testPublishSimulationJob(
 
 	server := NewServer(
 		&stubSimulationStore{
-			createSimulation: func(
+			createQueuedSimulation: func(
 				_ context.Context,
-				arg db.CreateSimulationParams,
-			) (db.Simulation, error) {
+				arg simulation.CreateQueuedSimulationInput,
+			) (uuid.UUID, error) {
 				if didPublishToQueue {
 					t.Fatal(
 						"created simulation after published to queue. " +
@@ -230,7 +233,7 @@ func testPublishSimulationJob(
 
 				didWriteToStore = true
 
-				return db.Simulation{ID: simulationID}, nil
+				return simulationID, nil
 			},
 		},
 		&stubQueue{

@@ -6,22 +6,22 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/google/uuid"
-	pgx "github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 	amqp091 "github.com/rabbitmq/amqp091-go"
 
-	"github.com/DomNidy/saint_sim/apps/simulation_worker/sims"
-	"github.com/DomNidy/saint_sim/internal/api"
-	"github.com/DomNidy/saint_sim/internal/db"
+	workerusecases "github.com/DomNidy/saint_sim/apps/simulation_worker/usecases"
+	"github.com/DomNidy/saint_sim/internal/simulation"
 	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
+type simulationProcessor interface {
+	Process(ctx context.Context, requestID uuid.UUID) error
+}
+
 type simulationWorker struct {
 	workerConfig
-	store Store
+	processor simulationProcessor
 }
 
 func (worker simulationWorker) Start(
@@ -72,56 +72,18 @@ func (worker simulationWorker) handleDelivery(
 		return
 	}
 
-	request, err := worker.store.LoadRequest(ctx, requestID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			log.Printf("simulation %s no longer exists; skipping message", requestID.String())
-		} else {
-			log.Printf("failed to load simulation %s: %v", requestID.String(), err)
-		}
-
+	err = worker.processor.Process(ctx, requestID)
+	if err == nil {
 		return
 	}
 
-	markSimErrored := func(simulationId uuid.UUID) {
-		worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
-			ID:        simulationId,
-			ErrorText: utils.StrPtr("internal server error"),
-			Status: db.NullSimulationStatus{
-				SimulationStatus: db.SimulationStatusError, Valid: true,
-			},
-		})
-	}
-
-	// route request to the handler for the simulation kind
-	kind, err := request.options.Discriminator()
-	if err != nil {
-		log.Printf("got error checking for discriminator: %v", err)
-		markSimErrored(requestID)
-		return
-	}
-
-	switch kind {
-	case string(api.SimulationKindBasic):
-		err = worker.processBasic(ctx, request)
-		if err != nil {
-			log.Printf("failed to process basic simulation %s: %v", requestID.String(), err)
-			markSimErrored(requestID)
-		}
-
-		return
-	case string(api.SimulationKindTopGear):
-		err = worker.processTopGear(ctx, request)
-		if err != nil {
-			log.Printf("failed to process topGear simulation: %v", err)
-			markSimErrored(requestID)
-		}
-
-		return
+	switch {
+	case errors.Is(err, simulation.ErrNotFound):
+		log.Printf("simulation %s no longer exists; skipping message", requestID.String())
+	case errors.Is(err, workerusecases.ErrUnsupportedSimulationKind):
+		log.Printf("got unsupported simulation, ignoring this: %v", err)
 	default:
-		log.Printf("got unsupported simulation, ignoring this. kind: '%s'", kind)
-		// todo: mark as errored in db
-		return
+		log.Printf("failed to process simulation %s: %v", requestID.String(), err)
 	}
 }
 
@@ -143,153 +105,4 @@ func parseSimulationRequestID(msg amqp091.Delivery) (uuid.UUID, error) {
 	}
 
 	return requestID, nil
-}
-
-// nowTimestamptz returns a pgtype.Timestamptz for the current UTC instant.
-func nowTimestamptz() pgtype.Timestamptz {
-	return pgtype.Timestamptz{
-		Time:             time.Now().UTC(),
-		InfinityModifier: pgtype.Finite,
-		Valid:            true,
-	}
-}
-
-func (worker simulationWorker) processBasic(
-	ctx context.Context,
-	request simulationRequest,
-) error {
-	config, err := request.options.AsSimulationConfigBasic()
-	if err != nil {
-		return fmt.Errorf("could not cast to basic: %w", err)
-	}
-
-	if err := utils.ValidateSimulationConfigBasic(&config); err != nil {
-		return fmt.Errorf("validate simulation options: %w", err)
-	}
-
-	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
-		ID:        request.id,
-		StartedAt: nowTimestamptz(),
-		Status: db.NullSimulationStatus{
-			SimulationStatus: db.SimulationStatusInProgress,
-			Valid:            true,
-		},
-	})
-	if err != nil {
-		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
-	}
-
-	manifest := sims.BasicSimManifest{}
-
-	run, err := sims.Run(ctx, manifest, worker.simcBinaryPath)
-	if err != nil {
-		return fmt.Errorf("run simulation: %w", err)
-	}
-
-	json2Bytes, err := run.JSON2.Marshal()
-
-	simResultBytes, err := json.Marshal(run.Data)
-	if err != nil {
-		return fmt.Errorf("marshal basic result: %w", err)
-	}
-
-	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
-		ID:           request.id,
-		SimResult:    simResultBytes,
-		SimcRawJson2: json2Bytes,
-		CompletedAt:  nowTimestamptz(),
-		Status: db.NullSimulationStatus{
-			SimulationStatus: db.SimulationStatusComplete,
-			Valid:            true,
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("persist simulation result: %w", err)
-	}
-
-	return nil
-}
-
-func (worker simulationWorker) processTopGear(
-	ctx context.Context,
-	request simulationRequest,
-) error {
-	opts, err := request.options.AsSimulationConfigTopGear()
-	if err != nil {
-		return fmt.Errorf("could not cast to topGear: %w", err)
-	}
-
-	manifest, err := sims.NewTopGearManifest(opts)
-	if err != nil {
-		return err
-	}
-
-	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
-		ID:        request.id,
-		StartedAt: nowTimestamptz(),
-		Status: db.NullSimulationStatus{
-			SimulationStatus: db.SimulationStatusInProgress,
-			Valid:            true,
-		},
-	})
-	if err != nil {
-		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
-	}
-
-	runResult, err := sims.Run(ctx, manifest, worker.simcBinaryPath)
-	if err != nil {
-		return fmt.Errorf("error performing sim gear result: %w", err)
-	}
-
-	// if we fail to marshal the raw json 2 into byte array - try to continue still
-	json2Bytes, err := runResult.JSON2.Marshal()
-	if err != nil {
-		log.Printf(
-			"WARN: failed to marshal rawJson2 into a byte array - db will be missing raw JSON2 output for this sim!",
-		)
-	}
-
-	// if we fail to marshal the api shape result object, then we need to fail since
-	// we have nothing to show the user
-	simResultBytes, err := json.Marshal(runResult.Data)
-	if err != nil {
-		return fmt.Errorf(
-			"WARN: failed to marshal the simulation results into a byte array. failing the sim!")
-	}
-
-	_, err = worker.store.UpdateSimulation(ctx, db.UpdateSimulationParams{
-		ID:           request.id,
-		SimResult:    simResultBytes,
-		SimcRawJson2: json2Bytes,
-		CompletedAt:  nowTimestamptz(),
-		Status: db.NullSimulationStatus{
-			SimulationStatus: db.SimulationStatusComplete,
-			Valid:            true,
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("persist simulation result: %w", err)
-	}
-
-	return nil
-}
-
-// marshalResultAsBasic wraps a basic result in the SimulationResult union
-// and returns the canonical on‑wire / on‑disk bytes. The union's custom
-// MarshalJSON emits only the inner variant (with kind embedded) — that's
-// exactly the shape we want in the `sim_result` column.
-func arshalResultAsBasic(r api.SimulationResultBasic) ([]byte, error) {
-	var u api.SimulationResult
-	if err := u.FromSimulationResultBasic(r); err != nil {
-		return nil, fmt.Errorf("wrap basic result: %w", err)
-	}
-	return json.Marshal(u)
-}
-
-func marshalResultAsTopGear(r api.SimulationResultTopGear) ([]byte, error) {
-	var u api.SimulationResult
-	if err := u.FromSimulationResultTopGear(r); err != nil {
-		return nil, fmt.Errorf("wrap top gear result: %w", err)
-	}
-	return json.Marshal(u)
 }

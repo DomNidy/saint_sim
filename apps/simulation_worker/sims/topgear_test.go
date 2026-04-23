@@ -1,61 +1,14 @@
 package sims
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"strconv"
-	"strings"
 	"testing"
-
-	"github.com/google/uuid"
 
 	api_utils "github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/internal/api"
-	"github.com/DomNidy/saint_sim/internal/db"
 )
-
-type stubRunner struct{}
-
-func (sr stubRunner) Run(_ context.Context, profilePath string) (RunResult, error) {
-	_ = profilePath
-
-	return RunResult{
-		JSON2: []byte(`{
-			"sim": {
-				"profilesets": {
-					"metric": "dps",
-					"results": [
-						{
-							"name": "Combo1",
-							"mean": 12345,
-							"min": 12000,
-							"max": 12600,
-							"stddev": 10,
-							"mean_stddev": 10,
-							"mean_error": 5,
-							"median": 12340,
-							"iterations": 5
-						}
-					]
-				}
-			}
-		}`),
-	}, nil
-}
-
-type stubStore struct{}
-
-func (stubStore) LoadRequest(_ context.Context, _ uuid.UUID) (simulationRequest, error) {
-	return simulationRequest{}, nil
-}
-
-func (stubStore) UpdateSimulation(
-	_ context.Context,
-	_ db.UpdateSimulationParams,
-) (db.Simulation, error) {
-	return db.Simulation{}, nil
-}
 
 func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 	t.Parallel()
@@ -75,7 +28,7 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...,
 	)
 
-	gotCount, err := CountProfilesets(equipment)
+	gotCount, err := countProfilesets(equipment)
 	if err != nil {
 		t.Fatalf("CountProfilesets() error = %v", err)
 	}
@@ -83,7 +36,7 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 		t.Fatalf("CountProfilesets() = %d, want 6", gotCount)
 	}
 
-	got, err := generateTopGearManifest(topGearConfig(equipment, "TALENTS"))
+	got, err := NewTopGearManifest(topGearConfig(equipment, "TALENTS"))
 	if err != nil {
 		t.Fatalf("generateTopGearProfilesets() error = %v", err)
 	}
@@ -163,7 +116,7 @@ func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
 	}
 
 	gotSummaries := make([]profilesetSummary, 0, got.Len())
-	for _, profile := range got.profilesets {
+	for _, profile := range got.Profilesets {
 		gotSummaries = append(gotSummaries, profilesetSummary{
 			name:    profile.Name,
 			head:    got.equipment[profile.Head].RawLine,
@@ -201,7 +154,7 @@ func TestGenerateTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *te
 		),
 	)
 
-	got, err := generateTopGearManifest(topGearConfig(equipment, "TALENTS"))
+	got, err := NewTopGearManifest(topGearConfig(equipment, "TALENTS"))
 	if err != nil {
 		t.Fatalf("generateTopGearProfilesets() error = %v", err)
 	}
@@ -209,17 +162,17 @@ func TestGenerateTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *te
 		t.Fatalf("len(generateTopGearProfilesets()) = %d, want 1", got.Len())
 	}
 	if retargetEquipmentLine(
-		got.equipment[got.profilesets[0].Finger1].RawLine,
+		got.equipment[got.Profilesets[0].Finger1].RawLine,
 		api.Finger1,
 	) != baseRingLines()[0] ||
 		retargetEquipmentLine(
-			got.equipment[got.profilesets[0].Finger2].RawLine,
+			got.equipment[got.Profilesets[0].Finger2].RawLine,
 			api.Finger2,
 		) != "finger2=,id=256971,gem_id=240865,bonus_id=12769/6652/13668" {
 		t.Fatalf(
 			"ring pair = (%q, %q), want the two distinct copies of the same ring",
-			retargetEquipmentLine(got.equipment[got.profilesets[0].Finger1].RawLine, api.Finger1),
-			retargetEquipmentLine(got.equipment[got.profilesets[0].Finger2].RawLine, api.Finger2),
+			retargetEquipmentLine(got.equipment[got.Profilesets[0].Finger1].RawLine, api.Finger1),
+			retargetEquipmentLine(got.equipment[got.Profilesets[0].Finger2].RawLine, api.Finger2),
 		)
 	}
 }
@@ -237,7 +190,7 @@ func TestCountProfilesetsAllowsDuplicateRingFromDifferentSources(t *testing.T) {
 		mustParseEquipmentLine(t, api.Equipped, baseRingLines()[0]),
 	)
 
-	count, err := CountProfilesets(equipment)
+	count, err := countProfilesets(equipment)
 	if err != nil {
 		t.Fatalf("CountProfilesets() error = %v", err)
 	}
@@ -246,43 +199,8 @@ func TestCountProfilesetsAllowsDuplicateRingFromDifferentSources(t *testing.T) {
 	}
 }
 
-func TestProcessTopGear(t *testing.T) {
+func TestCountProfilesetsCanReportLargeCombinationCount(t *testing.T) {
 	t.Parallel()
-
-	worker := simulationWorker{
-		runner: stubRunner{},
-		store:  stubStore{},
-	}
-
-	equipment := appendEquipment(
-		mustParseEquippedEquipmentLines(t, baseSingletonLines()...),
-		mustParseEquippedEquipmentLines(t, baseRingLines()...)...,
-	)
-	equipment = appendEquipment(
-		equipment,
-		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...)
-
-	opts, err := topGearOptions(equipment...)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = worker.processTopGear(t.Context(), simulationRequest{
-		id:      uuid.New(),
-		options: opts,
-	})
-	if err != nil {
-		t.Fatalf("processTopGear() error = %v", err)
-	}
-}
-
-func TestProcessTopGearReturnsErrorWhenCombinationCountExceedsLimit(t *testing.T) {
-	t.Parallel()
-
-	worker := simulationWorker{
-		runner: stubRunner{},
-		store:  stubStore{},
-	}
 
 	headLines := make([]string, 0, maxGeneratedProfilesets+1)
 	for headIndex := range maxGeneratedProfilesets + 1 {
@@ -303,20 +221,12 @@ func TestProcessTopGearReturnsErrorWhenCombinationCountExceedsLimit(t *testing.T
 		equipment,
 		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...)
 
-	opts, err := topGearOptions(equipment...)
+	count, err := countProfilesets(equipment)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("countProfilesets() error = %v", err)
 	}
-
-	err = worker.processTopGear(t.Context(), simulationRequest{
-		id:      uuid.New(),
-		options: opts,
-	})
-	if err == nil {
-		t.Fatal("processTopGear() error = nil, want max-combination error")
-	}
-	if !strings.Contains(err.Error(), "exceeds max") {
-		t.Fatalf("processTopGear() error = %v, want max-combination error", err)
+	if count <= maxGeneratedProfilesets {
+		t.Fatalf("countProfilesets() = %d, want more than %d", count, maxGeneratedProfilesets)
 	}
 }
 
@@ -403,12 +313,20 @@ func intString(value int) string {
 	return strconv.Itoa(value)
 }
 
-func offHandSummaryLine(manifest topGearManifest, offHandIndex int) string {
+func offHandSummaryLine(manifest TopGearManifest, offHandIndex int) string {
 	if offHandIndex == noItemIndex {
 		return emptyOffHandLine
 	}
 
 	return retargetEquipmentLine(manifest.equipment[offHandIndex].RawLine, api.OffHand)
+}
+
+func countProfilesets(equipment []api.EquipmentItem) (int, error) {
+	manifest := TopGearManifest{
+		equipment: equipment,
+	}
+
+	return manifest.CountProfilesets()
 }
 
 func stringPtr(value string) *string {

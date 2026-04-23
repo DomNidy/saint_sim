@@ -13,6 +13,7 @@ import (
 	api "github.com/DomNidy/saint_sim/internal/api"
 	dbqueries "github.com/DomNidy/saint_sim/internal/db"
 	"github.com/DomNidy/saint_sim/internal/secrets"
+	simulationpostgres "github.com/DomNidy/saint_sim/internal/simulation/postgres"
 	utils "github.com/DomNidy/saint_sim/internal/utils"
 )
 
@@ -71,8 +72,9 @@ func main() {
 		apiKeyAuthenticator,
 	)
 
+	simulationRepository := simulationpostgres.NewRepository(pool)
 	router := newRouter(
-		handlers.NewServer(dbClient, simulationQueue),
+		handlers.NewServer(simulationRepository, simulationQueue),
 		swagger,
 		openAPIAuthenticator,
 	)
