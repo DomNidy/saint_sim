@@ -243,14 +243,14 @@ func (worker simulationWorker) processTopGear(
 		log.Printf("unable to mark simulation %s as started: %v", request.id.String(), err)
 	}
 
-	simResult, rawJson2, err := manifest.Run(ctx, worker.runner)
+	runResult, err := sims.Run(ctx, manifest)
 	if err != nil {
 		return fmt.Errorf("error performing sim gear result: %w", err)
 	}
 
 	// if we fail to marshal the raw json 2 into byte array - try to continue still
 	var json2Bytes []byte
-	json2Bytes, err = json.Marshal(rawJson2)
+	json2Bytes, err = json.Marshal(runResult.JSON2)
 	if err != nil {
 		log.Printf(
 			"WARN: failed to marshal rawJson2 into a byte array - db will be missing raw JSON2 output for this sim!",
@@ -259,7 +259,7 @@ func (worker simulationWorker) processTopGear(
 
 	// if we fail to marshal the api shape result object, then we need to fail since
 	// we have nothing to show the user
-	simResultBytes, err := json.Marshal(simResult)
+	simResultBytes, err := json.Marshal(runResult.Data)
 	if err != nil {
 		return fmt.Errorf(
 			"WARN: failed to marshal the simulation results into a byte array. failing the sim!")
