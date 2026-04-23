@@ -1,19 +1,32 @@
+import { zodResolver } from "@hookform/resolvers/zod";
 import { createFileRoute } from "@tanstack/react-router";
+import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import type z from "zod";
 import { AddonExportTextarea } from "@/components/addon-export-textarea";
 import { EquipmentDisplayGroup } from "@/components/equipment-display-group/equipment-display-group";
-import { SimulationFormTopGear } from "@/components/simulation-form/simulation-form-topgear";
+import { SimulationCoreConfigSection } from "@/components/simulation-form/simulation-core-config-section";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Form } from "@/components/ui/form";
 import { useParseAddonExport } from "@/hooks/use-parse-addon-export";
-import type { zSimulationConfigTopGear } from "@/lib/saint-api/generated/zod.gen";
+import { zSimulationConfigTopGear } from "@/lib/saint-api/generated/zod.gen";
 
 export const Route = createFileRoute("/simulate/top-gear")({
 	component: RouteComponent,
 });
 
 function RouteComponent() {
-	const form = useForm<z.infer<typeof zSimulationConfigTopGear>>({});
+	const form = useForm<z.infer<typeof zSimulationConfigTopGear>>({
+		resolver: zodResolver(zSimulationConfigTopGear),
+		defaultValues: {
+			kind: "topGear",
+		},
+		resetOptions: {
+			keepErrors: true,
+		},
+	});
 
 	const [addonExportRaw, setAddonExportRaw] = useState<string>("");
 	const parseAddonExportEnabled = !!addonExportRaw && addonExportRaw.length > 0;
@@ -36,11 +49,42 @@ function RouteComponent() {
 				value={addonExportRaw}
 				onChange={(e) => setAddonExportRaw(e.target.value)}
 			/>
-			<SimulationFormTopGear
-				form={form}
-				isSubmitPending={false}
-				submitHandler={(values) => console.log(values)}
-			/>
+			<Form {...form}>
+				<form
+					className="flex flex-col gap-5"
+					onSubmit={(e) => {
+						e.preventDefault();
+						console.log(form.getValues());
+					}}
+				>
+					<p>Top Gear is a W.I.P</p>
+
+					{form.formState?.errors?.root?.server?.message && (
+						<Alert variant={"destructive"}>
+							{form.formState?.errors?.root?.server?.message}
+						</Alert>
+					)}
+
+					<div className="flex flex-wrap items-center gap-3">
+						<Button disabled={false} type="submit">
+							<Sparkles data-icon="inline-start" />
+							Run simulation
+						</Button>
+						<Button
+							type="button"
+							variant="secondary"
+							onClick={() => {
+								form.reset({
+									kind: "topGear",
+								});
+							}}
+						>
+							Clear
+						</Button>
+					</div>
+				</form>
+				<SimulationCoreConfigSection />
+			</Form>
 
 			{addonExportRaw.trim().length === 0 ? (
 				<p className="text-muted-foreground text-sm">

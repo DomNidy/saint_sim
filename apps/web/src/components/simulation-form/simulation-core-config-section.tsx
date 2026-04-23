@@ -1,12 +1,7 @@
 import { useFormContext } from "react-hook-form";
 import type z from "zod";
 import { FightStyle } from "@/lib/saint-api/generated";
-import type {
-	zSimulationConfigBasic,
-	zSimulationConfigTopGear,
-	zSimulationCoreConfig,
-	zSimulationOptions,
-} from "@/lib/saint-api/generated/zod.gen";
+import type { zSimulationOptions } from "@/lib/saint-api/generated/zod.gen";
 import {
 	FormControl,
 	FormDescription,
