@@ -231,7 +231,7 @@ func parseLoadoutComment(
 }
 
 func setActiveTalents(export *api.WowCharacter, value string) {
-	export.ActiveTalents = &api.CharacterTalentLoadout{
+	export.ActiveTalents = api.CharacterTalentLoadout{
 		Name:    strPtr("Active"),
 		Talents: value,
 	}
