@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/DomNidy/saint_sim/apps/simulation_worker/json2"
 	"github.com/DomNidy/saint_sim/apps/simulation_worker/sims"
 	api "github.com/DomNidy/saint_sim/internal/api"
 	"github.com/DomNidy/saint_sim/internal/simulation"
@@ -63,19 +62,13 @@ func (runner *stubRunner) Run(
 	_ context.Context,
 	manifest sims.Manifest,
 	_ string,
-) (sims.RunResult, error) {
+) (api.SimulationResult, error) {
 	runner.manifest = manifest
 	if runner.err != nil {
-		return sims.RunResult{}, runner.err
+		return api.SimulationResult{}, runner.err
 	}
 
-	return sims.RunResult{
-		JSON2: json2.JSON2Output{},
-		Data: api.SimulationResultBasic{
-			Kind: api.Basic,
-			Dps:  123,
-		},
-	}, nil
+	return api.SimulationResult{}, nil
 }
 
 func TestProcessSimulationMarksBasicSimulationCompleted(t *testing.T) {

@@ -32,7 +32,11 @@ type SimulationRepository interface {
 
 // Runner executes a sim manifest with the configured SimC binary.
 type Runner interface {
-	Run(ctx context.Context, manifest sims.Manifest, simcBinaryPath string) (sims.RunResult, error)
+	Run(
+		ctx context.Context,
+		manifest sims.Manifest,
+		simcBinaryPath string,
+	) (api.SimulationResult, error)
 }
 
 type defaultRunner struct{}
@@ -41,7 +45,7 @@ func (runner defaultRunner) Run(
 	ctx context.Context,
 	manifest sims.Manifest,
 	simcBinaryPath string,
-) (sims.RunResult, error) {
+) (api.SimulationResult, error) {
 	return sims.Run(ctx, manifest, simcBinaryPath)
 }
 
@@ -128,14 +132,13 @@ func (useCase *ProcessSimulationUseCase) processBasic(
 		return useCase.failRequest(ctx, request.ID, err)
 	}
 
-	run, err := useCase.runner.Run(ctx, manifest, useCase.simcBinaryPath)
+	result, err := useCase.runner.Run(ctx, manifest, useCase.simcBinaryPath)
 	if err != nil {
 		return useCase.failRequest(ctx, request.ID, fmt.Errorf("run simulation: %w", err))
 	}
 
 	err = useCase.repository.MarkCompleted(ctx, request.ID, simulation.CompletedSimulation{
-		Result:   run.Data,
-		RawJSON2: run.JSON2,
+		Result: result,
 	})
 	if err != nil {
 		return fmt.Errorf("persist simulation result: %w", err)
@@ -162,14 +165,13 @@ func (useCase *ProcessSimulationUseCase) processTopGear(
 		log.Printf("unable to mark simulation %s as started: %v", request.ID.String(), err)
 	}
 
-	runResult, err := useCase.runner.Run(ctx, manifest, useCase.simcBinaryPath)
+	result, err := useCase.runner.Run(ctx, manifest, useCase.simcBinaryPath)
 	if err != nil {
 		return useCase.failRequest(ctx, request.ID, fmt.Errorf("run top gear simulation: %w", err))
 	}
 
 	err = useCase.repository.MarkCompleted(ctx, request.ID, simulation.CompletedSimulation{
-		Result:   runResult.Data,
-		RawJSON2: runResult.JSON2,
+		Result: result,
 	})
 	if err != nil {
 		return fmt.Errorf("persist simulation result: %w", err)
