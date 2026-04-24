@@ -58,6 +58,9 @@ func (worker simulationWorker) handleDelivery(
 
 	err = worker.processor.Process(ctx, requestID)
 	if err == nil {
+		if ackErr := msg.Ack(false); ackErr != nil {
+			log.Printf("WARNING: Failed to send ack for a message. got err: %v", ackErr)
+		}
 		return
 	}
 
@@ -68,6 +71,11 @@ func (worker simulationWorker) handleDelivery(
 		log.Printf("got unsupported simulation, ignoring this: %v", err)
 	default:
 		log.Printf("failed to process simulation %s: %v", requestID.String(), err)
+	}
+
+	rejErr := msg.Reject(false)
+	if rejErr != nil {
+		log.Printf("WARNING: Failed to send Reject for a message. got err: %v", rejErr)
 	}
 }
 

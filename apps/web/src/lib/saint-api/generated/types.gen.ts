@@ -41,7 +41,6 @@ export type SimulationCoreConfig = {
 export const FightStyle = {
     PATCHWERK: 'Patchwerk',
     DUNGEON_SLICE: 'DungeonSlice',
-    TARGET_DUMMY: 'TargetDummy',
     EXECUTE_PATCHWERK: 'ExecutePatchwerk',
     HECTIC_ADD_CLEAVE: 'HecticAddCleave',
     LIGHT_MOVEMENT: 'LightMovement',

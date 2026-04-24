@@ -175,7 +175,7 @@ func TestFightStyleRawlineAllowsGeneratedEnumValues(t *testing.T) {
 		style api.FightStyle
 		want  string
 	}{
-		{style: api.TargetDummy, want: "fight_style=TargetDummy"},
+		{style: api.CastingPatchwerk, want: "fight_style=CastingPatchwerk"},
 		{style: api.HecticAddCleave, want: "fight_style=HecticAddCleave"},
 	}
 

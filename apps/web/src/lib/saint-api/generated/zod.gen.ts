@@ -30,7 +30,6 @@ export const zCharacterClass = z.enum([
 export const zFightStyle = z.enum([
     'Patchwerk',
     'DungeonSlice',
-    'TargetDummy',
     'ExecutePatchwerk',
     'HecticAddCleave',
     'LightMovement',

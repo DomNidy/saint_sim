@@ -78,7 +78,7 @@ func (queue *SimulationQueue) Publish(message simulation.JobMessage) error {
 	}
 
 	err = queue.channel.Publish(
-		"",
+		"", // exchange name (empty = default exchange)
 		queue.queue.Name,
 		true,
 		false,

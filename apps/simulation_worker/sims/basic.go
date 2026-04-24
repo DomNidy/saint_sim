@@ -25,9 +25,12 @@ func (m BasicSimManifest) BuildSimcProfile() (simcProfileString, error) {
 		character.Race,
 		character.Spec,
 	)
+
 	if err != nil {
 		return "", err
 	}
+
+	baseLines = append(baseLines, "target_error=0.2")
 
 	equipmentLines, err := equippedItemsRawlines(character.EquippedItems)
 	if err != nil {

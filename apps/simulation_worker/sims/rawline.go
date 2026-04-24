@@ -23,11 +23,6 @@ var (
 	errInvalidSpec           = errors.New("invalid spec")
 )
 
-// Characters that we consider to be "safe" when writing a free-form string into
-// a simc profile. Our goal is to prevent the user from injecting disallowed options,
-// so we need to disallow characters that would make that possible.
-const unsafeCharacters string = "\n ,\r\n"
-
 // equipmentRawline converts an EquipmentItem into a SimulationCraft TCI equipment line.
 //
 // SimC equipment lines generally look like:
@@ -145,7 +140,7 @@ func characterBaseRawlines(
 		return nil, err
 	}
 
-	specLine, err := identifierRawline("spec", spec)
+	specLine, err := specRawline(spec)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +150,6 @@ func characterBaseRawlines(
 		levelLine,
 		raceLine,
 		specLine,
-		"iterations=5",
 	}, nil
 }
 
@@ -318,8 +312,7 @@ func fightStyleString(style api.FightStyle) (string, error) {
 		api.HecticAddCleave,
 		api.HeavyMovement,
 		api.LightMovement,
-		api.Patchwerk,
-		api.TargetDummy:
+		api.Patchwerk:
 		return string(style), nil
 	default:
 		return "", fmt.Errorf("%w: got %s", errInvalidFightStyle, string(style))
@@ -331,7 +324,7 @@ func specRawline(spec string) (string, error) {
 		return "", fmt.Errorf("%w: got spec: %s", errInvalidSpec, spec)
 	}
 
-	return spec, nil
+	return fmt.Sprintf("spec=%s", spec), nil
 }
 
 func raceRawline(race string) (string, error) {

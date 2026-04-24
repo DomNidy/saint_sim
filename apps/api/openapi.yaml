@@ -175,7 +175,6 @@ components:
       enum:
         - Patchwerk
         - DungeonSlice
-        - TargetDummy
         - ExecutePatchwerk
         - HecticAddCleave
         - LightMovement
