@@ -46,7 +46,11 @@ func Run[T Manifest](
 	command.Stderr = &stderr
 
 	if err := command.Run(); err != nil {
-		return api.SimulationResult{}, fmt.Errorf("execute simc binary: %w", err)
+		return api.SimulationResult{}, fmt.Errorf(
+			"execute simc binary: %w. stderr: %s",
+			err,
+			stderr.String(),
+		)
 	}
 
 	// try to read json2 sim results
