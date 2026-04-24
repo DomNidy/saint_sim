@@ -141,14 +141,6 @@ components:
           type: string
           example: healthy
 
-    simc_addon_export:
-      type: string
-      description: Raw SimulationCraft addon export string supplied by the caller.
-      example: |
-        priest="Example"
-        level=80
-        spec=shadow
-
     character_class:
       type: string
       enum:
@@ -204,7 +196,6 @@ components:
       type: object
       description: Specifies simulation options to send to the API.
       required:
-        - simc_addon_export
         - kind
         - character
         - core_config
@@ -226,8 +217,6 @@ components:
           $ref: "#/components/schemas/wow_character"
         core_config:
           $ref: "#/components/schemas/simulation_core_config"
-        simc_addon_export:
-          $ref: "#/components/schemas/simc_addon_export"
 
     simulation_config_topGear:
       type: object
@@ -534,6 +523,47 @@ components:
           type: integer
           description: Absent when this loadout has no off-hand (two-hander).
 
+    character_equipped_items:
+      type: object
+      description: >
+        Items that the character currently has equipped, keyed by equipment slot.
+        `off_hand` is omitted when the character uses a two-handed weapon.
+      required:
+        - head
+        - neck
+        - shoulder
+        - back
+        - chest
+        - wrist
+        - hands
+        - waist
+        - legs
+        - feet
+        - finger1
+        - finger2
+        - trinket1
+        - trinket2
+        - main_hand
+      properties:
+        head: { $ref: "#/components/schemas/equipment_item" }
+        neck: { $ref: "#/components/schemas/equipment_item" }
+        shoulder: { $ref: "#/components/schemas/equipment_item" }
+        back: { $ref: "#/components/schemas/equipment_item" }
+        chest: { $ref: "#/components/schemas/equipment_item" }
+        wrist: { $ref: "#/components/schemas/equipment_item" }
+        hands: { $ref: "#/components/schemas/equipment_item" }
+        waist: { $ref: "#/components/schemas/equipment_item" }
+        legs: { $ref: "#/components/schemas/equipment_item" }
+        feet: { $ref: "#/components/schemas/equipment_item" }
+        finger1: { $ref: "#/components/schemas/equipment_item" }
+        finger2: { $ref: "#/components/schemas/equipment_item" }
+        trinket1: { $ref: "#/components/schemas/equipment_item" }
+        trinket2: { $ref: "#/components/schemas/equipment_item" }
+        main_hand: { $ref: "#/components/schemas/equipment_item" }
+        off_hand:
+          description: Absent when the character has no off-hand equipped.
+          $ref: "#/components/schemas/equipment_item"
+
     simulation_status:
       type: string
       enum:
@@ -581,10 +611,8 @@ components:
         spec:
           type: string
         equipped_items:
-          type: array
           description: Items that the character currently has equipped.
-          items:
-            $ref: "#/components/schemas/equipment_item"
+          $ref: "#/components/schemas/character_equipped_items"
         bag_items:
           type: array
           description: Items in the character's bags

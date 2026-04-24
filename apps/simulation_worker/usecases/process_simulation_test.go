@@ -61,7 +61,6 @@ type stubRunner struct {
 func (runner *stubRunner) Run(
 	_ context.Context,
 	manifest sims.Manifest,
-	_ string,
 ) (api.SimulationResult, error) {
 	runner.manifest = manifest
 	if runner.err != nil {
@@ -82,7 +81,7 @@ func TestProcessSimulationMarksBasicSimulationCompleted(t *testing.T) {
 		},
 	}
 	runner := &stubRunner{}
-	useCase := NewProcessSimulationUseCaseWithRunner(repo, runner, "/usr/bin/simc")
+	useCase := NewProcessSimulationUseCase(repo, runner)
 
 	if err := useCase.Process(t.Context(), requestID); err != nil {
 		t.Fatalf("Process() error = %v", err)
@@ -111,11 +110,7 @@ func TestProcessSimulationMarksFailedWhenRunFails(t *testing.T) {
 			Options: basicWorkerSimulationOptions(t),
 		},
 	}
-	useCase := NewProcessSimulationUseCaseWithRunner(
-		repo,
-		&stubRunner{err: errRunBoom},
-		"/usr/bin/simc",
-	)
+	useCase := NewProcessSimulationUseCase(repo, &stubRunner{err: errRunBoom})
 
 	err := useCase.Process(t.Context(), requestID)
 	if !errors.Is(err, errRunBoom) {
@@ -130,11 +125,7 @@ func TestProcessSimulationPropagatesLoadError(t *testing.T) {
 	t.Parallel()
 
 	repo := &stubWorkerRepository{loadErr: simulation.ErrNotFound}
-	useCase := NewProcessSimulationUseCaseWithRunner(
-		repo,
-		&stubRunner{},
-		"/usr/bin/simc",
-	)
+	useCase := NewProcessSimulationUseCase(repo, &stubRunner{})
 
 	err := useCase.Process(t.Context(), uuid.New())
 	if !errors.Is(err, simulation.ErrNotFound) {
@@ -155,8 +146,7 @@ func basicWorkerSimulationOptions(t *testing.T) api.SimulationOptions {
 			Race:           "void_elf",
 			Spec:           "shadow",
 		},
-		CoreConfig:      api.SimulationCoreConfig{},
-		SimcAddonExport: "priest=\"Example\"\nlevel=80\nspec=shadow",
+		CoreConfig: api.SimulationCoreConfig{},
 	})
 	if err != nil {
 		t.Fatalf("encode basic simulation options: %v", err)

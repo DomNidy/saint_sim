@@ -107,9 +107,9 @@ func NewTopGearManifest(
 	eqCopy := make([]api.EquipmentItem, len(config.Equipment))
 	copy(eqCopy, config.Equipment)
 
-	var characterName string
-	if config.Character.Name == nil || *config.Character.Name == "" {
-		characterName = "UnknownCharacter"
+	characterName := "UnknownCharacter"
+	if config.Character.Name != nil && *config.Character.Name != "" {
+		characterName = *config.Character.Name
 	}
 
 	return TopGearManifest{
@@ -242,40 +242,22 @@ func (m *TopGearManifest) SimcLines() ([]string, error) {
 	// the base profile with a baseline set of equipment. We'll use the
 	// first profileset for this purpose
 
-	baseLines := []string{
-		fmt.Sprintf(`%s="%s"`, m.characterClass, m.characterName),
-		fmt.Sprintf(`level=%v`, m.level),
-		fmt.Sprintf(`race=%s`, m.race),
-		fmt.Sprintf(`spec=%s`, m.spec),
-		"iterations=5", // for testing purposes
+	baseLines, err := characterBaseRawlines(
+		m.characterClass,
+		&m.characterName,
+		m.level,
+		m.race,
+		m.spec,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	seedProfileset := m.Profilesets[0]
 
-	baseEquipment := []string{
-		m.equipment[seedProfileset.Head].RawLine,
-		m.equipment[seedProfileset.Neck].RawLine,
-		m.equipment[seedProfileset.Shoulder].RawLine,
-		m.equipment[seedProfileset.Back].RawLine,
-		m.equipment[seedProfileset.Chest].RawLine,
-		m.equipment[seedProfileset.Wrist].RawLine,
-		m.equipment[seedProfileset.Hands].RawLine,
-		m.equipment[seedProfileset.Waist].RawLine,
-		m.equipment[seedProfileset.Legs].RawLine,
-		m.equipment[seedProfileset.Feet].RawLine,
-		retargetEquipmentLine(m.equipment[seedProfileset.Finger1].RawLine, api.Finger1),
-		retargetEquipmentLine(m.equipment[seedProfileset.Finger2].RawLine, api.Finger2),
-		retargetEquipmentLine(m.equipment[seedProfileset.Trinket1].RawLine, api.Trinket1),
-		retargetEquipmentLine(m.equipment[seedProfileset.Trinket2].RawLine, api.Trinket2),
-		m.equipment[seedProfileset.MainHand].RawLine,
-	}
-	if seedProfileset.OffHand == noItemIndex {
-		baseEquipment = append(baseEquipment, emptyOffHandLine)
-	} else {
-		baseEquipment = append(
-			baseEquipment,
-			retargetEquipmentLine(m.equipment[seedProfileset.OffHand].RawLine, api.OffHand),
-		)
+	baseEquipment, err := equipmentLinesForProfileset(seedProfileset, m.equipment)
+	if err != nil {
+		return nil, err
 	}
 
 	out = append(out, baseLines...)
@@ -283,7 +265,11 @@ func (m *TopGearManifest) SimcLines() ([]string, error) {
 
 	// then, add all of the profileset lines!
 	for i := range m.Profilesets {
-		out = append(out, m.Profilesets[i].lines(m.equipment)...)
+		lines, err := m.Profilesets[i].lines(m.equipment)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, lines...)
 	}
 
 	return out, nil

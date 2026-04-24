@@ -6,11 +6,6 @@ export const zHealthResponse = z.object({
     status: z.string()
 });
 
-/**
- * Raw SimulationCraft addon export string supplied by the caller.
- */
-export const zSimcAddonExport = z.string();
-
 export const zCharacterClass = z.enum([
     'warrior',
     'hunter',
@@ -177,6 +172,29 @@ export const zSimulationResult = z.union([
     }).and(zSimulationResultTopGear)
 ]);
 
+/**
+ * Items that the character currently has equipped, keyed by equipment slot. `off_hand` is omitted when the character uses a two-handed weapon.
+ *
+ */
+export const zCharacterEquippedItems = z.object({
+    head: zEquipmentItem,
+    neck: zEquipmentItem,
+    shoulder: zEquipmentItem,
+    back: zEquipmentItem,
+    chest: zEquipmentItem,
+    wrist: zEquipmentItem,
+    hands: zEquipmentItem,
+    waist: zEquipmentItem,
+    legs: zEquipmentItem,
+    feet: zEquipmentItem,
+    finger1: zEquipmentItem,
+    finger2: zEquipmentItem,
+    trinket1: zEquipmentItem,
+    trinket2: zEquipmentItem,
+    main_hand: zEquipmentItem,
+    off_hand: zEquipmentItem.optional()
+});
+
 export const zSimulationStatus = z.enum([
     'in_progress',
     'in_queue',
@@ -209,7 +227,7 @@ export const zWowCharacter = z.object({
     role: z.string().nullish(),
     professions: z.string().nullish(),
     spec: z.string(),
-    equipped_items: z.array(zEquipmentItem),
+    equipped_items: zCharacterEquippedItems,
     bag_items: z.array(zEquipmentItem).optional(),
     active_talents: zCharacterTalentLoadout,
     talent_loadouts: z.array(zCharacterTalentLoadout).optional(),
@@ -227,8 +245,7 @@ export const zWowCharacter = z.object({
 export const zSimulationConfigBasic = z.object({
     kind: z.enum(['basic']),
     character: zWowCharacter,
-    core_config: zSimulationCoreConfig,
-    simc_addon_export: zSimcAddonExport
+    core_config: zSimulationCoreConfig
 });
 
 /**

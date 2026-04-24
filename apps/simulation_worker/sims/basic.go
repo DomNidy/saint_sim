@@ -1,7 +1,6 @@
 package sims
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/DomNidy/saint_sim/internal/api"
@@ -18,20 +17,23 @@ func NewBasicSimManifest(simConfig api.SimulationConfigBasic) (BasicSimManifest,
 }
 
 func (m BasicSimManifest) buildSimcProfile() (simcProfileString, error) {
-	var characterName string
-	if m.simConfig.Character.Name == nil {
-		characterName = "UnknownCharacter"
-	} else {
-		characterName = *m.simConfig.Character.Name
+	character := m.simConfig.Character
+	baseLines, err := characterBaseRawlines(
+		character.CharacterClass,
+		character.Name,
+		character.Level,
+		character.Race,
+		character.Spec,
+	)
+	if err != nil {
+		return "", err
 	}
 
-	baseLines := []string{
-		fmt.Sprintf(`%s="%s"`, m.simConfig.Character.CharacterClass, characterName),
-		fmt.Sprintf(`level=%v`, m.simConfig.Character.Level),
-		fmt.Sprintf(`race=%s`, m.simConfig.Character.Race),
-		fmt.Sprintf(`spec=%s`, m.simConfig.Character.Spec),
-		"iterations=5", // for testing purposes
+	mainHand, err := equipmentRawline(character.EquippedItems.MainHand)
+	if err != nil {
+		return "", err
 	}
+	baseLines = append(baseLines, mainHand)
 
 	profileText := strings.Join(baseLines, "\n")
 

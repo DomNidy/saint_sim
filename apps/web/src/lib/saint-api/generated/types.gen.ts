@@ -8,11 +8,6 @@ export type HealthResponse = {
     status: string;
 };
 
-/**
- * Raw SimulationCraft addon export string supplied by the caller.
- */
-export type SimcAddonExport = string;
-
 export const CharacterClass = {
     WARRIOR: 'warrior',
     HUNTER: 'hunter',
@@ -71,7 +66,6 @@ export type SimulationConfigBasic = {
     kind: 'basic';
     character: WowCharacter;
     core_config: SimulationCoreConfig;
-    simc_addon_export: SimcAddonExport;
 };
 
 /**
@@ -276,6 +270,29 @@ export type TopGearProfilesetItems = {
     off_hand?: number;
 };
 
+/**
+ * Items that the character currently has equipped, keyed by equipment slot. `off_hand` is omitted when the character uses a two-handed weapon.
+ *
+ */
+export type CharacterEquippedItems = {
+    head: EquipmentItem;
+    neck: EquipmentItem;
+    shoulder: EquipmentItem;
+    back: EquipmentItem;
+    chest: EquipmentItem;
+    wrist: EquipmentItem;
+    hands: EquipmentItem;
+    waist: EquipmentItem;
+    legs: EquipmentItem;
+    feet: EquipmentItem;
+    finger1: EquipmentItem;
+    finger2: EquipmentItem;
+    trinket1: EquipmentItem;
+    trinket2: EquipmentItem;
+    main_hand: EquipmentItem;
+    off_hand?: EquipmentItem;
+};
+
 export const SimulationStatus = {
     IN_PROGRESS: 'in_progress',
     IN_QUEUE: 'in_queue',
@@ -305,10 +322,7 @@ export type WowCharacter = {
     role?: string | null;
     professions?: string | null;
     spec: string;
-    /**
-     * Items that the character currently has equipped.
-     */
-    equipped_items: Array<EquipmentItem>;
+    equipped_items: CharacterEquippedItems;
     /**
      * Items in the character's bags
      */

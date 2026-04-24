@@ -37,7 +37,14 @@ type stubSimulationStore struct {
 
 const basicSimulationRequestBody = `{
 	"kind":"basic",
-	"simc_addon_export":"priest=\"Example\"\r\nlevel=80\rspec=shadow"
+	"core_config":{},
+	"character":{
+		"level":80,
+		"character_class":"priest",
+		"spec":"shadow",
+		"race":"void_elf",
+		"equipped_items":[]
+	}
 }`
 
 const topGearSimulationRequestBody = `{
@@ -127,13 +134,18 @@ func assertBasicCreateSimulationParams(t *testing.T, arg simulation.CreateQueued
 		t.Fatalf("read basic sim config: %v", err)
 	}
 
-	expectedExport := "priest=\"Example\"\r\nlevel=80\rspec=shadow"
-	if basicConfig.SimcAddonExport != expectedExport {
+	if basicConfig.Character.CharacterClass != api.Priest {
 		t.Fatalf(
-			"simc_addon_export = %q, want %q",
-			basicConfig.SimcAddonExport,
-			expectedExport,
+			"character_class = %q, want %q",
+			basicConfig.Character.CharacterClass,
+			api.Priest,
 		)
+	}
+	if basicConfig.Character.Level != 80 {
+		t.Fatalf("level = %d, want 80", basicConfig.Character.Level)
+	}
+	if basicConfig.Character.Spec != "shadow" {
+		t.Fatalf("spec = %q, want shadow", basicConfig.Character.Spec)
 	}
 }
 
@@ -162,8 +174,7 @@ func assertTopGearCreateSimulationParams(t *testing.T, arg simulation.CreateQueu
 	if topGearConfig.Character.Role == nil || *topGearConfig.Character.Role != "attack" {
 		t.Fatalf("role = %v, want attack", topGearConfig.Character.Role)
 	}
-	if topGearConfig.Character.ActiveTalents == nil ||
-		topGearConfig.Character.ActiveTalents.Talents != "ACTIVE_TALENTS" {
+	if topGearConfig.Character.ActiveTalents.Talents != "ACTIVE_TALENTS" {
 		t.Fatalf(
 			"active_talents = %#v, want talents %q",
 			topGearConfig.Character.ActiveTalents,
