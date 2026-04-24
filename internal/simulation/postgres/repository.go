@@ -61,10 +61,11 @@ func (repo *Repository) GetSimulation(ctx context.Context, id uuid.UUID) (api.Si
 	}
 
 	response := api.Simulation{
-		Id:        simRecord.ID,
-		Kind:      api.SimulationKind(simRecord.Kind),
-		Status:    api.SimulationStatus(simRecord.Status),
-		ErrorText: simRecord.ErrorText,
+		Id:           simRecord.ID,
+		Kind:         api.SimulationKind(simRecord.Kind),
+		Status:       api.SimulationStatus(simRecord.Status),
+		ErrorText:    simRecord.ErrorText,
+		RawSimcInput: simRecord.RawSimcInput,
 	}
 
 	if len(simRecord.SimResult) > 0 {

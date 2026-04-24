@@ -210,7 +210,8 @@ export const zSimulation = z.object({
     kind: zSimulationKind,
     status: zSimulationStatus,
     error_text: z.string().optional(),
-    result: zSimulationResult.optional()
+    result: zSimulationResult.optional(),
+    raw_simc_input: z.string().optional()
 });
 
 /**

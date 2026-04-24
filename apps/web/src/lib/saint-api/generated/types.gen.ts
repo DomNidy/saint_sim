@@ -161,6 +161,10 @@ export type Simulation = {
      */
     error_text?: string;
     result?: SimulationResult;
+    /**
+     * The raw SIMC input for the sim
+     */
+    raw_simc_input?: string;
 };
 
 /**

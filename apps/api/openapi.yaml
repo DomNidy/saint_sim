@@ -371,6 +371,9 @@ components:
           description: Populated when status = error.
         result:
           $ref: "#/components/schemas/simulation_result"
+        raw_simc_input:
+          type: string
+          description: The raw SIMC input for the sim
 
     simulation_kind:
       description: The concrete kind of simulation to perform (basic, topGear, etc.)
@@ -526,8 +529,8 @@ components:
     character_equipped_items:
       type: object
       description: >
-        Items that the character currently has equipped, keyed by equipment slot.
-        `off_hand` is omitted when the character uses a two-handed weapon.
+        Items that the character currently has equipped, keyed by equipment
+        slot. `off_hand` is omitted when the character uses a two-handed weapon.
       required:
         - head
         - neck
