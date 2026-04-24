@@ -313,7 +313,7 @@ export type WowCharacter = {
      * Items in the character's bags
      */
     bag_items?: Array<EquipmentItem>;
-    active_talents?: CharacterTalentLoadout;
+    active_talents: CharacterTalentLoadout;
     /**
      * The talent loadouts that were not active
      */

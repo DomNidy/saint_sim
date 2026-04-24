@@ -551,6 +551,7 @@ components:
         - equipped_items
         - spec
         - race
+        - active_talents
       properties:
         name:
           type: string

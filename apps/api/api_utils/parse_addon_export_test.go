@@ -44,7 +44,7 @@ main_hand=,id=249671,bonus_id=6652,ilevel=710
 	if got.LootSpec == nil || *got.LootSpec != "shadow" {
 		t.Fatalf("loot_spec = %v, want shadow", got.LootSpec)
 	}
-	if got.ActiveTalents == nil || got.ActiveTalents.Talents != "ACTIVE_TALENTS" {
+	if got.ActiveTalents.Talents != "ACTIVE_TALENTS" {
 		t.Fatalf("active_talents = %#v, want ACTIVE_TALENTS", got.ActiveTalents)
 	}
 	if got.TalentLoadouts == nil || len(*got.TalentLoadouts) != 1 {

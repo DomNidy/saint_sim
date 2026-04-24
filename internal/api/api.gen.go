@@ -321,7 +321,7 @@ type TopGearProfilesetResult struct {
 // WowCharacter The representation of a wow character.
 type WowCharacter struct {
 	// ActiveTalents A saved talent loadout string, paired with the name of the loadout. You can export this from the Simc addon (or manually from talents menu in game).
-	ActiveTalents *CharacterTalentLoadout `json:"active_talents,omitempty"`
+	ActiveTalents CharacterTalentLoadout `json:"active_talents"`
 
 	// BagItems Items in the character's bags
 	BagItems *[]EquipmentItem `json:"bag_items,omitempty"`
@@ -948,19 +948,19 @@ var swaggerSpec = []string{
 	"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",
-	"Qa70eRP5WAV9yERuYx1m+TKRlxJ9B/9pk0BbhqCbitu+r5PrGhgWtGdqMVjUeWukW78lurxBPGvkX3F9",
-	"1roy0ulk8ikd8M7YtDzLmVeSh9qYo6J1JSrH5QFfoKPbdHZxPrtSv1hfvr05a+TBX3F9Clft0dGLXDQy",
-	"u8U1f8EbjqmQ21JDYCGRVH4swQeQ/homAdzmpgkmglj5LQqDpiNnzt/+3IUnf3l3mWzPsn6LjiwY7YC/",
-	"vLvsieVs9qARxq3D4IEdUdS6UptgRE7BHxvI+7Bye0m71LeobNdtnFNKZ9uQX3/7+vLy9Zvs7JfLH7Jf",
-	"3vynLz+RunAqRoHezduz858us7OLc17gWcXKStzwVG+4UzrX+DFeqRY6dlukDRVyHhaRw6KTFVI5mLdW",
-	"KrQUXS5l7vumhbS5NgXMtUsJxRQa7YhEP63NbS00d6EKxcAWrWsNpr7SSlz1IWvokjvpuGbxlo88uzhP",
-	"0uQOjfVYHs+OZkecYDWoRCOT0+TF7Gj2gseBXcnKfOgHWOjjEmOTJ6EFQMT6pWEGg47vByjOi+Q0+cFD",
-	"SsfT/ydHR19sznp7QicyaE14ShtQXc9oyX2aHI6nVhpto6T6XwYMB1ZIQmQBWc3eyvrVlOwwl8PzdR7C",
-	"t7pYfzGaI626CNl+wmIdm68o0eAsGVpIclX3EzGdPAnlrcmoDZI7xm82df2+p8neRVjIDVLyEs0Qtg3y",
-	"lPANwO6XHQRT5Dk2BPQ+TV5+QQ38TX9xEhm38Pgf/y7w73t+UuVVW6D/ccXQTBPmucHCm7QO+5e7kOoV",
-	"8HD7hxm07+Rk/77pL1Pu0+QPXt4P79z6Tc/Q1XM3cOgV31/fp2O3//76/nrLrhz+Kov7nWb0vySuAjM3",
-	"/ZlBV2ZiVb5Ht1FtNthG1OjQWEZvGrzF75iGjy2adRcWkNnfBAWcMI3NQjrQoz0DbvfXv6GlH9jriI5e",
-	"jqn0PE1BmxTkhAfSDpItqaCrVqeDhNOxU8MIB3lg8e9Q489TRvr7/wAAAP//qIsnb1Q3AAA=",
+	"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",
 }
 
 // GetSwagger returns the content of the embedded swagger specification file

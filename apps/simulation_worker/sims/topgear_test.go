@@ -284,7 +284,7 @@ func topGearConfig(
 			Race:                "human",
 			Role:                stringPtr("attack"),
 			Spec:                "unholy",
-			ActiveTalents:       &api.CharacterTalentLoadout{Talents: talents},
+			ActiveTalents:       api.CharacterTalentLoadout{Talents: talents},
 			TalentLoadouts:      nil,
 			BagItems:            nil,
 			LootSpec:            nil,

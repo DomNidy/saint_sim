@@ -211,7 +211,7 @@ export const zWowCharacter = z.object({
     spec: z.string(),
     equipped_items: z.array(zEquipmentItem),
     bag_items: z.array(zEquipmentItem).optional(),
-    active_talents: zCharacterTalentLoadout.optional(),
+    active_talents: zCharacterTalentLoadout,
     talent_loadouts: z.array(zCharacterTalentLoadout).optional(),
     catalyst_currencies: z.array(z.object({
         id: z.int(),
