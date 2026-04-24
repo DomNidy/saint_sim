@@ -43,110 +43,6 @@ type TopGearManifest struct {
 	Profilesets []Profileset
 }
 
-// BuildResultFromJSON2 joins the JSON2 output of the simulation to the api shape.
-func (manifest TopGearManifest) BuildResultFromJSON2(
-	out json2.JSON2Output,
-) (RunResult, error) {
-	if out.Sim.Profilesets == nil {
-		return RunResult{}, errSimcNoProfilesetsSection
-	}
-
-	if manifest.Profilesets == nil {
-		return RunResult{}, errManifestHasNilProfilesets
-	}
-
-	if len(manifest.Profilesets) == 0 {
-		return RunResult{}, errManifestHasNoProfilesets
-	}
-
-	if len(out.Sim.Profilesets.Results) != len(manifest.Profilesets) {
-		return RunResult{}, errManifestAndOutputProfilesetsCountMismatch
-	}
-
-	// Index simc's results for O(1) lookup. Map size is bounded by
-	// maxGeneratedProfilesets, so allocation is trivial.
-	byName := make(map[string]json2.JSON2ProfilesetResult, len(out.Sim.Profilesets.Results))
-	for _, r := range out.Sim.Profilesets.Results {
-		byName[r.Name] = r
-	}
-
-	entries := make([]api.TopGearProfilesetResult, 0, manifest.Len())
-	for _, manifestPset := range manifest.Profilesets {
-		// match the profileset in the manifest to the profileset
-		// stored in the output json2 result from simc
-		name := manifestPset.Name
-		metric, ok := byName[name]
-		if !ok {
-			return RunResult{}, fmt.Errorf(
-				"%w: %q",
-				errSimcProfilesetUnmatched,
-				name,
-			)
-		}
-
-		items := mapProfilesetToTopGearProfilesetItems(manifestPset)
-
-		meanError := metric.MeanError
-		entries = append(entries, api.TopGearProfilesetResult{
-			Name:      name,
-			Mean:      metric.Mean,
-			MeanError: &meanError,
-			Items:     items,
-		})
-	}
-
-	// Best first. SliceStable keeps the Combo1/Combo2/… order on ties so
-	// equivalent loadouts render deterministically.
-	sort.SliceStable(entries, func(i, j int) bool {
-		return entries[i].Mean > entries[j].Mean
-	})
-
-	return RunResult{
-		JSON2:  out,
-		Stdout: make([]byte, 0),
-		Data: api.SimulationResultTopGear{
-			Kind:        api.SimulationResultTopGearKindTopGear,
-			Metric:      out.Sim.Profilesets.Metric,
-			Equipment:   manifest.Equipment(),
-			Profilesets: entries,
-		},
-	}, nil
-}
-
-func (manifest TopGearManifest) BuildSimcProfile() (simcProfileString, error) {
-	prof, err := manifest.SimcLines()
-	if err != nil {
-		return "", err
-	}
-
-	profText := strings.Join(prof, "\n")
-	return simcProfileString(profText), nil
-}
-
-// mapProfilesetToTopGearProfilesetItems does a simple mapping from
-// profileset to the API shape.
-func mapProfilesetToTopGearProfilesetItems(pset Profileset) api.TopGearProfilesetItems {
-	return api.TopGearProfilesetItems{
-		Back:     pset.Back,
-		Chest:    pset.Chest,
-		Feet:     pset.Feet,
-		Finger1:  pset.Finger1,
-		Finger2:  pset.Finger2,
-		Hands:    pset.Hands,
-		Head:     pset.Head,
-		Legs:     pset.Legs,
-		MainHand: pset.MainHand,
-		Neck:     pset.Neck,
-
-		OffHand:  &pset.OffHand,
-		Shoulder: pset.Shoulder,
-		Trinket1: pset.Trinket1,
-		Trinket2: pset.Trinket2,
-		Waist:    pset.Waist,
-		Wrist:    pset.Wrist,
-	}
-}
-
 // NewTopGearManifest expands the equipment pools into deterministic
 // profilesets. The recursive singleton walk mirrors the counting logic so the
 // generated order remains intuitive: earlier input candidates appear earlier in
@@ -227,56 +123,40 @@ func NewTopGearManifest(
 	}, nil
 }
 
-// TODO: Bad encapsulation - we should just have a Run()
-// method on the runner that takes the top gear manifest
-// directly. To support a basic sim, Runner can either use
-// methods per-sim-kind (RunBasic, RunTopGear), or use generics.
-// Run performs / orchestrates the TopGear simulation
-// func (manifest *TopGearManifest) Run(
-// 	ctx context.Context,
-// 	runner Runner,
-// ) (api.SimulationResultTopGear, json2.JSON2Output, error) {
-// 	if runner == nil {
-// 		panic("runner is nil")
-// 	}
+func (manifest TopGearManifest) buildSimcProfile() (simcProfileString, error) {
+	prof, err := manifest.SimcLines()
+	if err != nil {
+		return "", err
+	}
 
-// 	profileLines, err := manifest.SimcLines()
-// 	if err != nil {
-// 		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
-// 			"build top gear profile text: %w",
-// 			err,
-// 		)
-// 	}
+	profText := strings.Join(prof, "\n")
 
-// 	profileText := strings.Join(profileLines, "\n")
-// 	log.Printf("%s", profileText[:1500])
+	return simcProfileString(profText), nil
+}
 
-// 	run, err := runner.Run(ctx, profileText)
-// 	if err != nil {
-// 		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
-// 			"run simulation: %w",
-// 			err,
-// 		)
-// 	}
+// mapProfilesetToTopGearProfilesetItems does a simple mapping from
+// profileset to the API shape.
+func mapProfilesetToTopGearProfilesetItems(pset Profileset) api.TopGearProfilesetItems {
+	return api.TopGearProfilesetItems{
+		Back:     pset.Back,
+		Chest:    pset.Chest,
+		Feet:     pset.Feet,
+		Finger1:  pset.Finger1,
+		Finger2:  pset.Finger2,
+		Hands:    pset.Hands,
+		Head:     pset.Head,
+		Legs:     pset.Legs,
+		MainHand: pset.MainHand,
+		Neck:     pset.Neck,
 
-// 	parsedJson2, err := json2.ParseJSON2(run.JSON2)
-// 	if err != nil {
-// 		return api.SimulationResultTopGear{}, json2.JSON2Output{}, fmt.Errorf(
-// 			"failed to parse sim result: %w",
-// 			err,
-// 		)
-// 	}
-
-// 	res, err := manifest.BuildResultFromJSON2(parsedJson2)
-// 	if err != nil {
-// 		return api.SimulationResultTopGear{}, parsedJson2, fmt.Errorf(
-// 			"failed to parse sim result into api shape, but got json2: %w",
-// 			err,
-// 		)
-// 	}
-
-// 	return res, parsedJson2, err
-// }
+		OffHand:  &pset.OffHand,
+		Shoulder: pset.Shoulder,
+		Trinket1: pset.Trinket1,
+		Trinket2: pset.Trinket2,
+		Waist:    pset.Waist,
+		Wrist:    pset.Wrist,
+	}
+}
 
 func unorderedPairCount(itemCount int) int {
 	if itemCount < minPairedItems {
@@ -411,3 +291,78 @@ func (m *TopGearManifest) SimcLines() ([]string, error) {
 
 func (m *TopGearManifest) Equipment() []api.EquipmentItem { return m.equipment }
 func (m *TopGearManifest) Len() int                       { return len(m.Profilesets) }
+
+// prepareReportFromRunResult joins the simulation output to the api shape.
+func (manifest TopGearManifest) prepareReportFromRunResult(
+	result runResult,
+) (api.SimulationResult, error) {
+	out := result.JSON2
+	if out.Sim.Profilesets == nil {
+		return api.SimulationResult{}, errSimcNoProfilesetsSection
+	}
+
+	if manifest.Profilesets == nil {
+		return api.SimulationResult{}, errManifestHasNilProfilesets
+	}
+
+	if len(manifest.Profilesets) == 0 {
+		return api.SimulationResult{}, errManifestHasNoProfilesets
+	}
+
+	if len(out.Sim.Profilesets.Results) != len(manifest.Profilesets) {
+		return api.SimulationResult{}, errManifestAndOutputProfilesetsCountMismatch
+	}
+
+	// Index simc's results for O(1) lookup. Map size is bounded by
+	// maxGeneratedProfilesets, so allocation is trivial.
+	byName := make(map[string]json2.JSON2ProfilesetResult, len(out.Sim.Profilesets.Results))
+	for _, r := range out.Sim.Profilesets.Results {
+		byName[r.Name] = r
+	}
+
+	entries := make([]api.TopGearProfilesetResult, 0, manifest.Len())
+	for _, manifestPset := range manifest.Profilesets {
+		// match the profileset in the manifest to the profileset
+		// stored in the output json2 result from simc
+		name := manifestPset.Name
+		metric, ok := byName[name]
+		if !ok {
+			return api.SimulationResult{}, fmt.Errorf(
+				"%w: %q",
+				errSimcProfilesetUnmatched,
+				name,
+			)
+		}
+
+		items := mapProfilesetToTopGearProfilesetItems(manifestPset)
+
+		meanError := metric.MeanError
+		entries = append(entries, api.TopGearProfilesetResult{
+			Name:      name,
+			Mean:      metric.Mean,
+			MeanError: &meanError,
+			Items:     items,
+		})
+	}
+
+	// Best first. SliceStable keeps the Combo1/Combo2/… order on ties so
+	// equivalent loadouts render deterministically.
+	sort.SliceStable(entries, func(i, j int) bool {
+		return entries[i].Mean > entries[j].Mean
+	})
+
+	topGearRes := api.SimulationResultTopGear{
+		Kind:        api.SimulationResultTopGearKindTopGear,
+		Metric:      out.Sim.Profilesets.Metric,
+		Equipment:   manifest.Equipment(),
+		Profilesets: entries,
+	}
+
+	var apiRes api.SimulationResult
+	err := apiRes.FromSimulationResultTopGear(topGearRes)
+	if err != nil {
+		return api.SimulationResult{}, err
+	}
+
+	return apiRes, nil
+}
