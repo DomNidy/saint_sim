@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 
 	"github.com/DomNidy/saint_sim/apps/simulation_worker/json2"
 	"github.com/DomNidy/saint_sim/internal/api"
@@ -47,9 +48,14 @@ func Run[T Manifest](
 
 	if err := command.Run(); err != nil {
 		return api.SimulationResult{}, fmt.Errorf(
-			"execute simc binary: %w. stderr: %s",
+			"execute simc binary: %w. stderr: %s"+
+				"Did the manifest for this sim return a valid simc profile?\n"+
+				"manifest concrete type: %s\n"+
+				"Profile content:\n%s",
 			err,
 			stderr.String(),
+			reflect.TypeOf(manifest).Name(),
+			profileText,
 		)
 	}
 
