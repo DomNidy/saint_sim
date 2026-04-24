@@ -41,6 +41,14 @@ func (m BasicSimManifest) BuildSimcProfile() (simcProfileString, error) {
 	}
 	baseLines = append(baseLines, talentsLines)
 
+	if m.simConfig.CoreConfig.FightStyle != nil {
+		fightStyleLine, err := fightStyleRawline(*m.simConfig.CoreConfig.FightStyle)
+		if err != nil {
+			return "", err
+		}
+		baseLines = append(baseLines, fightStyleLine)
+	}
+
 	profileText := strings.Join(baseLines, "\n")
 
 	return simcProfileString(profileText), nil

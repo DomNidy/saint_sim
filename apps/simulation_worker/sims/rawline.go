@@ -4,6 +4,7 @@ package sims
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -17,7 +18,15 @@ var (
 	errInvalidLevel          = errors.New("invalid character level")
 	errInvalidProfileName    = errors.New("invalid simc profile name")
 	errInvalidTalents        = errors.New("invalid talents")
+	errInvalidFightStyle     = errors.New("invalid fight style")
+	errInvalidRace           = errors.New("invalid race")
+	errInvalidSpec           = errors.New("invalid spec")
 )
+
+// Characters that we consider to be "safe" when writing a free-form string into
+// a simc profile. Our goal is to prevent the user from injecting disallowed options,
+// so we need to disallow characters that would make that possible.
+const unsafeCharacters string = "\n ,\r\n"
 
 // equipmentRawline converts an EquipmentItem into a SimulationCraft TCI equipment line.
 //
@@ -131,7 +140,7 @@ func characterBaseRawlines(
 		return nil, err
 	}
 
-	raceLine, err := identifierRawline("race", race)
+	raceLine, err := raceRawline(race)
 	if err != nil {
 		return nil, err
 	}
@@ -261,13 +270,20 @@ func isSafeQuotedValue(value string) bool {
 }
 
 // isSafeIdentifier reports whether value is a conservative SimC token made of
-// lowercase letters, digits, and underscores.
+// lowercase + uppercase letters, digits, and underscores.
+//
+// What is an "identifier"? In this context, an identifier is a fixed string like:
+// "Blood", "Frost", "Warrior", etc., that simc recognizes - basically an enum.
 func isSafeIdentifier(value string) bool {
 	if value == "" {
 		return false
 	}
 
 	for _, char := range value {
+		if char >= 'A' && char <= 'Z' {
+			continue
+		}
+
 		if char >= 'a' && char <= 'z' {
 			continue
 		}
@@ -282,4 +298,93 @@ func isSafeIdentifier(value string) bool {
 	}
 
 	return true
+}
+
+func fightStyleRawline(style api.FightStyle) (string, error) {
+	s, err := fightStyleString(style)
+	if err != nil {
+		return "", err
+	}
+
+	return "fight_style=" + s, nil
+}
+
+func fightStyleString(style api.FightStyle) (string, error) {
+	switch style {
+	case api.CastingPatchwerk,
+		api.CleaveAdd,
+		api.DungeonSlice,
+		api.ExecutePatchwerk,
+		api.HecticAddCleave,
+		api.HeavyMovement,
+		api.LightMovement,
+		api.Patchwerk,
+		api.TargetDummy:
+		return string(style), nil
+	default:
+		return "", fmt.Errorf("%w: got %s", errInvalidFightStyle, string(style))
+	}
+}
+
+func specRawline(spec string) (string, error) {
+	if !isSafeIdentifier(spec) {
+		return "", fmt.Errorf("%w: got spec: %s", errInvalidSpec, spec)
+	}
+
+	return spec, nil
+}
+
+func raceRawline(race string) (string, error) {
+	// list of allowed race strings that we can give simc
+	// from here:
+	// https://github.com/simulationcraft/simc/blob/5e3d3bcf9d6437c82330ff3826041df164b535a1/engine/util/util.cpp#L471
+	allowedRaces := []string{
+		"aberration",
+		"beast",
+		"blood_elf",
+		"dark_iron_dwarf",
+		"demon",
+		"dracthyr_alliance",
+		"dracthyr_horde",
+		"draenei",
+		"dragonkin",
+		"dwarf",
+		"earthen_alliance",
+		"earthen_horde",
+		"elemental",
+		"giant",
+		"gnome",
+		"goblin",
+		"haranir_alliance",
+		"haranir_horde",
+		"highmountain_tauren",
+		"human",
+		"humanoid",
+		"kul_tiran",
+		"lightforged_draenei",
+		"maghar_orc",
+		"mechanical",
+		"mechagnome",
+		"night_elf",
+		"nightborne",
+		"not_specified",
+		"orc",
+		"pandaren",
+		"pandaren_alliance",
+		"pandaren_horde",
+		"tauren",
+		"totem",
+		"troll",
+		"undead",
+		"void_elf",
+		"vulpera",
+		"worgen",
+		"zandalari_troll",
+	}
+
+	if !slices.Contains(allowedRaces, race) {
+		return "", fmt.Errorf("%w: got %s", errInvalidRace, race)
+	}
+
+	return fmt.Sprintf("race=%s", race), nil
 }

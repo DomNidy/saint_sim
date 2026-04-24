@@ -34,22 +34,26 @@ export type SimulationCoreConfig = {
 };
 
 /**
- * Simc fight style
+ * Simc fight style. For up-to-date list of supported fight styles, check the simc repo:
+ * https://github.com/simulationcraft/simc/blob/5e3d3bcf9d6437c82330ff3826041df164b535a1/engine/util/util.cpp#L566
+ *
  */
 export const FightStyle = {
-    PATCHWERK: 'patchwerk',
-    DUNGEON_SLICE: 'dungeon_slice',
-    TARGET_DUMMY: 'target_dummy',
-    EXECUTE_PATCHWERK: 'execute_patchwerk',
-    HECTIC_ADD_CLEAVE: 'hectic_add_cleave',
-    LIGHT_MOVEMENT: 'light_movement',
-    HEAVY_MOVEMENT: 'heavy_movement',
-    CASTING_PATCHWERK: 'casting_patchwerk',
-    CLEAVE_ADD: 'cleave_add'
+    PATCHWERK: 'Patchwerk',
+    DUNGEON_SLICE: 'DungeonSlice',
+    TARGET_DUMMY: 'TargetDummy',
+    EXECUTE_PATCHWERK: 'ExecutePatchwerk',
+    HECTIC_ADD_CLEAVE: 'HecticAddCleave',
+    LIGHT_MOVEMENT: 'LightMovement',
+    HEAVY_MOVEMENT: 'HeavyMovement',
+    CASTING_PATCHWERK: 'CastingPatchwerk',
+    CLEAVE_ADD: 'CleaveAdd'
 } as const;
 
 /**
- * Simc fight style
+ * Simc fight style. For up-to-date list of supported fight styles, check the simc repo:
+ * https://github.com/simulationcraft/simc/blob/5e3d3bcf9d6437c82330ff3826041df164b535a1/engine/util/util.cpp#L566
+ *
  */
 export type FightStyle = typeof FightStyle[keyof typeof FightStyle];
 

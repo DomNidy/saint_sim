@@ -168,6 +168,33 @@ func TestCharacterClassRawlineRejectsUnsafeValues(t *testing.T) {
 	}
 }
 
+func TestFightStyleRawlineAllowsGeneratedEnumValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		style api.FightStyle
+		want  string
+	}{
+		{style: api.TargetDummy, want: "fight_style=TargetDummy"},
+		{style: api.HecticAddCleave, want: "fight_style=HecticAddCleave"},
+	}
+
+	for _, testCase := range tests {
+		t.Run(string(testCase.style), func(t *testing.T) {
+			t.Parallel()
+
+			got, err := fightStyleRawline(testCase.style)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if got != testCase.want {
+				t.Fatalf("fightStyleRawline() = %q, want %q", got, testCase.want)
+			}
+		})
+	}
+}
+
 func TestProfileFieldRawlinesRejectUnsafeValues(t *testing.T) {
 	t.Parallel()
 
