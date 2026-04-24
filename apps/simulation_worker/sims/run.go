@@ -50,7 +50,9 @@ func (r SimcRunner) Run(
 	command.Stdout = &stdout
 	command.Stderr = &stderr
 
-	if err := command.Run(); err != nil {
+	err = command.Run()
+
+	if err != nil {
 		return api.SimulationResult{}, fmt.Errorf(
 			"execute simc binary: %w. stderr: %s\n"+
 				"Did the manifest for this sim return a valid simc profile?\n"+
@@ -80,3 +82,20 @@ func (r SimcRunner) Run(
 
 	return apiRes, nil
 }
+
+// SIMC EXIT CODES:
+// https://github.com/simulationcraft/simc/blob/0842ccb8804867859ece740fc7d72549f46fd305/engine/util/util.hpp#L51
+// Exception & Exit Code Handling
+// 0: normal exit
+// 1: other exceptions
+// 30: invalid APL argument
+// 40: sim/player/action/buff initialization error
+// 50: simulation iteration runtime error
+// 51: simulation stuck
+// 60: network/file error
+// 61: report output error
+// 70: invalid sim-scope argument
+// 71: invalid fight style
+// 80: invalid player-scope argument
+// 81: invalid talent string
+// 82: invalid item string

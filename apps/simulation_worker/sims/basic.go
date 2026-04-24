@@ -35,6 +35,12 @@ func (m BasicSimManifest) BuildSimcProfile() (simcProfileString, error) {
 	}
 	baseLines = append(baseLines, equipmentLines...)
 
+	talentsLines, err := talentsRawline(character.ActiveTalents.Talents)
+	if err != nil {
+		return "", err
+	}
+	baseLines = append(baseLines, talentsLines)
+
 	profileText := strings.Join(baseLines, "\n")
 
 	return simcProfileString(profileText), nil
