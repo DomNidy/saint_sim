@@ -266,9 +266,114 @@ func TestBasicSimProfileRejectsUnsafeBaseFields(t *testing.T) {
 		},
 	}
 
-	_, err := manifest.buildSimcProfile()
+	_, err := manifest.BuildSimcProfile()
 	if !errors.Is(err, errInvalidProfileName) {
 		t.Fatalf("buildSimcProfile() error = %v, want %v", err, errInvalidProfileName)
+	}
+}
+
+func TestBasicSimProfileEmitsAllEquippedItems(t *testing.T) {
+	t.Parallel()
+
+	name := "Celinka"
+	equippedItems := testCharacterEquippedItems()
+	offHand := testEquipmentItem(api.OffHand, 15)
+	equippedItems.OffHand = &offHand
+
+	manifest := BasicSimManifest{
+		simConfig: api.SimulationConfigBasic{
+			Character: api.WowCharacter{
+				ActiveTalents:       api.CharacterTalentLoadout{Name: nil, Talents: "abc"},
+				BagItems:            nil,
+				CatalystCurrencies:  nil,
+				CharacterClass:      api.Monk,
+				EquippedItems:       equippedItems,
+				Level:               90,
+				LootSpec:            nil,
+				Name:                &name,
+				Professions:         nil,
+				Race:                "nightborne",
+				Region:              nil,
+				Role:                nil,
+				Server:              nil,
+				SlotHighWatermarks:  nil,
+				Spec:                "brewmaster",
+				TalentLoadouts:      nil,
+				UpgradeAchievements: nil,
+			},
+			CoreConfig: api.SimulationCoreConfig{FightStyle: nil},
+			Kind:       api.SimulationConfigBasicKindBasic,
+		},
+	}
+
+	profile, err := manifest.BuildSimcProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got := string(profile)
+	for _, want := range []string{
+		`monk="Celinka"`,
+		"head=,id=7",
+		"neck=,id=9",
+		"shoulder=,id=10",
+		"back=,id=1",
+		"chest=,id=2",
+		"wrist=,id=14",
+		"hands=,id=6",
+		"waist=,id=13",
+		"legs=,id=8",
+		"feet=,id=3",
+		"finger1=,id=4",
+		"finger2=,id=5",
+		"trinket1=,id=11",
+		"trinket2=,id=12",
+		"main_hand=,id=193723",
+		"off_hand=,id=15",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("buildSimcProfile() did not emit %q in:\n%s", want, got)
+		}
+	}
+}
+
+func TestBasicSimProfileOmitsMissingOffHand(t *testing.T) {
+	t.Parallel()
+
+	name := "Celinka"
+	manifest := BasicSimManifest{
+		simConfig: api.SimulationConfigBasic{
+			Character: api.WowCharacter{
+				ActiveTalents:       api.CharacterTalentLoadout{Name: nil, Talents: "abc"},
+				BagItems:            nil,
+				CatalystCurrencies:  nil,
+				CharacterClass:      api.Monk,
+				EquippedItems:       testCharacterEquippedItems(),
+				Level:               90,
+				LootSpec:            nil,
+				Name:                &name,
+				Professions:         nil,
+				Race:                "nightborne",
+				Region:              nil,
+				Role:                nil,
+				Server:              nil,
+				SlotHighWatermarks:  nil,
+				Spec:                "brewmaster",
+				TalentLoadouts:      nil,
+				UpgradeAchievements: nil,
+			},
+			CoreConfig: api.SimulationCoreConfig{FightStyle: nil},
+			Kind:       api.SimulationConfigBasicKindBasic,
+		},
+	}
+
+	profile, err := manifest.BuildSimcProfile()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if strings.Contains(string(profile), "off_hand=") {
+		t.Fatalf("buildSimcProfile() emitted missing off_hand in:\n%s", profile)
 	}
 }
 

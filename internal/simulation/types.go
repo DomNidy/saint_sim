@@ -32,13 +32,15 @@ type SimulationRequest struct {
 
 // CompletedSimulation contains the artifacts written after a successful run.
 type CompletedSimulation struct {
-	Result   interface{}
-	RawJSON2 JSONMarshaler
+	Result             interface{}
+	RawJSON2           JSONMarshaler
+	RawSimcProfileText string
 }
 
 // FailedSimulation contains the user-facing failure text written for a failed run.
 type FailedSimulation struct {
-	ErrorText string
+	ErrorText          string
+	RawSimcProfileText string
 }
 
 // JobMessage is sent to the simulation queue. Worker consumes this to perform sims.

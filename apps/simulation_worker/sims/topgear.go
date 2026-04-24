@@ -123,7 +123,7 @@ func NewTopGearManifest(
 	}, nil
 }
 
-func (manifest TopGearManifest) buildSimcProfile() (simcProfileString, error) {
+func (manifest TopGearManifest) BuildSimcProfile() (simcProfileString, error) {
 	prof, err := manifest.SimcLines()
 	if err != nil {
 		return "", err

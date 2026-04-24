@@ -167,6 +167,20 @@ func (repo *Repository) MarkFailed(
 			Valid:            true,
 		},
 	})
+
+	return translateNotFound(err)
+}
+
+func (repo *Repository) WriteRunDetails(
+	ctx context.Context,
+	requestID uuid.UUID,
+	rawProfileText string,
+) error {
+	_, err := repo.queries.UpdateSimulation(ctx, dbqueries.UpdateSimulationParams{
+		ID:           requestID,
+		RawSimcInput: &rawProfileText,
+	})
+
 	return translateNotFound(err)
 }
 

@@ -16,7 +16,7 @@ const createSimulation = `-- name: CreateSimulation :one
 INSERT INTO public.simulation(kind, sim_config, owner_id)
     VALUES ($1, $2, $3)
 RETURNING
-    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, raw_simc_input, error_text, created_at, started_at, completed_at
 `
 
 type CreateSimulationParams struct {
@@ -36,6 +36,7 @@ func (q *Queries) CreateSimulation(ctx context.Context, arg CreateSimulationPara
 		&i.SimConfig,
 		&i.SimResult,
 		&i.SimcRawJson2,
+		&i.RawSimcInput,
 		&i.ErrorText,
 		&i.CreatedAt,
 		&i.StartedAt,
@@ -105,7 +106,7 @@ func (q *Queries) GetJwkByID(ctx context.Context, id string) (Jwk, error) {
 
 const getSimulation = `-- name: GetSimulation :one
 SELECT
-    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, raw_simc_input, error_text, created_at, started_at, completed_at
 FROM
     public.simulation
 WHERE
@@ -123,6 +124,7 @@ func (q *Queries) GetSimulation(ctx context.Context, id uuid.UUID) (Simulation, 
 		&i.SimConfig,
 		&i.SimResult,
 		&i.SimcRawJson2,
+		&i.RawSimcInput,
 		&i.ErrorText,
 		&i.CreatedAt,
 		&i.StartedAt,
@@ -166,11 +168,12 @@ SET
     error_text = COALESCE($4, error_text),
     started_at = COALESCE($5, started_at),
     completed_at = COALESCE($6, completed_at),
-    status = COALESCE($7, status)
+    raw_simc_input = COALESCE($7, raw_simc_input),
+    status = COALESCE($8, status)
 WHERE
     id = $1
 RETURNING
-    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, raw_simc_input, error_text, created_at, started_at, completed_at
 `
 
 type UpdateSimulationParams struct {
@@ -180,6 +183,7 @@ type UpdateSimulationParams struct {
 	ErrorText    *string
 	StartedAt    pgtype.Timestamptz
 	CompletedAt  pgtype.Timestamptz
+	RawSimcInput *string
 	Status       NullSimulationStatus
 }
 
@@ -191,6 +195,7 @@ func (q *Queries) UpdateSimulation(ctx context.Context, arg UpdateSimulationPara
 		arg.ErrorText,
 		arg.StartedAt,
 		arg.CompletedAt,
+		arg.RawSimcInput,
 		arg.Status,
 	)
 	var i Simulation
@@ -202,6 +207,7 @@ func (q *Queries) UpdateSimulation(ctx context.Context, arg UpdateSimulationPara
 		&i.SimConfig,
 		&i.SimResult,
 		&i.SimcRawJson2,
+		&i.RawSimcInput,
 		&i.ErrorText,
 		&i.CreatedAt,
 		&i.StartedAt,

@@ -36,6 +36,7 @@ SET
     error_text = COALESCE(sqlc.narg('error_text'), error_text),
     started_at = COALESCE(sqlc.narg('started_at'), started_at),
     completed_at = COALESCE(sqlc.narg('completed_at'), completed_at),
+    raw_simc_input = COALESCE(sqlc.narg('raw_simc_input'), raw_simc_input),
     status = COALESCE(sqlc.narg('status'), status)
 WHERE
     id = $1

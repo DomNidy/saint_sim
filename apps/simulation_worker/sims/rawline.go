@@ -150,6 +150,49 @@ func characterBaseRawlines(
 	}, nil
 }
 
+// equippedItemsRawlines renders the complete equipped gear block from the
+// structured CharacterEquippedItems object. The field position determines the
+// emitted SimC slot, so callers do not rely on any untrusted raw line prefix or
+// on a possibly mismatched EquipmentItem.Slot value.
+func equippedItemsRawlines(items api.CharacterEquippedItems) ([]string, error) {
+	type equippedSlot struct {
+		item api.EquipmentItem
+		slot api.EquipmentSlot
+	}
+
+	slots := []equippedSlot{
+		{items.Head, api.Head},
+		{items.Neck, api.Neck},
+		{items.Shoulder, api.Shoulder},
+		{items.Back, api.Back},
+		{items.Chest, api.Chest},
+		{items.Wrist, api.Wrist},
+		{items.Hands, api.Hands},
+		{items.Waist, api.Waist},
+		{items.Legs, api.Legs},
+		{items.Feet, api.Feet},
+		{items.Finger1, api.Finger1},
+		{items.Finger2, api.Finger2},
+		{items.Trinket1, api.Trinket1},
+		{items.Trinket2, api.Trinket2},
+		{items.MainHand, api.MainHand},
+	}
+	if items.OffHand != nil {
+		slots = append(slots, equippedSlot{*items.OffHand, api.OffHand})
+	}
+
+	lines := make([]string, 0, len(slots))
+	for _, slot := range slots {
+		line, err := equipmentRawlineForSlot(slot.item, slot.slot)
+		if err != nil {
+			return nil, err
+		}
+		lines = append(lines, line)
+	}
+
+	return lines, nil
+}
+
 // levelRawline renders the character level assignment and rejects impossible
 // levels before they reach SimC.
 func levelRawline(level int) (string, error) {

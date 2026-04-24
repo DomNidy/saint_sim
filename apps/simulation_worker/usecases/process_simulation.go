@@ -28,6 +28,7 @@ type SimulationRepository interface {
 	MarkInProgress(ctx context.Context, id uuid.UUID) error
 	MarkCompleted(ctx context.Context, id uuid.UUID, result simulation.CompletedSimulation) error
 	MarkFailed(ctx context.Context, id uuid.UUID, failure simulation.FailedSimulation) error
+	WriteRunDetails(ctx context.Context, id uuid.UUID, rawProfileText string) error
 }
 
 // Runner is the abstraction that orchestrates the execution of simc
@@ -111,6 +112,12 @@ func (useCase *ProcessSimulationUseCase) processBasic(
 		return useCase.failRequest(ctx, request.ID, err)
 	}
 
+	rawProfileText, err := manifest.BuildSimcProfile()
+	if err != nil {
+		return useCase.failRequest(ctx, request.ID, err)
+	}
+	useCase.repository.WriteRunDetails(ctx, request.ID, string(rawProfileText))
+
 	result, err := useCase.runner.Run(ctx, manifest)
 	if err != nil {
 		return useCase.failRequest(ctx, request.ID, fmt.Errorf("run simulation: %w", err))
@@ -139,6 +146,12 @@ func (useCase *ProcessSimulationUseCase) processTopGear(
 	if err != nil {
 		return useCase.failRequest(ctx, request.ID, err)
 	}
+
+	rawProfileText, err := manifest.BuildSimcProfile()
+	if err != nil {
+		return useCase.failRequest(ctx, request.ID, err)
+	}
+	useCase.repository.WriteRunDetails(ctx, request.ID, string(rawProfileText))
 
 	if err := useCase.repository.MarkInProgress(ctx, request.ID); err != nil {
 		log.Printf("unable to mark simulation %s as started: %v", request.ID.String(), err)
