@@ -1,11 +1,21 @@
 package sims
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/DomNidy/saint_sim/apps/simulation_worker/json2"
 	"github.com/DomNidy/saint_sim/internal/api"
 )
 
 type BasicSimManifest struct {
+	simConfig api.SimulationConfigBasic
+}
+
+func NewBasicSimManifest(simConfig api.SimulationConfigBasic) (BasicSimManifest, error) {
+	return BasicSimManifest{
+		simConfig: simConfig,
+	}, nil
 }
 
 // BuildBasicResult projects a completed basic‑sim run into the API's
@@ -34,6 +44,23 @@ func (manifest BasicSimManifest) BuildResultFromJSON2(
 	}, nil
 }
 
-func (manifest BasicSimManifest) BuildSimcProfile() (simcProfileString, error) {
-	return "", nil
+func (m BasicSimManifest) BuildSimcProfile() (simcProfileString, error) {
+	var characterName string
+	if m.simConfig.Character.Name == nil {
+		characterName = "UnknownCharacter"
+	} else {
+		characterName = *m.simConfig.Character.Name
+	}
+
+	baseLines := []string{
+		fmt.Sprintf(`%s="%s"`, m.simConfig.Character.CharacterClass, characterName),
+		fmt.Sprintf(`level=%v`, m.simConfig.Character.Level),
+		fmt.Sprintf(`race=%s`, m.simConfig.Character.Race),
+		fmt.Sprintf(`spec=%s`, m.simConfig.Character.Spec),
+		"iterations=5", // for testing purposes
+	}
+
+	profileText := strings.Join(baseLines, "\n")
+
+	return simcProfileString(profileText), nil
 }

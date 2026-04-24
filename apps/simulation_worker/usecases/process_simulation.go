@@ -123,7 +123,11 @@ func (useCase *ProcessSimulationUseCase) processBasic(
 		log.Printf("unable to mark simulation %s as started: %v", request.ID.String(), err)
 	}
 
-	manifest := sims.BasicSimManifest{}
+	manifest, err := sims.NewBasicSimManifest(config)
+	if err != nil {
+		return useCase.failRequest(ctx, request.ID, err)
+	}
+
 	run, err := useCase.runner.Run(ctx, manifest, useCase.simcBinaryPath)
 	if err != nil {
 		return useCase.failRequest(ctx, request.ID, fmt.Errorf("run simulation: %w", err))
