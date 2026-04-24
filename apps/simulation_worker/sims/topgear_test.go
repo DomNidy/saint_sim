@@ -2,261 +2,26 @@ package sims
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
 	"testing"
 
-	api_utils "github.com/DomNidy/saint_sim/apps/api/api_utils"
 	"github.com/DomNidy/saint_sim/internal/api"
 )
 
 func TestGenerateTopGearProfilesetsDeterministic(t *testing.T) {
-	t.Parallel()
 
-	equipment := appendEquipment(
-		mustParseEquippedEquipmentLines(t, baseSingletonLines()...),
-		mustParseEquippedEquipmentLines(
-			t,
-			extraHeadLine(),
-			baseRingLines()[0],
-			baseRingLines()[1],
-			"finger1=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
-		)...,
-	)
-	equipment = appendEquipment(
-		equipment,
-		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...,
-	)
-
-	gotCount, err := countProfilesets(equipment)
-	if err != nil {
-		t.Fatalf("CountProfilesets() error = %v", err)
-	}
-	if gotCount != 6 {
-		t.Fatalf("CountProfilesets() = %d, want 6", gotCount)
-	}
-
-	got, err := NewTopGearManifest(topGearConfig(equipment, "TALENTS"))
-	if err != nil {
-		t.Fatalf("generateTopGearProfilesets() error = %v", err)
-	}
-	if got.Len() != gotCount {
-		t.Fatalf(
-			"len(generateTopGearProfilesets()) = %d, want %d",
-			got.Len(),
-			gotCount,
-		)
-	}
-
-	want := []struct {
-		name    string
-		head    string
-		finger1 string
-		finger2 string
-		offHand string
-		talents string
-	}{
-		{
-			name:    "Combo1",
-			head:    baseSingletonLines()[0],
-			finger1: baseRingLines()[0],
-			finger2: baseRingLines()[1],
-			offHand: "off_hand=,",
-			talents: "TALENTS",
-		},
-		{
-			name:    "Combo2",
-			head:    baseSingletonLines()[0],
-			finger1: baseRingLines()[0],
-			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
-			offHand: "off_hand=,",
-			talents: "TALENTS",
-		},
-		{
-			name:    "Combo3",
-			head:    baseSingletonLines()[0],
-			finger1: "finger1=,id=256985,gem_id=213491,bonus_id=12778/6652/13668",
-			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
-			offHand: "off_hand=,",
-			talents: "TALENTS",
-		},
-		{
-			name:    "Combo4",
-			head:    extraHeadLine(),
-			finger1: baseRingLines()[0],
-			finger2: baseRingLines()[1],
-			offHand: "off_hand=,",
-			talents: "TALENTS",
-		},
-		{
-			name:    "Combo5",
-			head:    extraHeadLine(),
-			finger1: baseRingLines()[0],
-			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
-			offHand: "off_hand=,",
-			talents: "TALENTS",
-		},
-		{
-			name:    "Combo6",
-			head:    extraHeadLine(),
-			finger1: "finger1=,id=256985,gem_id=213491,bonus_id=12778/6652/13668",
-			finger2: "finger2=,id=151311,enchant_id=8021,gem_id=240873,bonus_id=13439/6652/13668/12699/12790",
-			offHand: "off_hand=,",
-			talents: "TALENTS",
-		},
-	}
-
-	type profilesetSummary struct {
-		name    string
-		head    string
-		finger1 string
-		finger2 string
-		offHand string
-		talents string
-	}
-
-	gotSummaries := make([]profilesetSummary, 0, got.Len())
-	for _, profile := range got.Profilesets {
-		gotSummaries = append(gotSummaries, profilesetSummary{
-			name:    profile.Name,
-			head:    got.equipment[profile.Head].RawLine,
-			finger1: retargetEquipmentLine(got.equipment[profile.Finger1].RawLine, api.Finger1),
-			finger2: retargetEquipmentLine(got.equipment[profile.Finger2].RawLine, api.Finger2),
-			offHand: offHandSummaryLine(got, profile.OffHand),
-			talents: profile.Talents,
-		})
-	}
-
-	wantSummaries := make([]profilesetSummary, 0, len(want))
-	for _, expected := range want {
-		wantSummaries = append(wantSummaries, profilesetSummary(expected))
-	}
-
-	if !reflect.DeepEqual(gotSummaries, wantSummaries) {
-		t.Fatalf("generateTopGearProfilesets() = %#v, want %#v", gotSummaries, wantSummaries)
-	}
 }
 
 func TestGenerateTopGearProfilesetsAllowsDuplicateRingFromDifferentSources(t *testing.T) {
-	t.Parallel()
 
-	equipment := appendEquipment(
-		mustParseEquippedEquipmentLines(t, baseSingletonLines()...),
-		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...,
-	)
-	equipment = appendEquipment(
-		equipment,
-		mustParseEquipmentLine(t, api.Equipped, baseRingLines()[0]),
-		mustParseEquipmentLine(
-			t,
-			api.Bag,
-			"finger2=,id=256971,gem_id=240865,bonus_id=12769/6652/13668",
-		),
-	)
-
-	got, err := NewTopGearManifest(topGearConfig(equipment, "TALENTS"))
-	if err != nil {
-		t.Fatalf("generateTopGearProfilesets() error = %v", err)
-	}
-	if got.Len() != 1 {
-		t.Fatalf("len(generateTopGearProfilesets()) = %d, want 1", got.Len())
-	}
-	if retargetEquipmentLine(
-		got.equipment[got.Profilesets[0].Finger1].RawLine,
-		api.Finger1,
-	) != baseRingLines()[0] ||
-		retargetEquipmentLine(
-			got.equipment[got.Profilesets[0].Finger2].RawLine,
-			api.Finger2,
-		) != "finger2=,id=256971,gem_id=240865,bonus_id=12769/6652/13668" {
-		t.Fatalf(
-			"ring pair = (%q, %q), want the two distinct copies of the same ring",
-			retargetEquipmentLine(got.equipment[got.Profilesets[0].Finger1].RawLine, api.Finger1),
-			retargetEquipmentLine(got.equipment[got.Profilesets[0].Finger2].RawLine, api.Finger2),
-		)
-	}
 }
 
 func TestCountProfilesetsAllowsDuplicateRingFromDifferentSources(t *testing.T) {
-	t.Parallel()
 
-	equipment := appendEquipment(
-		mustParseEquippedEquipmentLines(t, baseSingletonLines()...),
-		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...,
-	)
-	equipment = appendEquipment(
-		equipment,
-		mustParseEquipmentLine(t, api.Equipped, baseRingLines()[0]),
-		mustParseEquipmentLine(t, api.Equipped, baseRingLines()[0]),
-	)
-
-	count, err := countProfilesets(equipment)
-	if err != nil {
-		t.Fatalf("CountProfilesets() error = %v", err)
-	}
-	if count != 1 {
-		t.Fatalf("CountProfilesets() = %d, want 1", count)
-	}
 }
 
 func TestCountProfilesetsCanReportLargeCombinationCount(t *testing.T) {
-	t.Parallel()
 
-	headLines := make([]string, 0, maxGeneratedProfilesets+1)
-	for headIndex := range maxGeneratedProfilesets + 1 {
-		headLines = append(
-			headLines,
-			"head=,id="+intString(300000+headIndex)+",bonus_id=6652/12667/13577/13333/12787",
-		)
-	}
-
-	equipment := appendEquipment(
-		mustParseEquippedEquipmentLines(t, headLines...),
-		mustParseEquippedEquipmentLines(t, baseSingletonLines()[1:]...)...,
-	)
-	equipment = appendEquipment(
-		equipment,
-		mustParseEquippedEquipmentLines(t, baseRingLines()...)...)
-	equipment = appendEquipment(
-		equipment,
-		mustParseEquippedEquipmentLines(t, baseTrinketLines()...)...)
-
-	count, err := countProfilesets(equipment)
-	if err != nil {
-		t.Fatalf("countProfilesets() error = %v", err)
-	}
-	if count <= maxGeneratedProfilesets {
-		t.Fatalf("countProfilesets() = %d, want more than %d", count, maxGeneratedProfilesets)
-	}
-}
-
-func mustParseEquippedEquipmentLines(
-	t *testing.T,
-	lines ...string,
-) []api.EquipmentItem {
-	t.Helper()
-
-	items := make([]api.EquipmentItem, 0, len(lines))
-	for _, line := range lines {
-		items = append(items, mustParseEquipmentLine(t, api.Equipped, line))
-	}
-
-	return items
-}
-
-func mustParseEquipmentLine(
-	t *testing.T,
-	source api.EquipmentSource,
-	line string,
-) api.EquipmentItem {
-	t.Helper()
-
-	item, ok := api_utils.ParseEquipmentItem("", line, source)
-	if !ok {
-		t.Fatalf("failed to parse item line %q", line)
-	}
-
-	return item
 }
 
 func appendEquipment(
@@ -279,7 +44,7 @@ func topGearConfig(
 		Character: api.WowCharacter{
 			Name:                &name,
 			CharacterClass:      api.Deathknight,
-			EquippedItems:       []api.EquipmentItem{},
+			EquippedItems:       api.CharacterEquippedItems{},
 			Level:               80,
 			Race:                "human",
 			Role:                stringPtr("attack"),

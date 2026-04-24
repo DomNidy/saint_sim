@@ -40,7 +40,7 @@ export function useParseAddonExport(
 	const equipmentGroups = useMemo(
 		() =>
 			groupEquipment([
-				...(wowCharacter?.equipped_items ?? []),
+				...Object.values(wowCharacter?.equipped_items ?? {}),
 				...(wowCharacter?.bag_items ?? []),
 			]),
 		[wowCharacter?.equipped_items, wowCharacter?.bag_items],

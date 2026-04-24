@@ -152,8 +152,7 @@ func TestRouterSimulationAuthAndValidation(t *testing.T) {
 			Race:           "void_elf",
 			Spec:           "shadow",
 		},
-		CoreConfig:      api.SimulationCoreConfig{},
-		SimcAddonExport: "priest=\"Example\"\nlevel=80\nspec=shadow",
+		CoreConfig: api.SimulationCoreConfig{},
 	}
 
 	simOptionsJsonBody, err := json.Marshal(simConfig)

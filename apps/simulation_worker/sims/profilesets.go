@@ -305,19 +305,10 @@ func setMainHand(p *Profileset, i int) { p.MainHand = i }
 // lines converts the loadout into the `profileset."Name"+=…` lines that will
 // be appended to the simc profile. equipment must be the same slice that
 // buildTopGearCandidatePools was called with.
-func (l *Profileset) lines(equipment []api.EquipmentItem) []string {
-	type slotLine struct {
-		idx      int
-		retarget api.EquipmentSlot // "" => emit RawLine as‑is
-	}
-
-	slots := []slotLine{
-		{l.Head, ""}, {l.Neck, ""}, {l.Shoulder, ""}, {l.Back, ""},
-		{l.Chest, ""}, {l.Wrist, ""}, {l.Hands, ""}, {l.Waist, ""},
-		{l.Legs, ""}, {l.Feet, ""},
-		{l.Finger1, api.Finger1}, {l.Finger2, api.Finger2},
-		{l.Trinket1, api.Trinket1}, {l.Trinket2, api.Trinket2},
-		{l.MainHand, ""}, {l.OffHand, api.OffHand},
+func (l *Profileset) lines(equipment []api.EquipmentItem) ([]string, error) {
+	equipmentLines, err := equipmentLinesForProfileset(*l, equipment)
+	if err != nil {
+		return nil, err
 	}
 
 	const exLinesPerProfileset = 17 // 16 gear + 1 talents
@@ -327,21 +318,50 @@ func (l *Profileset) lines(equipment []api.EquipmentItem) []string {
 		lines = append(lines, fmt.Sprintf(`profileset."%s"+=%s`, l.Name, raw))
 	}
 
-	for _, s := range slots {
+	for _, equipmentLine := range equipmentLines {
+		emit(equipmentLine)
+	}
+
+	talentsLine, err := talentsRawline(l.Talents)
+	if err != nil {
+		return nil, err
+	}
+
+	emit(talentsLine)
+
+	return lines, nil
+}
+
+func equipmentLinesForProfileset(pset Profileset, equipment []api.EquipmentItem) ([]string, error) {
+	type slotLine struct {
+		idx  int
+		slot api.EquipmentSlot
+	}
+
+	slots := []slotLine{
+		{pset.Head, api.Head}, {pset.Neck, api.Neck}, {pset.Shoulder, api.Shoulder},
+		{pset.Back, api.Back}, {pset.Chest, api.Chest}, {pset.Wrist, api.Wrist},
+		{pset.Hands, api.Hands}, {pset.Waist, api.Waist}, {pset.Legs, api.Legs},
+		{pset.Feet, api.Feet}, {pset.Finger1, api.Finger1}, {pset.Finger2, api.Finger2},
+		{pset.Trinket1, api.Trinket1}, {pset.Trinket2, api.Trinket2},
+		{pset.MainHand, api.MainHand}, {pset.OffHand, api.OffHand},
+	}
+
+	lines := make([]string, 0, len(slots))
+	for _, slot := range slots {
 		switch {
-		case s.idx == noItemIndex && s.retarget == api.OffHand:
-			emit(emptyOffHandLine)
-		case s.idx == noItemIndex:
-			// Required slot left unset — this indicates a bug in generation.
-			panic(fmt.Sprintf("profileset %q has unset required slot", l.Name))
-		case s.retarget != "":
-			emit(retargetEquipmentLine(equipment[s.idx].RawLine, s.retarget))
+		case slot.idx == noItemIndex && slot.slot == api.OffHand: // case where the offhand is empty (allow to proceed)
+			lines = append(lines, emptyOffHandLine)
+		case slot.idx == noItemIndex: // we require all other slots to be filled
+			return nil, fmt.Errorf("%w: %q", errTopGearProfilesetSlotMiss, slot.slot)
 		default:
-			emit(equipment[s.idx].RawLine)
+			line, err := equipmentRawlineForSlot(equipment[slot.idx], slot.slot)
+			if err != nil {
+				return nil, err
+			}
+			lines = append(lines, line)
 		}
 	}
 
-	emit("talents=" + l.Talents)
-
-	return lines
+	return lines, nil
 }

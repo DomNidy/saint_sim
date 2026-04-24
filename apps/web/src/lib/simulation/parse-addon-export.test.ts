@@ -22,7 +22,7 @@ describe("parseSimcAddonExport", () => {
 			role: "spell",
 			professions: "alchemy=100/herbalism=100",
 			spec: "shadow",
-			equipped_items: [],
+			equipped_items: {},
 		});
 	});
 
@@ -50,8 +50,8 @@ head=,id=250458,bonus_id=6652/12667,gem_id=240865,ilevel=684
 # Gnarlroot Spinecleaver (710)
 main_hand=,id=249671,enchant_id=3368,bonus_id=6652,ilevel=710`);
 
-		expect(got.equipped_items).toHaveLength(1);
-		expect(got.equipped_items[0]).toMatchObject({
+		expect(Object.values(got.equipped_items)).toHaveLength(1);
+		expect(got.equipped_items.head).toMatchObject({
 			slot: EquipmentSlot.HEAD,
 			name: "Host Commander's Casque",
 			display_name: "Host Commander's Casque",

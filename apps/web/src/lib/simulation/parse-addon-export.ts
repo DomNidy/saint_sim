@@ -1,5 +1,6 @@
 import {
 	CharacterClass,
+	type CharacterEquippedItems,
 	type CharacterSlotHighWatermark,
 	type CharacterTalentLoadout,
 	type EquipmentItem,
@@ -20,12 +21,32 @@ type ParsedEquipmentAssignment = {
 	attributes: Map<string, string>;
 };
 
+type CharacterEquippedSlot = keyof CharacterEquippedItems;
+
 type CatalystCurrency = NonNullable<
 	WowCharacter["catalyst_currencies"]
 >[number];
 
 const characterClasses = new Set<string>(Object.values(CharacterClass));
 const equipmentSlots = new Set<string>(Object.values(EquipmentSlot));
+const characterEquippedSlots = new Set<string>([
+	EquipmentSlot.HEAD,
+	EquipmentSlot.NECK,
+	EquipmentSlot.SHOULDER,
+	EquipmentSlot.BACK,
+	EquipmentSlot.CHEST,
+	EquipmentSlot.WRIST,
+	EquipmentSlot.HANDS,
+	EquipmentSlot.WAIST,
+	EquipmentSlot.LEGS,
+	EquipmentSlot.FEET,
+	EquipmentSlot.FINGER1,
+	EquipmentSlot.FINGER2,
+	EquipmentSlot.TRINKET1,
+	EquipmentSlot.TRINKET2,
+	EquipmentSlot.MAIN_HAND,
+	EquipmentSlot.OFF_HAND,
+]);
 
 function canonicalizeSimcAddonExport(raw: string): string {
 	return raw
@@ -48,7 +69,7 @@ export function parseSimcAddonExport(rawAddonExport: string): WowCharacter {
 	rawAddonExport = canonicalizeSimcAddonExport(rawAddonExport);
 	const character: WowCharacter = {
 		character_class: "" as CharacterClass,
-		equipped_items: [],
+		equipped_items: {} as CharacterEquippedItems,
 		level: 0,
 		race: "",
 		spec: "",
@@ -149,12 +170,18 @@ function parseAssignmentLine(
 	if (item !== undefined) {
 		if (source === "bag") {
 			character.bag_items = [...(character.bag_items ?? []), item];
-		} else {
-			character.equipped_items.push(item);
+		} else if (isCharacterEquippedSlot(item.slot)) {
+			character.equipped_items[item.slot] = item;
 		}
 	}
 
 	state.pendingEquipmentName = "";
+}
+
+function isCharacterEquippedSlot(
+	slot: EquipmentSlot,
+): slot is CharacterEquippedSlot {
+	return characterEquippedSlots.has(slot);
 }
 
 function parseSectionComment(

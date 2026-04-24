@@ -43,7 +43,6 @@ function SimulationPage() {
 		resolver: zodResolver(zSimulationConfigBasic),
 		defaultValues: {
 			kind: "basic",
-			simc_addon_export: "",
 		},
 		resetOptions: {
 			keepErrors: true,
@@ -129,10 +128,7 @@ function SimulationPage() {
 								// write to local storage so users can see the profile again
 								// whenever they visit the site/refresh
 								if (hydrated) {
-									localStorageSet(
-										PREV_SIMC_PROFILE_KEY,
-										form.getValues().simc_addon_export,
-									);
+									localStorageSet(PREV_SIMC_PROFILE_KEY, simcExport);
 								}
 							}}
 						>

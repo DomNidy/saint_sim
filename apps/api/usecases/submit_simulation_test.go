@@ -153,8 +153,7 @@ func basicSimulationOptions(t *testing.T) api.SimulationOptions {
 			Race:           "void_elf",
 			Spec:           "shadow",
 		},
-		CoreConfig:      api.SimulationCoreConfig{},
-		SimcAddonExport: "priest=\"Example\"\nlevel=80\nspec=shadow",
+		CoreConfig: api.SimulationCoreConfig{},
 	})
 	if err != nil {
 		t.Fatalf("encode basic simulation options: %v", err)
