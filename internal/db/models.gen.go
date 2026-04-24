@@ -206,6 +206,7 @@ type Simulation struct {
 	SimConfig    []byte
 	SimResult    []byte
 	SimcRawJson2 []byte
+	RawSimcInput *string
 	ErrorText    *string
 	CreatedAt    pgtype.Timestamptz
 	StartedAt    pgtype.Timestamptz

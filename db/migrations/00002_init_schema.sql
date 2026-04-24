@@ -113,6 +113,9 @@ CREATE TABLE public.simulation(
     -- so sim_result can be recomputed if the response contract changes,
     -- without re-running simc. Never served to clients directly.
     simc_raw_json2 jsonb,
+    -- The raw input that the backend generated and used for this profile.
+    -- for debugging purposes so we can see why sims go wrong, etc.
+    raw_simc_input text,
     error_text text,
     created_at timestamptz NOT NULL DEFAULT now(),
     started_at timestamptz,

@@ -249,6 +249,6 @@ func TestBasic(t *testing.T) {
 
 	log.Print(s)
 
-	_, _ = mani.buildSimcProfile()
+	_, _ = mani.BuildSimcProfile()
 
 }

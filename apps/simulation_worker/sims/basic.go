@@ -16,7 +16,7 @@ func NewBasicSimManifest(simConfig api.SimulationConfigBasic) (BasicSimManifest,
 	}, nil
 }
 
-func (m BasicSimManifest) buildSimcProfile() (simcProfileString, error) {
+func (m BasicSimManifest) BuildSimcProfile() (simcProfileString, error) {
 	character := m.simConfig.Character
 	baseLines, err := characterBaseRawlines(
 		character.CharacterClass,
@@ -29,11 +29,11 @@ func (m BasicSimManifest) buildSimcProfile() (simcProfileString, error) {
 		return "", err
 	}
 
-	mainHand, err := equipmentRawline(character.EquippedItems.MainHand)
+	equipmentLines, err := equippedItemsRawlines(character.EquippedItems)
 	if err != nil {
 		return "", err
 	}
-	baseLines = append(baseLines, mainHand)
+	baseLines = append(baseLines, equipmentLines...)
 
 	profileText := strings.Join(baseLines, "\n")
 

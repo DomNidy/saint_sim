@@ -27,7 +27,7 @@ func (r SimcRunner) Run(
 	ctx context.Context,
 	manifest Manifest,
 ) (api.SimulationResult, error) {
-	profileText, err := manifest.buildSimcProfile()
+	profileText, err := manifest.BuildSimcProfile()
 	if err != nil {
 		return api.SimulationResult{}, err
 	}

@@ -11,10 +11,10 @@ import (
 type simcProfileString string
 
 type Manifest interface {
-	// buildSimcProfile converts the manifest into the final simc profile text
+	// BuildSimcProfile converts the manifest into the final simc profile text
 	// the profile text should be writable directly to a simc profile without any
 	// processing.
-	buildSimcProfile() (simcProfileString, error)
+	BuildSimcProfile() (simcProfileString, error)
 
 	// prepareReportFromRunResult takes the artifacts produced by executing this
 	// simulation, and then returns the appropriate api-shaped result object for

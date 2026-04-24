@@ -93,7 +93,7 @@ export const createSimulationQuery = `-- name: CreateSimulation :one
 INSERT INTO public.simulation(kind, sim_config, owner_id)
     VALUES ($1, $2, $3)
 RETURNING
-    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at`;
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, raw_simc_input, error_text, created_at, started_at, completed_at`;
 
 export interface CreateSimulationArgs {
     kind: string;
@@ -109,6 +109,7 @@ export interface CreateSimulationRow {
     simConfig: any;
     simResult: any | null;
     simcRawJson2: any | null;
+    rawSimcInput: string | null;
     errorText: string | null;
     createdAt: Date;
     startedAt: Date | null;
@@ -133,10 +134,11 @@ export async function createSimulation(client: Client, args: CreateSimulationArg
         simConfig: row[4],
         simResult: row[5],
         simcRawJson2: row[6],
-        errorText: row[7],
-        createdAt: row[8],
-        startedAt: row[9],
-        completedAt: row[10]
+        rawSimcInput: row[7],
+        errorText: row[8],
+        createdAt: row[9],
+        startedAt: row[10],
+        completedAt: row[11]
     };
 }
 
@@ -149,11 +151,12 @@ SET
     error_text = COALESCE($4, error_text),
     started_at = COALESCE($5, started_at),
     completed_at = COALESCE($6, completed_at),
-    status = COALESCE($7, status)
+    raw_simc_input = COALESCE($7, raw_simc_input),
+    status = COALESCE($8, status)
 WHERE
     id = $1
 RETURNING
-    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at`;
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, raw_simc_input, error_text, created_at, started_at, completed_at`;
 
 export interface UpdateSimulationArgs {
     id: string;
@@ -162,6 +165,7 @@ export interface UpdateSimulationArgs {
     errorText: string | null;
     startedAt: Date | null;
     completedAt: Date | null;
+    rawSimcInput: string | null;
     status: string | null;
 }
 
@@ -173,6 +177,7 @@ export interface UpdateSimulationRow {
     simConfig: any;
     simResult: any | null;
     simcRawJson2: any | null;
+    rawSimcInput: string | null;
     errorText: string | null;
     createdAt: Date;
     startedAt: Date | null;
@@ -182,7 +187,7 @@ export interface UpdateSimulationRow {
 export async function updateSimulation(client: Client, args: UpdateSimulationArgs): Promise<UpdateSimulationRow | null> {
     const result = await client.query({
         text: updateSimulationQuery,
-        values: [args.id, args.simResult, args.simcRawJson2, args.errorText, args.startedAt, args.completedAt, args.status],
+        values: [args.id, args.simResult, args.simcRawJson2, args.errorText, args.startedAt, args.completedAt, args.rawSimcInput, args.status],
         rowMode: "array"
     });
     if (result.rows.length !== 1) {
@@ -197,10 +202,11 @@ export async function updateSimulation(client: Client, args: UpdateSimulationArg
         simConfig: row[4],
         simResult: row[5],
         simcRawJson2: row[6],
-        errorText: row[7],
-        createdAt: row[8],
-        startedAt: row[9],
-        completedAt: row[10]
+        rawSimcInput: row[7],
+        errorText: row[8],
+        createdAt: row[9],
+        startedAt: row[10],
+        completedAt: row[11]
     };
 }
 
@@ -238,7 +244,7 @@ export async function getSimulationOptions(client: Client, args: GetSimulationOp
 
 export const getSimulationQuery = `-- name: GetSimulation :one
 SELECT
-    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, error_text, created_at, started_at, completed_at
+    id, owner_id, status, kind, sim_config, sim_result, simc_raw_json2, raw_simc_input, error_text, created_at, started_at, completed_at
 FROM
     public.simulation
 WHERE
@@ -256,6 +262,7 @@ export interface GetSimulationRow {
     simConfig: any;
     simResult: any | null;
     simcRawJson2: any | null;
+    rawSimcInput: string | null;
     errorText: string | null;
     createdAt: Date;
     startedAt: Date | null;
@@ -280,10 +287,11 @@ export async function getSimulation(client: Client, args: GetSimulationArgs): Pr
         simConfig: row[4],
         simResult: row[5],
         simcRawJson2: row[6],
-        errorText: row[7],
-        createdAt: row[8],
-        startedAt: row[9],
-        completedAt: row[10]
+        rawSimcInput: row[7],
+        errorText: row[8],
+        createdAt: row[9],
+        startedAt: row[10],
+        completedAt: row[11]
     };
 }
 
