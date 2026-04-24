@@ -11,12 +11,15 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	amqp091 "github.com/rabbitmq/amqp091-go"
 
+	"github.com/DomNidy/saint_sim/apps/simulation_worker/sims"
 	workerusecases "github.com/DomNidy/saint_sim/apps/simulation_worker/usecases"
 	"github.com/DomNidy/saint_sim/internal/platform/postgres"
 	"github.com/DomNidy/saint_sim/internal/platform/rabbitmq"
 	secrets "github.com/DomNidy/saint_sim/internal/secrets"
 	simulationpostgres "github.com/DomNidy/saint_sim/internal/simulation/postgres"
 )
+
+const maxSimcProfileSizeBytes = 1_000_000
 
 type simulationQueue interface {
 	Consume(ctx context.Context) (<-chan amqp091.Delivery, error)
@@ -88,9 +91,14 @@ func run() error {
 	}()
 
 	simulationRepository := simulationpostgres.NewRepository(config.dbPool)
+
+	simcRunner := sims.NewSimcRunner(config.simcBinaryPath, sims.Workspace{
+		MaxSimcProfileSizeBytes: maxSimcProfileSizeBytes,
+	})
+
 	processor := workerusecases.NewProcessSimulationUseCase(
 		simulationRepository,
-		config.simcBinaryPath,
+		simcRunner,
 	)
 
 	worker := simulationWorker{
