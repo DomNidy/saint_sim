@@ -30,50 +30,29 @@ type SimulationRepository interface {
 	MarkFailed(ctx context.Context, id uuid.UUID, failure simulation.FailedSimulation) error
 }
 
-// Runner executes a sim manifest with the configured SimC binary.
+// Runner is the abstraction that orchestrates the execution of simc
+// against a given sim Manifest.
 type Runner interface {
 	Run(
 		ctx context.Context,
 		manifest sims.Manifest,
-		simcBinaryPath string,
 	) (api.SimulationResult, error)
-}
-
-type defaultRunner struct{}
-
-func (runner defaultRunner) Run(
-	ctx context.Context,
-	manifest sims.Manifest,
-	simcBinaryPath string,
-) (api.SimulationResult, error) {
-	return sims.Run(ctx, manifest, simcBinaryPath)
 }
 
 // ProcessSimulationUseCase processes one queued simulation id.
 type ProcessSimulationUseCase struct {
-	repository     SimulationRepository
-	runner         Runner
-	simcBinaryPath string
+	repository SimulationRepository
+	runner     Runner
 }
 
-// NewProcessSimulationUseCase constructs a process use case using the production runner.
+// NewProcessSimulationUseCase constructs a process use case with an injected runner.
 func NewProcessSimulationUseCase(
 	repository SimulationRepository,
-	simcBinaryPath string,
-) *ProcessSimulationUseCase {
-	return NewProcessSimulationUseCaseWithRunner(repository, defaultRunner{}, simcBinaryPath)
-}
-
-// NewProcessSimulationUseCaseWithRunner constructs a process use case with an injected runner.
-func NewProcessSimulationUseCaseWithRunner(
-	repository SimulationRepository,
 	runner Runner,
-	simcBinaryPath string,
 ) *ProcessSimulationUseCase {
 	return &ProcessSimulationUseCase{
-		repository:     repository,
-		runner:         runner,
-		simcBinaryPath: simcBinaryPath,
+		repository: repository,
+		runner:     runner,
 	}
 }
 
@@ -132,7 +111,7 @@ func (useCase *ProcessSimulationUseCase) processBasic(
 		return useCase.failRequest(ctx, request.ID, err)
 	}
 
-	result, err := useCase.runner.Run(ctx, manifest, useCase.simcBinaryPath)
+	result, err := useCase.runner.Run(ctx, manifest)
 	if err != nil {
 		return useCase.failRequest(ctx, request.ID, fmt.Errorf("run simulation: %w", err))
 	}
@@ -165,7 +144,7 @@ func (useCase *ProcessSimulationUseCase) processTopGear(
 		log.Printf("unable to mark simulation %s as started: %v", request.ID.String(), err)
 	}
 
-	result, err := useCase.runner.Run(ctx, manifest, useCase.simcBinaryPath)
+	result, err := useCase.runner.Run(ctx, manifest)
 	if err != nil {
 		return useCase.failRequest(ctx, request.ID, fmt.Errorf("run top gear simulation: %w", err))
 	}

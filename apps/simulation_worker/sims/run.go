@@ -4,39 +4,43 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"reflect"
 
-	"github.com/DomNidy/saint_sim/apps/simulation_worker/json2"
 	"github.com/DomNidy/saint_sim/internal/api"
 )
 
-const simcNoArgumentsExitCode = 50
-const simcProfileFileMode = 0o600
+// SimcRunner is a wrapper over the simc binary.
+type SimcRunner struct {
+	simcBinaryPath string
+	workspace      Workspace
+}
+
+// NewSimcRunner creates and returns a SimcRunner.
+func NewSimcRunner(simcBinaryPath string, workspace Workspace) SimcRunner {
+	return SimcRunner{simcBinaryPath: simcBinaryPath, workspace: workspace}
+}
 
 // Run executes a simulation end-to-end using the provided manifest as the
 // "plan".
-func Run[T Manifest](
+func (r SimcRunner) Run(
 	ctx context.Context,
-	manifest T,
-	simcBinaryPath string,
+	manifest Manifest,
 ) (api.SimulationResult, error) {
 	profileText, err := manifest.buildSimcProfile()
 	if err != nil {
 		return api.SimulationResult{}, err
 	}
 
-	profilePath, cleanupFunc, err := writeSimcProfileTemp(string(profileText))
+	profilePath, cleanupFunc, err := r.workspace.writeSimcProfileTemp(string(profileText))
 	defer cleanupFunc()
 
 	if err != nil {
 		return api.SimulationResult{}, err
 	}
 
-	outputPath := filepath.Join(filepath.Dir(profilePath), "output.json")
-	command := exec.CommandContext(ctx, simcBinaryPath, profilePath, "json2="+outputPath)
+	outputPath := r.workspace.generateOutputPath(profilePath)
+	command := exec.CommandContext(ctx, r.simcBinaryPath, profilePath, "json2="+outputPath)
 
 	// harden by making env of the launched process empty
 	command.Env = []string{}
@@ -48,7 +52,7 @@ func Run[T Manifest](
 
 	if err := command.Run(); err != nil {
 		return api.SimulationResult{}, fmt.Errorf(
-			"execute simc binary: %w. stderr: %s"+
+			"execute simc binary: %w. stderr: %s\n"+
 				"Did the manifest for this sim return a valid simc profile?\n"+
 				"manifest concrete type: %s\n"+
 				"Profile content:\n%s",
@@ -60,50 +64,19 @@ func Run[T Manifest](
 	}
 
 	// try to read json2 sim results
-	jsonBytes, err := os.ReadFile(outputPath) // #nosec G304 -- path constructed above
-	if err != nil {
-		return api.SimulationResult{}, fmt.Errorf("read simc json2 output %q: %w", outputPath, err)
-	}
-
-	parsedJson2, err := json2.ParseJSON2(jsonBytes)
+	parsedJson2, err := r.workspace.readSimulationFile(outputPath)
 	if err != nil {
 		return api.SimulationResult{}, err
 	}
 
-	result := runResult{
+	apiRes, err := manifest.prepareReportFromRunResult(runResult{
 		Stdout: stdout.Bytes(),
 		Stderr: stderr.Bytes(),
 		JSON2:  parsedJson2,
-	}
-
-	apiRes, err := manifest.prepareReportFromRunResult(result)
+	})
 	if err != nil {
 		return api.SimulationResult{}, err
 	}
 
 	return apiRes, nil
-}
-
-// writeSimcProfileTemp writes a simc profile to disk and return a cleanup function,
-// along with the path to the file. Caller needs to call the cleanup function.
-func writeSimcProfileTemp(
-	profileText string,
-) (string, func(), error) {
-	tempDir, err := os.MkdirTemp("", "saint-simc-*")
-	if err != nil {
-		return "", func() {}, fmt.Errorf("create simc temp dir: %w", err)
-	}
-
-	cleanupFunc := func() {
-		if removeErr := os.RemoveAll(tempDir); removeErr != nil {
-			fmt.Fprintf(os.Stderr, "remove simc temp dir: %v\n", removeErr)
-		}
-	}
-
-	profilePath := filepath.Join(tempDir, "input.simc")
-	if err := os.WriteFile(profilePath, []byte(profileText), simcProfileFileMode); err != nil {
-		return "", func() {}, fmt.Errorf("write simc profile: %w", err)
-	}
-
-	return profilePath, cleanupFunc, nil
 }
