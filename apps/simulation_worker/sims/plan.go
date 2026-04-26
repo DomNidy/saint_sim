@@ -10,15 +10,16 @@ import (
 // and passed to simc.
 type simcProfileString string
 
-type Manifest interface {
-	// BuildSimcProfile converts the manifest into the final simc profile text
+// Plan is a "plan" for how to perform a simulation.
+type Plan interface {
+	// BuildSimcProfile converts the plan into the final simc profile text
 	// the profile text should be writable directly to a simc profile without any
 	// processing.
 	BuildSimcProfile() (simcProfileString, error)
 
 	// prepareReportFromRunResult takes the artifacts produced by executing this
 	// simulation, and then returns the appropriate api-shaped result object for
-	// the manifest type.
+	// the plan type.
 	//
 	// For example, a Basic Simulation would return a Basic Simulation Result
 	prepareReportFromRunResult(result runResult) (api.SimulationResult, error)

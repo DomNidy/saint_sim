@@ -78,20 +78,20 @@ func intString(value int) string {
 	return strconv.Itoa(value)
 }
 
-func offHandSummaryLine(manifest TopGearManifest, offHandIndex int) string {
+func offHandSummaryLine(plan TopGearSimPlan, offHandIndex int) string {
 	if offHandIndex == noItemIndex {
 		return emptyOffHandLine
 	}
 
-	return retargetEquipmentLine(manifest.equipment[offHandIndex].RawLine, api.OffHand)
+	return retargetEquipmentLine(plan.equipment[offHandIndex].RawLine, api.OffHand)
 }
 
 func countProfilesets(equipment []api.EquipmentItem) (int, error) {
-	manifest := TopGearManifest{
+	plan := TopGearSimPlan{
 		equipment: equipment,
 	}
 
-	return manifest.CountProfilesets()
+	return plan.CountProfilesets()
 }
 
 func stringPtr(value string) *string {

@@ -90,19 +90,15 @@ func run() error {
 		}
 	}()
 
-	simulationRepository := simulationpostgres.NewRepository(config.dbPool)
-
-	simcRunner := sims.NewSimcRunner(config.simcBinaryPath, sims.Workspace{
-		MaxSimcProfileSizeBytes: maxSimcProfileSizeBytes,
-	})
-
-	processor := workerusecases.NewProcessSimulationUseCase(
-		simulationRepository,
-		simcRunner,
+	simProcessor := workerusecases.NewProcessSimulationUseCase(
+		simulationpostgres.NewRepository(config.dbPool),
+		sims.NewSimcRunner(config.simcBinaryPath, sims.Workspace{
+			MaxSimcProfileSizeBytes: maxSimcProfileSizeBytes,
+		}),
 	)
 
 	worker := simulationWorker{
-		processor: processor,
+		processor: simProcessor,
 	}
 
 	simChan, err := config.simulationQueue.Consume(ctx)

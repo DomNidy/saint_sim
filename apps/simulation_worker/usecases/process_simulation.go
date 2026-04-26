@@ -32,38 +32,44 @@ type SimulationRepository interface {
 }
 
 // Runner is the abstraction that orchestrates the execution of simc
-// against a given sim Manifest.
+// against a given sim Plan.
 type Runner interface {
 	Run(
 		ctx context.Context,
-		manifest sims.Manifest,
+		plan sims.Plan,
 	) (api.SimulationResult, error)
 }
 
 // ProcessSimulationUseCase processes one queued simulation id.
 type ProcessSimulationUseCase struct {
-	repository SimulationRepository
-	runner     Runner
+	repo   SimulationRepository
+	runner Runner
 }
 
 // NewProcessSimulationUseCase constructs a process use case with an injected runner.
 func NewProcessSimulationUseCase(
 	repository SimulationRepository,
 	runner Runner,
-) *ProcessSimulationUseCase {
-	return &ProcessSimulationUseCase{
-		repository: repository,
-		runner:     runner,
+) ProcessSimulationUseCase {
+	return ProcessSimulationUseCase{
+		repo:   repository,
+		runner: runner,
 	}
 }
 
 // Process loads, runs, and marks one simulation according to current worker semantics.
 func (useCase *ProcessSimulationUseCase) Process(ctx context.Context, requestID uuid.UUID) error {
-	request, err := useCase.repository.LoadRequest(ctx, requestID)
+	request, err := useCase.repo.LoadRequest(ctx, requestID)
 	if err != nil {
 		return fmt.Errorf("load simulation request: %w", err)
 	}
 
+	
+	reqJson, 
+	log.Printf("loaded request from repo: %v", request.ID, )
+
+	// read the "kind" field to determine what kind of simulation job
+	// it is.
 	kind, err := request.Options.Discriminator()
 	if err != nil {
 		if markErr := useCase.markFailed(ctx, requestID); markErr != nil {
@@ -76,6 +82,7 @@ func (useCase *ProcessSimulationUseCase) Process(ctx context.Context, requestID 
 		return fmt.Errorf("read simulation discriminator: %w", err)
 	}
 
+	// route the simulation job to the correct handler for its kind
 	switch kind {
 	case string(api.SimulationKindBasic):
 		return useCase.processBasic(ctx, request)
@@ -92,38 +99,38 @@ func (useCase *ProcessSimulationUseCase) processBasic(
 ) error {
 	config, err := request.Options.AsSimulationConfigBasic()
 	if err != nil {
-		return useCase.failRequest(ctx, request.ID, fmt.Errorf("cast to basic: %w", err))
+		return useCase.failSimOnError(ctx, request.ID, fmt.Errorf("cast to basic: %w", err))
 	}
 
 	if err := utils.ValidateSimulationConfigBasic(&config); err != nil {
-		return useCase.failRequest(
+		return useCase.failSimOnError(
 			ctx,
 			request.ID,
 			fmt.Errorf("validate simulation options: %w", err),
 		)
 	}
 
-	if err := useCase.repository.MarkInProgress(ctx, request.ID); err != nil {
+	if err := useCase.repo.MarkInProgress(ctx, request.ID); err != nil {
 		log.Printf("unable to mark simulation %s as started: %v", request.ID.String(), err)
 	}
 
-	manifest, err := sims.NewBasicSimManifest(config)
+	plan, err := sims.NewBasicSimPlan(config)
 	if err != nil {
-		return useCase.failRequest(ctx, request.ID, err)
+		return useCase.failSimOnError(ctx, request.ID, err)
 	}
 
-	rawProfileText, err := manifest.BuildSimcProfile()
+	rawProfileText, err := plan.BuildSimcProfile()
 	if err != nil {
-		return useCase.failRequest(ctx, request.ID, err)
+		return useCase.failSimOnError(ctx, request.ID, err)
 	}
-	useCase.repository.WriteRunDetails(ctx, request.ID, string(rawProfileText))
+	useCase.repo.WriteRunDetails(ctx, request.ID, string(rawProfileText))
 
-	result, err := useCase.runner.Run(ctx, manifest)
+	result, err := useCase.runner.Run(ctx, plan)
 	if err != nil {
-		return useCase.failRequest(ctx, request.ID, fmt.Errorf("run simulation: %w", err))
+		return useCase.failSimOnError(ctx, request.ID, fmt.Errorf("run simulation: %w", err))
 	}
 
-	err = useCase.repository.MarkCompleted(ctx, request.ID, simulation.CompletedSimulation{
+	err = useCase.repo.MarkCompleted(ctx, request.ID, simulation.CompletedSimulation{
 		Result: result,
 	})
 	if err != nil {
@@ -139,30 +146,30 @@ func (useCase *ProcessSimulationUseCase) processTopGear(
 ) error {
 	opts, err := request.Options.AsSimulationConfigTopGear()
 	if err != nil {
-		return useCase.failRequest(ctx, request.ID, fmt.Errorf("cast to topGear: %w", err))
+		return useCase.failSimOnError(ctx, request.ID, fmt.Errorf("cast to topGear: %w", err))
 	}
 
-	manifest, err := sims.NewTopGearManifest(opts)
+	plan, err := sims.NewTopGearSimPlan(opts)
 	if err != nil {
-		return useCase.failRequest(ctx, request.ID, err)
+		return useCase.failSimOnError(ctx, request.ID, err)
 	}
 
-	rawProfileText, err := manifest.BuildSimcProfile()
+	rawProfileText, err := plan.BuildSimcProfile()
 	if err != nil {
-		return useCase.failRequest(ctx, request.ID, err)
+		return useCase.failSimOnError(ctx, request.ID, err)
 	}
-	useCase.repository.WriteRunDetails(ctx, request.ID, string(rawProfileText))
+	useCase.repo.WriteRunDetails(ctx, request.ID, string(rawProfileText))
 
-	if err := useCase.repository.MarkInProgress(ctx, request.ID); err != nil {
+	if err := useCase.repo.MarkInProgress(ctx, request.ID); err != nil {
 		log.Printf("unable to mark simulation %s as started: %v", request.ID.String(), err)
 	}
 
-	result, err := useCase.runner.Run(ctx, manifest)
+	result, err := useCase.runner.Run(ctx, plan)
 	if err != nil {
-		return useCase.failRequest(ctx, request.ID, fmt.Errorf("run top gear simulation: %w", err))
+		return useCase.failSimOnError(ctx, request.ID, fmt.Errorf("run top gear simulation: %w", err))
 	}
 
-	err = useCase.repository.MarkCompleted(ctx, request.ID, simulation.CompletedSimulation{
+	err = useCase.repo.MarkCompleted(ctx, request.ID, simulation.CompletedSimulation{
 		Result: result,
 	})
 	if err != nil {
@@ -172,11 +179,15 @@ func (useCase *ProcessSimulationUseCase) processTopGear(
 	return nil
 }
 
-func (useCase *ProcessSimulationUseCase) failRequest(
+func (useCase *ProcessSimulationUseCase) failSimOnError(
 	ctx context.Context,
 	id uuid.UUID,
 	cause error,
 ) error {
+	if cause != nil {
+		return nil
+	}
+
 	if markErr := useCase.markFailed(ctx, id); markErr != nil {
 		return errors.Join(cause, markErr)
 	}
@@ -185,7 +196,9 @@ func (useCase *ProcessSimulationUseCase) failRequest(
 }
 
 func (useCase *ProcessSimulationUseCase) markFailed(ctx context.Context, id uuid.UUID) error {
-	return useCase.repository.MarkFailed(ctx, id, simulation.FailedSimulation{
+	return useCase.repo.MarkFailed(ctx, id, simulation.FailedSimulation{
 		ErrorText: "internal server error",
 	})
 }
+
+

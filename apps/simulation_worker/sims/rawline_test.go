@@ -267,7 +267,7 @@ func TestBasicSimProfileRejectsUnsafeBaseFields(t *testing.T) {
 	t.Parallel()
 
 	name := unsafeProxyValue
-	manifest := BasicSimManifest{
+	plan := BasicSimPlan{
 		simConfig: api.SimulationConfigBasic{
 			Character: api.WowCharacter{
 				ActiveTalents:       api.CharacterTalentLoadout{Name: nil, Talents: "abc"},
@@ -293,7 +293,7 @@ func TestBasicSimProfileRejectsUnsafeBaseFields(t *testing.T) {
 		},
 	}
 
-	_, err := manifest.BuildSimcProfile()
+	_, err := plan.BuildSimcProfile()
 	if !errors.Is(err, errInvalidProfileName) {
 		t.Fatalf("buildSimcProfile() error = %v, want %v", err, errInvalidProfileName)
 	}
@@ -307,7 +307,7 @@ func TestBasicSimProfileEmitsAllEquippedItems(t *testing.T) {
 	offHand := testEquipmentItem(api.OffHand, 15)
 	equippedItems.OffHand = &offHand
 
-	manifest := BasicSimManifest{
+	plan := BasicSimPlan{
 		simConfig: api.SimulationConfigBasic{
 			Character: api.WowCharacter{
 				ActiveTalents:       api.CharacterTalentLoadout{Name: nil, Talents: "abc"},
@@ -333,7 +333,7 @@ func TestBasicSimProfileEmitsAllEquippedItems(t *testing.T) {
 		},
 	}
 
-	profile, err := manifest.BuildSimcProfile()
+	profile, err := plan.BuildSimcProfile()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -368,7 +368,7 @@ func TestBasicSimProfileOmitsMissingOffHand(t *testing.T) {
 	t.Parallel()
 
 	name := "Celinka"
-	manifest := BasicSimManifest{
+	plan := BasicSimPlan{
 		simConfig: api.SimulationConfigBasic{
 			Character: api.WowCharacter{
 				ActiveTalents:       api.CharacterTalentLoadout{Name: nil, Talents: "abc"},
@@ -394,7 +394,7 @@ func TestBasicSimProfileOmitsMissingOffHand(t *testing.T) {
 		},
 	}
 
-	profile, err := manifest.BuildSimcProfile()
+	profile, err := plan.BuildSimcProfile()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -407,10 +407,10 @@ func TestBasicSimProfileOmitsMissingOffHand(t *testing.T) {
 func TestTopGearSimcLinesRejectsUnsafeTalents(t *testing.T) {
 	t.Parallel()
 
-	manifest := testTopGearManifest()
-	manifest.Profilesets[0].Talents = "abc\nproxy=evil"
+	plan := testTopGearPlan()
+	plan.Profilesets[0].Talents = "abc\nproxy=evil"
 
-	_, err := manifest.SimcLines()
+	_, err := plan.SimcLines()
 	if !errors.Is(err, errInvalidTalents) {
 		t.Fatalf("SimcLines() error = %v, want %v", err, errInvalidTalents)
 	}
@@ -419,9 +419,9 @@ func TestTopGearSimcLinesRejectsUnsafeTalents(t *testing.T) {
 func TestTopGearSimcLinesDoesNotEmitEquipmentRawLine(t *testing.T) {
 	t.Parallel()
 
-	manifest := testTopGearManifest()
+	plan := testTopGearPlan()
 
-	lines, err := manifest.SimcLines()
+	lines, err := plan.SimcLines()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -433,10 +433,10 @@ func TestTopGearSimcLinesDoesNotEmitEquipmentRawLine(t *testing.T) {
 	}
 }
 
-func testTopGearManifest() TopGearManifest {
+func testTopGearPlan() TopGearSimPlan {
 	equipment, profileset := testTopGearEquipmentAndProfileset()
 
-	return TopGearManifest{
+	return TopGearSimPlan{
 		characterName:  "Celinka",
 		level:          90,
 		race:           "nightborne",

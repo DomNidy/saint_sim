@@ -60,7 +60,7 @@ type JSON2Profilesets struct {
 //
 // Name matches the `profileset."<Name>"` label the worker generated
 // (e.g. "Combo7"); that name is the join key back to the worker's
-// loadout manifest.
+// loadout plan.
 type JSON2ProfilesetResult struct {
 	Name       string  `json:"name"`
 	Mean       float64 `json:"mean"`

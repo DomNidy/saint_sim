@@ -15,24 +15,24 @@ var (
 	errSimcNoProfilesetsSection = errors.New(
 		"simc produced no profilesets section",
 	)
-	errManifestHasNoProfilesets                  = errors.New("manifest has no profilesets")
-	errManifestHasNilProfilesets                 = errors.New("manifest has nil profilesets")
-	errManifestAndOutputProfilesetsCountMismatch = errors.New(
-		"the manifest has a different number of profilesets than the corresponding output does",
+	errPlanHasNoProfilesets                  = errors.New("plan has no profilesets")
+	errPlanHasNilProfilesets                 = errors.New("plan has nil profilesets")
+	errPlanAndOutputProfilesetsCountMismatch = errors.New(
+		"the plan has a different number of profilesets than the corresponding output does",
 	)
 	errSimcProfilesetUnmatched = errors.New(
-		"simc result has no matching manifest profileset",
+		"simc result has no matching plan profileset",
 	)
 	errTopGearProfilesetSlotMiss = errors.New(
 		"profileset is missing a required slot",
 	)
 )
 
-// TopGearManifest is an abstraction over a topgear sim job.
+// TopGearSimPlan is an abstraction over a topgear sim job.
 // it binds generated profilesets to the equipment table their
 // slot indices reference. Indices are only meaningful against this exact
 // slice, so the two are never exposed separately.
-type TopGearManifest struct {
+type TopGearSimPlan struct {
 	characterName  string // name of the character being simmed
 	level          int    // level of the character being simmed
 	race           string // race of the character being simmed
@@ -43,25 +43,25 @@ type TopGearManifest struct {
 	Profilesets []Profileset
 }
 
-// NewTopGearManifest expands the equipment pools into deterministic
+// NewTopGearSimPlan expands the equipment pools into deterministic
 // profilesets. The recursive singleton walk mirrors the counting logic so the
 // generated order remains intuitive: earlier input candidates appear earlier in
 // the resulting Combo1/Combo2/... sequence.
-func NewTopGearManifest(
+func NewTopGearSimPlan(
 	config api.SimulationConfigTopGear,
-) (TopGearManifest, error) {
+) (TopGearSimPlan, error) {
 	pools, err := buildTopGearCandidatePools(config.Equipment)
 	if err != nil {
-		return TopGearManifest{}, err
+		return TopGearSimPlan{}, err
 	}
 
-	manifest := TopGearManifest{
+	plan := TopGearSimPlan{
 		equipment: config.Equipment,
 	}
 
-	count, err := manifest.CountProfilesets()
+	count, err := plan.CountProfilesets()
 	if err != nil {
-		return TopGearManifest{}, err
+		return TopGearSimPlan{}, err
 	}
 
 	singletonPools := pools.singletonPools()
@@ -112,7 +112,7 @@ func NewTopGearManifest(
 		characterName = *config.Character.Name
 	}
 
-	return TopGearManifest{
+	return TopGearSimPlan{
 		Profilesets:    profilesets,
 		equipment:      eqCopy,
 		characterName:  characterName,
@@ -123,8 +123,8 @@ func NewTopGearManifest(
 	}, nil
 }
 
-func (manifest TopGearManifest) BuildSimcProfile() (simcProfileString, error) {
-	prof, err := manifest.SimcLines()
+func (plan TopGearSimPlan) BuildSimcProfile() (simcProfileString, error) {
+	prof, err := plan.SimcLines()
 	if err != nil {
 		return "", err
 	}
@@ -188,8 +188,8 @@ func retargetEquipmentLine(line string, slot api.EquipmentSlot) string {
 
 // CountProfilesets computes the number of valid profilesets implied by
 // the equipment payload without allocating the final profileset slice.
-func (manifest *TopGearManifest) CountProfilesets() (int, error) {
-	equipment := manifest.equipment
+func (plan *TopGearSimPlan) CountProfilesets() (int, error) {
+	equipment := plan.equipment
 	pools, err := buildTopGearCandidatePools(equipment)
 	if err != nil {
 		return 0, err
@@ -222,17 +222,17 @@ func (manifest *TopGearManifest) CountProfilesets() (int, error) {
 	return total, nil
 }
 
-// SimcLines renders the manifest to a complete simc profile.
+// SimcLines renders the plan to a complete simc profile.
 //
 // We define the base profile, and then append the lines of all profilesets:
 // `profileset."ComboN"+=…`.
-func (m *TopGearManifest) SimcLines() ([]string, error) {
-	if m.Profilesets == nil {
-		return nil, errManifestHasNilProfilesets
+func (plan *TopGearSimPlan) SimcLines() ([]string, error) {
+	if plan.Profilesets == nil {
+		return nil, errPlanHasNilProfilesets
 	}
 
-	if len(m.Profilesets) == 0 {
-		return nil, errManifestHasNoProfilesets
+	if len(plan.Profilesets) == 0 {
+		return nil, errPlanHasNoProfilesets
 	}
 
 	var out []string
@@ -243,19 +243,19 @@ func (m *TopGearManifest) SimcLines() ([]string, error) {
 	// first profileset for this purpose
 
 	baseLines, err := characterBaseRawlines(
-		m.characterClass,
-		&m.characterName,
-		m.level,
-		m.race,
-		m.spec,
+		plan.characterClass,
+		&plan.characterName,
+		plan.level,
+		plan.race,
+		plan.spec,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	seedProfileset := m.Profilesets[0]
+	seedProfileset := plan.Profilesets[0]
 
-	baseEquipment, err := equipmentLinesForProfileset(seedProfileset, m.equipment)
+	baseEquipment, err := equipmentLinesForProfileset(seedProfileset, plan.equipment)
 	if err != nil {
 		return nil, err
 	}
@@ -264,8 +264,8 @@ func (m *TopGearManifest) SimcLines() ([]string, error) {
 	out = append(out, baseEquipment...)
 
 	// then, add all of the profileset lines!
-	for i := range m.Profilesets {
-		lines, err := m.Profilesets[i].lines(m.equipment)
+	for i := range plan.Profilesets {
+		lines, err := plan.Profilesets[i].lines(plan.equipment)
 		if err != nil {
 			return nil, err
 		}
@@ -275,11 +275,11 @@ func (m *TopGearManifest) SimcLines() ([]string, error) {
 	return out, nil
 }
 
-func (m *TopGearManifest) Equipment() []api.EquipmentItem { return m.equipment }
-func (m *TopGearManifest) Len() int                       { return len(m.Profilesets) }
+func (plan *TopGearSimPlan) Equipment() []api.EquipmentItem { return plan.equipment }
+func (plan *TopGearSimPlan) Len() int                       { return len(plan.Profilesets) }
 
 // prepareReportFromRunResult joins the simulation output to the api shape.
-func (manifest TopGearManifest) prepareReportFromRunResult(
+func (plan TopGearSimPlan) prepareReportFromRunResult(
 	result runResult,
 ) (api.SimulationResult, error) {
 	out := result.JSON2
@@ -287,16 +287,16 @@ func (manifest TopGearManifest) prepareReportFromRunResult(
 		return api.SimulationResult{}, errSimcNoProfilesetsSection
 	}
 
-	if manifest.Profilesets == nil {
-		return api.SimulationResult{}, errManifestHasNilProfilesets
+	if plan.Profilesets == nil {
+		return api.SimulationResult{}, errPlanHasNilProfilesets
 	}
 
-	if len(manifest.Profilesets) == 0 {
-		return api.SimulationResult{}, errManifestHasNoProfilesets
+	if len(plan.Profilesets) == 0 {
+		return api.SimulationResult{}, errPlanHasNoProfilesets
 	}
 
-	if len(out.Sim.Profilesets.Results) != len(manifest.Profilesets) {
-		return api.SimulationResult{}, errManifestAndOutputProfilesetsCountMismatch
+	if len(out.Sim.Profilesets.Results) != len(plan.Profilesets) {
+		return api.SimulationResult{}, errPlanAndOutputProfilesetsCountMismatch
 	}
 
 	// Index simc's results for O(1) lookup. Map size is bounded by
@@ -306,11 +306,11 @@ func (manifest TopGearManifest) prepareReportFromRunResult(
 		byName[r.Name] = r
 	}
 
-	entries := make([]api.TopGearProfilesetResult, 0, manifest.Len())
-	for _, manifestPset := range manifest.Profilesets {
-		// match the profileset in the manifest to the profileset
+	entries := make([]api.TopGearProfilesetResult, 0, plan.Len())
+	for _, planPset := range plan.Profilesets {
+		// match the profileset in the plan to the profileset
 		// stored in the output json2 result from simc
-		name := manifestPset.Name
+		name := planPset.Name
 		metric, ok := byName[name]
 		if !ok {
 			return api.SimulationResult{}, fmt.Errorf(
@@ -320,7 +320,7 @@ func (manifest TopGearManifest) prepareReportFromRunResult(
 			)
 		}
 
-		items := mapProfilesetToTopGearProfilesetItems(manifestPset)
+		items := mapProfilesetToTopGearProfilesetItems(planPset)
 
 		meanError := metric.MeanError
 		entries = append(entries, api.TopGearProfilesetResult{
@@ -340,7 +340,7 @@ func (manifest TopGearManifest) prepareReportFromRunResult(
 	topGearRes := api.SimulationResultTopGear{
 		Kind:        api.SimulationResultTopGearKindTopGear,
 		Metric:      out.Sim.Profilesets.Metric,
-		Equipment:   manifest.Equipment(),
+		Equipment:   plan.Equipment(),
 		Profilesets: entries,
 	}
 

@@ -232,7 +232,7 @@ func TestBasic(t *testing.T) {
 			},
 		},
 	}
-	mani, _ := NewBasicSimManifest(
+	mani, _ := NewBasicSimPlan(
 		api.SimulationConfigBasic{
 			Character: wowCharacter,
 			CoreConfig: api.SimulationCoreConfig{

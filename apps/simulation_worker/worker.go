@@ -14,12 +14,8 @@ import (
 	"github.com/DomNidy/saint_sim/internal/simulation"
 )
 
-type simulationProcessor interface {
-	Process(ctx context.Context, requestID uuid.UUID) error
-}
-
 type simulationWorker struct {
-	processor simulationProcessor
+	processor workerusecases.ProcessSimulationUseCase
 }
 
 func (worker simulationWorker) consumeLoop(ctx context.Context, msgChan <-chan amqp091.Delivery) {
@@ -61,6 +57,7 @@ func (worker simulationWorker) handleDelivery(
 		if ackErr := msg.Ack(false); ackErr != nil {
 			log.Printf("WARNING: Failed to send ack for a message. got err: %v", ackErr)
 		}
+
 		return
 	}
 

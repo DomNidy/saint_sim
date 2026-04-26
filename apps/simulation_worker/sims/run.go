@@ -21,13 +21,13 @@ func NewSimcRunner(simcBinaryPath string, workspace Workspace) SimcRunner {
 	return SimcRunner{simcBinaryPath: simcBinaryPath, workspace: workspace}
 }
 
-// Run executes a simulation end-to-end using the provided manifest as the
+// Run executes a simulation end-to-end using the provided plan as the
 // "plan".
 func (r SimcRunner) Run(
 	ctx context.Context,
-	manifest Manifest,
+	plan Plan,
 ) (api.SimulationResult, error) {
-	profileText, err := manifest.BuildSimcProfile()
+	profileText, err := plan.BuildSimcProfile()
 	if err != nil {
 		return api.SimulationResult{}, err
 	}
@@ -55,12 +55,12 @@ func (r SimcRunner) Run(
 	if err != nil {
 		return api.SimulationResult{}, fmt.Errorf(
 			"execute simc binary: %w. stderr: %s\n"+
-				"Did the manifest for this sim return a valid simc profile?\n"+
-				"manifest concrete type: %s\n"+
+				"Did the plan for this sim return a valid simc profile?\n"+
+				"plan concrete type: %s\n"+
 				"Profile content:\n%s",
 			err,
 			stderr.String(),
-			reflect.TypeOf(manifest).Name(),
+			reflect.TypeOf(plan).Name(),
 			profileText,
 		)
 	}
@@ -71,7 +71,7 @@ func (r SimcRunner) Run(
 		return api.SimulationResult{}, err
 	}
 
-	apiRes, err := manifest.prepareReportFromRunResult(runResult{
+	apiRes, err := plan.prepareReportFromRunResult(runResult{
 		Stdout: stdout.Bytes(),
 		Stderr: stderr.Bytes(),
 		JSON2:  parsedJson2,

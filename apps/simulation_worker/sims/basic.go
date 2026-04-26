@@ -6,18 +6,18 @@ import (
 	"github.com/DomNidy/saint_sim/internal/api"
 )
 
-type BasicSimManifest struct {
+type BasicSimPlan struct {
 	simConfig api.SimulationConfigBasic
 }
 
-func NewBasicSimManifest(simConfig api.SimulationConfigBasic) (BasicSimManifest, error) {
-	return BasicSimManifest{
+func NewBasicSimPlan(simConfig api.SimulationConfigBasic) (BasicSimPlan, error) {
+	return BasicSimPlan{
 		simConfig: simConfig,
 	}, nil
 }
 
-func (m BasicSimManifest) BuildSimcProfile() (simcProfileString, error) {
-	character := m.simConfig.Character
+func (plan BasicSimPlan) BuildSimcProfile() (simcProfileString, error) {
+	character := plan.simConfig.Character
 	baseLines, err := characterBaseRawlines(
 		character.CharacterClass,
 		character.Name,
@@ -44,8 +44,8 @@ func (m BasicSimManifest) BuildSimcProfile() (simcProfileString, error) {
 	}
 	baseLines = append(baseLines, talentsLines)
 
-	if m.simConfig.CoreConfig.FightStyle != nil {
-		fightStyleLine, err := fightStyleRawline(*m.simConfig.CoreConfig.FightStyle)
+	if plan.simConfig.CoreConfig.FightStyle != nil {
+		fightStyleLine, err := fightStyleRawline(*plan.simConfig.CoreConfig.FightStyle)
 		if err != nil {
 			return "", err
 		}
@@ -61,7 +61,7 @@ func (m BasicSimManifest) BuildSimcProfile() (simcProfileString, error) {
 // `simulation_result_basic` DTO. The raw stdout is carried through as the
 // runLog so clients can still render simc's human‑readable report;
 // DPS is read from the structured json2 block.
-func (manifest BasicSimManifest) prepareReportFromRunResult(
+func (plan BasicSimPlan) prepareReportFromRunResult(
 	result runResult,
 ) (api.SimulationResult, error) {
 	out := result.JSON2

@@ -32,6 +32,7 @@ func (repo *stubWorkerRepository) LoadRequest(
 
 func (repo *stubWorkerRepository) MarkInProgress(context.Context, uuid.UUID) error {
 	repo.inProgress = true
+
 	return repo.markErr
 }
 
@@ -41,6 +42,7 @@ func (repo *stubWorkerRepository) MarkCompleted(
 	simulation.CompletedSimulation,
 ) error {
 	repo.completed = true
+
 	return repo.markErr
 }
 
@@ -50,19 +52,28 @@ func (repo *stubWorkerRepository) MarkFailed(
 	simulation.FailedSimulation,
 ) error {
 	repo.failed = true
+
+	return nil
+}
+
+func (repo *stubWorkerRepository) WriteRunDetails(
+	ctx context.Context,
+	id uuid.UUID,
+	rawProfileText string,
+) error {
 	return nil
 }
 
 type stubRunner struct {
-	manifest sims.Manifest
-	err      error
+	plan sims.Plan
+	err  error
 }
 
 func (runner *stubRunner) Run(
 	_ context.Context,
-	manifest sims.Manifest,
+	plan sims.Plan,
 ) (api.SimulationResult, error) {
-	runner.manifest = manifest
+	runner.plan = plan
 	if runner.err != nil {
 		return api.SimulationResult{}, runner.err
 	}
@@ -95,8 +106,8 @@ func TestProcessSimulationMarksBasicSimulationCompleted(t *testing.T) {
 	if repo.failed {
 		t.Fatal("simulation was marked failed")
 	}
-	if _, ok := runner.manifest.(sims.BasicSimManifest); !ok {
-		t.Fatalf("manifest type = %T, want BasicSimManifest", runner.manifest)
+	if _, ok := runner.plan.(sims.BasicSimPlan); !ok {
+		t.Fatalf("plan type = %T, want BasicSimPlan", runner.plan)
 	}
 }
 
@@ -141,7 +152,7 @@ func basicWorkerSimulationOptions(t *testing.T) api.SimulationOptions {
 		Kind: api.SimulationConfigBasicKindBasic,
 		Character: api.WowCharacter{
 			CharacterClass: api.Priest,
-			EquippedItems:  []api.EquipmentItem{},
+			EquippedItems:  api.CharacterEquippedItems{},
 			Level:          80,
 			Race:           "void_elf",
 			Spec:           "shadow",

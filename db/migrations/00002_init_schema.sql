@@ -106,7 +106,7 @@ CREATE TABLE public.simulation(
     sim_config jsonb NOT NULL,
     -- API-shaped result: a marshalled `simulation_result` (discriminated by
     -- kind). Produced by the worker after it has joined simc output with the
-    -- loadout manifest. This is what GET /simulation/{id} returns verbatim.
+    -- loadout plan. This is what GET /simulation/{id} returns verbatim.
     -- NULL until status = 'complete'.
     sim_result jsonb,
     -- Untouched `json2=` report from the simc binary. Kept for debugging and

@@ -28,6 +28,12 @@ type SimulationQueue struct {
 	queue      amqp091.Queue
 }
 
+// New initializes a connection and channel, ensures the desired rabbitmq messaging
+// topology is available (declares queues), and returns a SimulationQueue abstraction.
+//
+// AMQ declarations are idempotent, meaning they won't create new queues if one already
+// exists with the same name & config. If a queue with the same name exists, but has
+// a different config, this will error.
 func New(creds Credentials) (*SimulationQueue, error) {
 	connectionURI := fmt.Sprintf(
 		"amqp://%s:%s@%s",
@@ -51,10 +57,10 @@ func New(creds Credentials) (*SimulationQueue, error) {
 	// declare the simulation queue so we can pub & consume from it
 	queue, err := channel.QueueDeclare(
 		simulationQueueName,
-		false,
-		false,
-		false,
-		false,
+		false, // durable
+		false, // autodelet
+		false, // exclusive
+		false, // nowait
 		nil,
 	)
 	if err != nil {
