@@ -1,7 +1,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createFileRoute } from "@tanstack/react-router";
-import { Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { LoaderCircle, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import type z from "zod";
 import { AddonExportTextarea } from "@/components/addon-export-textarea";
@@ -12,16 +13,20 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useParseAddonExport } from "@/hooks/use-parse-addon-export";
 import { zSimulationConfigTopGear } from "@/lib/saint-api/generated/zod.gen";
+import { submitSimulationRequest } from "@/lib/simulation.functions";
 
 export const Route = createFileRoute("/simulate/top-gear")({
 	component: RouteComponent,
 });
 
 function RouteComponent() {
+	const navigate = useNavigate();
 	const form = useForm<z.infer<typeof zSimulationConfigTopGear>>({
 		resolver: zodResolver(zSimulationConfigTopGear),
 		defaultValues: {
 			kind: "topGear",
+			core_config: {},
+			equipment: [],
 		},
 		resetOptions: {
 			keepErrors: true,
@@ -30,18 +35,70 @@ function RouteComponent() {
 
 	const [addonExportRaw, setAddonExportRaw] = useState<string>("");
 	const parseAddonExportEnabled = !!addonExportRaw && addonExportRaw.length > 0;
-	const { equipmentGroups, errorMessage: parseAddonExportError } =
-		useParseAddonExport(addonExportRaw, parseAddonExportEnabled);
+	const {
+		equipmentItems,
+		wowCharacter,
+		errorMessage: parseAddonExportError,
+	} = useParseAddonExport(addonExportRaw, parseAddonExportEnabled);
 
 	const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+	const equipmentGroupLabels = useMemo(
+		() => Array.from(new Set(equipmentItems.map((item) => item.groupLabel))),
+		[equipmentItems],
+	);
+	const selectedEquipment = useMemo(
+		() =>
+			equipmentItems
+				.filter((item) => selectedItems.has(item.selectionId))
+				.map((item) => item.item),
+		[equipmentItems, selectedItems],
+	);
+
+	const submitMutation = useMutation({
+		mutationFn: submitSimulationRequest,
+		onSuccess: ({ simulationRequestId }) => {
+			navigate({
+				from: "/simulate/top-gear",
+				to: "/simulation/$simulationId",
+				params: {
+					simulationId: simulationRequestId,
+				},
+			});
+		},
+		onError: ({ message, name }) => {
+			form.setError("root.server", {
+				message: `${name}: ${message}`,
+			});
+		},
+	});
 
 	useEffect(() => {
-		if (equipmentGroups?.length === 0) {
+		if (equipmentItems.length === 0) {
 			return;
 		}
 
 		window.$WowheadPower?.refreshLinks?.();
-	}, [equipmentGroups]);
+	}, [equipmentItems]);
+
+	useEffect(() => {
+		setSelectedItems(
+			new Set(
+				equipmentItems
+					.filter((item) => item.item.source === "equipped")
+					.map((item) => item.selectionId),
+			),
+		);
+	}, [equipmentItems]);
+
+	useEffect(() => {
+		if (wowCharacter !== undefined) {
+			form.setValue("character", wowCharacter);
+		}
+	}, [wowCharacter, form]);
+
+	useEffect(() => {
+		form.setValue("equipment", selectedEquipment);
+	}, [selectedEquipment, form]);
 
 	return (
 		<div>
@@ -52,10 +109,9 @@ function RouteComponent() {
 			<Form {...form}>
 				<form
 					className="flex flex-col gap-5"
-					onSubmit={(e) => {
-						e.preventDefault();
-						console.log(form.getValues());
-					}}
+					onSubmit={form.handleSubmit((values) => {
+						void submitMutation.mutateAsync({ data: values });
+					})}
 				>
 					<p>Top Gear is a W.I.P</p>
 
@@ -66,16 +122,32 @@ function RouteComponent() {
 					)}
 
 					<div className="flex flex-wrap items-center gap-3">
-						<Button disabled={false} type="submit">
-							<Sparkles data-icon="inline-start" />
-							Run simulation
+						<Button disabled={submitMutation.isPending} type="submit">
+							{submitMutation.isPending ? (
+								<>
+									<LoaderCircle
+										data-icon="inline-start"
+										className="animate-spin"
+									/>
+									Sending request
+								</>
+							) : (
+								<>
+									<Sparkles data-icon="inline-start" />
+									Run simulation
+								</>
+							)}
 						</Button>
 						<Button
 							type="button"
 							variant="secondary"
 							onClick={() => {
+								setAddonExportRaw("");
+								setSelectedItems(new Set());
 								form.reset({
 									kind: "topGear",
+									core_config: {},
+									equipment: [],
 								});
 							}}
 						>
@@ -98,31 +170,34 @@ function RouteComponent() {
 				</p>
 			) : null}
 
-			{equipmentGroups && equipmentGroups.length === 0 ? (
+			{equipmentItems.length === 0 ? (
 				<p className="text-muted-foreground text-sm">
 					No gear lines were found in this export.
 				</p>
 			) : (
 				<div className="grid grid-cols-2 gap-2">
-					{equipmentGroups?.map((group) => (
+					{equipmentGroupLabels.map((groupLabel) => (
 						<EquipmentDisplayGroup
-							group={group}
-							key={group.groupLabel}
+							groupLabel={groupLabel}
+							items={equipmentItems.filter(
+								(item) => item.groupLabel === groupLabel,
+							)}
+							key={groupLabel}
 							onClickEquipment={(eq) => {
-								// todo: we need items to have some actually good id/fingerprint
-								// we can't just use raw_line, because it will collide if there
-								// are duplicate copies of an item in an addon export. we could
-								// derive this server side or transform & derive it on the client.
-								if (selectedItems.has(eq.raw_line)) {
-									selectedItems.delete(eq.raw_line);
-									setSelectedItems(new Set([...selectedItems]));
-								} else {
-									setSelectedItems(
-										new Set([...selectedItems.values(), eq.raw_line]),
-									);
-								}
+								setSelectedItems((currentSelection) => {
+									const nextSelection = new Set(currentSelection);
+									if (nextSelection.has(eq.selectionId)) {
+										nextSelection.delete(eq.selectionId);
+									} else {
+										nextSelection.add(eq.selectionId);
+									}
+
+									return nextSelection;
+								});
 							}}
-							isEquipmentSelected={(eq) => selectedItems.has(eq.raw_line)}
+							isEquipmentSelected={(eq) => {
+								return selectedItems.has(eq.selectionId);
+							}}
 						/>
 					))}
 				</div>

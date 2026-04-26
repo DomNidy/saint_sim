@@ -136,9 +136,9 @@ func simIdentity(item api.EquipmentItem) string {
 // Dedup rules:
 //   - Singleton slots: keep one entry per simIdentity. Two items that produce
 //     identical simc assignments would only generate duplicate profilesets.
-//   - Rings/trinkets: keep up to maxCopiesPerPairedItem entries per
-//     simIdentity, so owning two stat‑identical rings still allows an (A, A)
-//     pair. A third copy is rejected — it could never yield a new loadout.
+//   - Rings/trinkets: keep up to 2 entries per simIdentity, so owning two
+//     stat‑identical rings still allows an (A, A) pair. A third copy is
+//     rejected — it could never yield a new loadout.
 //
 // Pools:
 //

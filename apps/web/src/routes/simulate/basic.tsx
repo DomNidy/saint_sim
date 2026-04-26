@@ -6,7 +6,7 @@ import {
 	useNavigate,
 } from "@tanstack/react-router";
 import { LoaderCircle, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import type z from "zod";
 import { AddonExportTextarea } from "@/components/addon-export-textarea";
@@ -81,16 +81,20 @@ function SimulationPage() {
 
 	const parseAddonExportEnabled = !!simcExport && simcExport.length > 0; // only parse addon export when we have it
 	const {
-		equipmentGroups,
+		equipmentItems,
 		wowCharacter,
 		errorMessage: parseAddonExportError,
 	} = useParseAddonExport(simcExport, parseAddonExportEnabled);
+	const equipmentGroupLabels = useMemo(
+		() => Array.from(new Set(equipmentItems.map((item) => item.groupLabel))),
+		[equipmentItems],
+	);
 
 	// ensure image icons re-render
 	useEffect(() => {
-		if (equipmentGroups?.length === 0) return;
+		if (equipmentItems.length === 0) return;
 		window.$WowheadPower?.refreshLinks?.();
-	}, [equipmentGroups]);
+	}, [equipmentItems]);
 
 	// autoupdate form state
 	useEffect(() => {
@@ -196,14 +200,20 @@ function SimulationPage() {
 							</p>
 						) : null}
 
-						{equipmentGroups && equipmentGroups?.length === 0 ? (
+						{equipmentItems.length === 0 ? (
 							<p className="text-muted-foreground text-sm">
 								No gear lines were found in this export.
 							</p>
 						) : (
 							<div className="grid grid-cols-2 gap-2">
-								{equipmentGroups?.map((group) => (
-									<EquipmentDisplayGroup group={group} key={group.groupLabel} />
+								{equipmentGroupLabels.map((groupLabel) => (
+									<EquipmentDisplayGroup
+										groupLabel={groupLabel}
+										items={equipmentItems.filter(
+											(item) => item.groupLabel === groupLabel,
+										)}
+										key={groupLabel}
+									/>
 								))}
 							</div>
 						)}

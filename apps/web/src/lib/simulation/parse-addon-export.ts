@@ -73,6 +73,10 @@ export function parseSimcAddonExport(rawAddonExport: string): WowCharacter {
 		level: 0,
 		race: "",
 		spec: "",
+		active_talents: {
+			name: undefined,
+			talents: "",
+		},
 	};
 
 	const state: AddonExportParseState = {

@@ -16,7 +16,7 @@ describe("useParseAddonExport", () => {
 		render(<TestComponent />);
 
 		expect(result).toEqual({
-			equipmentGroups: [],
+			equipmentItems: [],
 			wowCharacter: undefined,
 		});
 	});
@@ -46,8 +46,46 @@ head=,id=250458,ilevel=684`,
 			race: "void_elf",
 			spec: "shadow",
 		});
-		expect(result?.equipmentGroups).toHaveLength(1);
-		expect(result?.equipmentGroups?.[0]?.groupLabel).toBe("head");
-		expect(result?.equipmentGroups?.[0]?.items).toHaveLength(1);
+		expect(result?.equipmentItems).toHaveLength(1);
+		expect(result?.equipmentItems[0]?.groupLabel).toBe("head");
+	});
+
+	it("assigns stable unique selection IDs to parsed equipment wrappers", () => {
+		let result: ReturnType<typeof useParseAddonExport> | undefined;
+
+		const TestComponent = () => {
+			result = useParseAddonExport(
+				`# Equipped Helm (684)
+head=,id=250458,bonus_id=6652,ilevel=684
+# Gear from Bags
+# Bag Helm A (684)
+head=,id=250458,bonus_id=6652,ilevel=684
+# Bag Helm B (684)
+head=,id=250458,bonus_id=6652,ilevel=684`,
+				true,
+			);
+			return <p>parsed</p>;
+		};
+
+		render(<TestComponent />);
+
+		const parsedEquipment = result?.equipmentItems;
+
+		expect(parsedEquipment?.map((item) => item.selectionId)).toEqual([
+			"addon-export:0",
+			"addon-export:1",
+			"addon-export:2",
+		]);
+		expect(
+			new Set(parsedEquipment?.map((item) => item.selectionId)),
+		).toHaveProperty("size", 3);
+		expect(parsedEquipment?.map((item) => item.item.raw_line)).toEqual([
+			"head=,id=250458,bonus_id=6652,ilevel=684",
+			"head=,id=250458,bonus_id=6652,ilevel=684",
+			"head=,id=250458,bonus_id=6652,ilevel=684",
+		]);
+		expect(result?.wowCharacter?.equipped_items.head).not.toHaveProperty(
+			"selectionId",
+		);
 	});
 });
