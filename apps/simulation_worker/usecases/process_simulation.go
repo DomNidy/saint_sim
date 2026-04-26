@@ -64,9 +64,7 @@ func (useCase *ProcessSimulationUseCase) Process(ctx context.Context, requestID 
 		return fmt.Errorf("load simulation request: %w", err)
 	}
 
-	
-	reqJson, 
-	log.Printf("loaded request from repo: %v", request.ID, )
+	log.Printf("loaded request from repo: %v", request.ID)
 
 	// read the "kind" field to determine what kind of simulation job
 	// it is.
@@ -99,11 +97,11 @@ func (useCase *ProcessSimulationUseCase) processBasic(
 ) error {
 	config, err := request.Options.AsSimulationConfigBasic()
 	if err != nil {
-		return useCase.failSimOnError(ctx, request.ID, fmt.Errorf("cast to basic: %w", err))
+		return useCase.failRequest(ctx, request.ID, fmt.Errorf("cast to basic: %w", err))
 	}
 
 	if err := utils.ValidateSimulationConfigBasic(&config); err != nil {
-		return useCase.failSimOnError(
+		return useCase.failRequest(
 			ctx,
 			request.ID,
 			fmt.Errorf("validate simulation options: %w", err),
@@ -116,18 +114,18 @@ func (useCase *ProcessSimulationUseCase) processBasic(
 
 	plan, err := sims.NewBasicSimPlan(config)
 	if err != nil {
-		return useCase.failSimOnError(ctx, request.ID, err)
+		return useCase.failRequest(ctx, request.ID, err)
 	}
 
 	rawProfileText, err := plan.BuildSimcProfile()
 	if err != nil {
-		return useCase.failSimOnError(ctx, request.ID, err)
+		return useCase.failRequest(ctx, request.ID, err)
 	}
 	useCase.repo.WriteRunDetails(ctx, request.ID, string(rawProfileText))
 
 	result, err := useCase.runner.Run(ctx, plan)
 	if err != nil {
-		return useCase.failSimOnError(ctx, request.ID, fmt.Errorf("run simulation: %w", err))
+		return useCase.failRequest(ctx, request.ID, fmt.Errorf("run simulation: %w", err))
 	}
 
 	err = useCase.repo.MarkCompleted(ctx, request.ID, simulation.CompletedSimulation{
@@ -146,17 +144,17 @@ func (useCase *ProcessSimulationUseCase) processTopGear(
 ) error {
 	opts, err := request.Options.AsSimulationConfigTopGear()
 	if err != nil {
-		return useCase.failSimOnError(ctx, request.ID, fmt.Errorf("cast to topGear: %w", err))
+		return useCase.failRequest(ctx, request.ID, fmt.Errorf("cast to topGear: %w", err))
 	}
 
 	plan, err := sims.NewTopGearSimPlan(opts)
 	if err != nil {
-		return useCase.failSimOnError(ctx, request.ID, err)
+		return useCase.failRequest(ctx, request.ID, err)
 	}
 
 	rawProfileText, err := plan.BuildSimcProfile()
 	if err != nil {
-		return useCase.failSimOnError(ctx, request.ID, err)
+		return useCase.failRequest(ctx, request.ID, err)
 	}
 	useCase.repo.WriteRunDetails(ctx, request.ID, string(rawProfileText))
 
@@ -166,7 +164,7 @@ func (useCase *ProcessSimulationUseCase) processTopGear(
 
 	result, err := useCase.runner.Run(ctx, plan)
 	if err != nil {
-		return useCase.failSimOnError(ctx, request.ID, fmt.Errorf("run top gear simulation: %w", err))
+		return useCase.failRequest(ctx, request.ID, fmt.Errorf("run top gear simulation: %w", err))
 	}
 
 	err = useCase.repo.MarkCompleted(ctx, request.ID, simulation.CompletedSimulation{
@@ -179,15 +177,11 @@ func (useCase *ProcessSimulationUseCase) processTopGear(
 	return nil
 }
 
-func (useCase *ProcessSimulationUseCase) failSimOnError(
+func (useCase *ProcessSimulationUseCase) failRequest(
 	ctx context.Context,
 	id uuid.UUID,
 	cause error,
 ) error {
-	if cause != nil {
-		return nil
-	}
-
 	if markErr := useCase.markFailed(ctx, id); markErr != nil {
 		return errors.Join(cause, markErr)
 	}
@@ -200,5 +194,3 @@ func (useCase *ProcessSimulationUseCase) markFailed(ctx context.Context, id uuid
 		ErrorText: "internal server error",
 	})
 }
-
-
