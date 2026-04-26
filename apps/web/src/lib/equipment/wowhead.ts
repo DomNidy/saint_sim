@@ -1,10 +1,30 @@
-import type { EquipmentItem } from "../saint-api/generated";
-
 export function buildWowheadUrl(itemId: number) {
 	return `https://www.wowhead.com/item=${itemId}`;
 }
 
-export function buildWowheadData(item: EquipmentItem) {
+declare global {
+	interface Window {
+		// Added by the Wowhead tooltip script loaded in route heads.
+		$WowheadPower?: {
+			refreshLinks?: () => void;
+		};
+	}
+}
+
+export const WOWHEAD_CONFIG_SCRIPT =
+	"window.whTooltips={colorLinks:true,iconizeLinks:true,renameLinks:false};";
+
+export const WOWHEAD_SCRIPT_SRC = "https://wow.zamimg.com/js/tooltips.js";
+
+type WowheadItemData = {
+	item_id: number;
+	bonus_ids?: number[];
+	enchant_id?: number | null;
+	gem_ids?: number[];
+	item_level?: number | null;
+};
+
+export function buildWowheadData(item: WowheadItemData) {
 	const pairs = [`item=${item.item_id}`];
 
 	if ((item.bonus_ids ?? []).length > 0) {

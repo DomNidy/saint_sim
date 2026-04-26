@@ -1,6 +1,12 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { TopGearSimulationResultDisplay } from "@/components/simulation-results/top-gear-result";
+import {
+	WOWHEAD_CONFIG_SCRIPT,
+	WOWHEAD_SCRIPT_SRC,
+} from "@/lib/equipment/wowhead";
 import type { GetSimulationResponse } from "@/lib/saint-api/generated";
+import { isResult } from "@/lib/simulation/result";
 import { getSimulationResult } from "@/lib/simulation.functions";
 
 const simulationQueryOptions = (simulationId: string) =>
@@ -16,11 +22,31 @@ export const Route = createFileRoute("/simulation/$simulationId")({
 		context.queryClient.ensureQueryData(
 			simulationQueryOptions(params.simulationId),
 		),
+	head: () => ({
+		scripts: [
+			{
+				children: WOWHEAD_CONFIG_SCRIPT,
+			},
+			{
+				src: WOWHEAD_SCRIPT_SRC,
+			},
+		],
+	}),
 });
 
 const SimulationLogViewer = ({ sim }: { sim: GetSimulationResponse }) => {
 	return (
 		<div>
+			{isResult(sim.result, "topGear") && (
+				<div>
+					<TopGearSimulationResultDisplay
+						equipment={sim.result.equipment}
+						kind="topGear"
+						metric={sim.result.metric}
+						profilesets={sim.result.profilesets}
+					/>
+				</div>
+			)}
 			<p>Status: {sim?.status ?? "unknown"}</p>
 
 			{sim?.status === "error" && <code>{sim?.error_text}</code>}
