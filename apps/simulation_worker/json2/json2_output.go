@@ -62,15 +62,17 @@ type JSON2Profilesets struct {
 // (e.g. "Combo7"); that name is the join key back to the worker's
 // loadout plan.
 type JSON2ProfilesetResult struct {
-	Name       string  `json:"name"`
-	Mean       float64 `json:"mean"`
-	Min        float64 `json:"min"`
-	Max        float64 `json:"max"`
-	Stddev     float64 `json:"stddev"`
-	MeanStddev float64 `json:"mean_stddev"`
-	MeanError  float64 `json:"mean_error"`
-	Median     float64 `json:"median"`
-	Iterations int     `json:"iterations"`
+	Name          string  `json:"name"`
+	Mean          float64 `json:"mean"`
+	Min           float64 `json:"min"`
+	Max           float64 `json:"max"`
+	Stddev        float64 `json:"stddev"`
+	MeanStddev    float64 `json:"mean_stddev"`
+	MeanError     float64 `json:"mean_error"`
+	Median        float64 `json:"median"`
+	FirstQuartile float64 `json:"first_quartile"`
+	ThirdQuartile float64 `json:"third_quartile"`
+	Iterations    int     `json:"iterations"`
 }
 
 // ParseJSON2 decodes a simc `json2=` report into the reduced model above.

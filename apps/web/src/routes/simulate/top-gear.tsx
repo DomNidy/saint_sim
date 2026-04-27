@@ -1,6 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	useHydrated,
+	useNavigate,
+} from "@tanstack/react-router";
 import { LoaderCircle, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -12,6 +16,12 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useParseAddonExport } from "@/hooks/use-parse-addon-export";
+import type { ParsedEquipmentItem } from "@/lib/equipment/types";
+import {
+	localStorageGet,
+	localStorageSet,
+	PREV_SIMC_PROFILE_KEY,
+} from "@/lib/local-storage";
 import { zSimulationConfigTopGear } from "@/lib/saint-api/generated/zod.gen";
 import { submitSimulationRequest } from "@/lib/simulation.functions";
 
@@ -20,6 +30,7 @@ export const Route = createFileRoute("/simulate/top-gear")({
 });
 
 function RouteComponent() {
+	const hydrated = useHydrated();
 	const navigate = useNavigate();
 	const form = useForm<z.infer<typeof zSimulationConfigTopGear>>({
 		resolver: zodResolver(zSimulationConfigTopGear),
@@ -50,7 +61,7 @@ function RouteComponent() {
 		() =>
 			equipmentItems
 				.filter((item) => selectedItems.has(item.selectionId))
-				.map((item) => item.item),
+				.map((item) => item),
 		[equipmentItems, selectedItems],
 	);
 
@@ -71,6 +82,13 @@ function RouteComponent() {
 			});
 		},
 	});
+
+	useEffect(() => {
+		if (hydrated) {
+			const prevSimcProfile = localStorageGet(PREV_SIMC_PROFILE_KEY);
+			if (prevSimcProfile != null) setAddonExportRaw(prevSimcProfile);
+		}
+	}, [hydrated]);
 
 	useEffect(() => {
 		if (equipmentItems.length === 0) {
@@ -97,7 +115,10 @@ function RouteComponent() {
 	}, [wowCharacter, form]);
 
 	useEffect(() => {
-		form.setValue("equipment", selectedEquipment);
+		form.setValue(
+			"equipment",
+			selectedEquipment.map((se) => se.item),
+		);
 	}, [selectedEquipment, form]);
 
 	return (
@@ -106,11 +127,15 @@ function RouteComponent() {
 				value={addonExportRaw}
 				onChange={(e) => setAddonExportRaw(e.target.value)}
 			/>
+
 			<Form {...form}>
 				<form
 					className="flex flex-col gap-5"
 					onSubmit={form.handleSubmit((values) => {
 						void submitMutation.mutateAsync({ data: values });
+						if (hydrated) {
+							localStorageSet(PREV_SIMC_PROFILE_KEY, addonExportRaw);
+						}
 					})}
 				>
 					<p>Top Gear is a W.I.P</p>
@@ -202,6 +227,38 @@ function RouteComponent() {
 					))}
 				</div>
 			)}
+
+			<div className="bg-secondary sticky bottom-24">
+				<h2 className="font-bold text-2xl">TOP GEAR</h2>
+				<p>Selected items: {selectedEquipment.length}</p>
+				<p>Total Combinations: {selectedEquipment.length}</p>
+				<button
+					onClick={() => calculateCombinations(selectedEquipment)}
+					type="button"
+				>
+					test
+				</button>
+			</div>
 		</div>
 	);
+}
+
+function calculateCombinations(items: ParsedEquipmentItem[]): number {
+	console.log("hello");
+	const counts = new Map<string, number>();
+
+	items.forEach((item) => {
+		const cc = counts.get(item.groupLabel);
+		if (cc) {
+			counts.set(item.groupLabel, cc + 1);
+		} else {
+			counts.set(item.groupLabel, 1);
+		}
+	});
+
+	let totalCombinations = 1;
+	counts.forEach((kvp) => {
+		totalCombinations *= kvp;
+	});
+	return totalCombinations;
 }

@@ -409,10 +409,18 @@ func (plan TopGearSimPlan) prepareReportFromRunResult(
 
 		meanError := metric.MeanError
 		entries = append(entries, api.TopGearProfilesetResult{
-			Name:      name,
-			Mean:      metric.Mean,
-			MeanError: &meanError,
-			Items:     items,
+			Name:          name,
+			Mean:          metric.Mean,
+			MeanError:     meanError,
+			Min:           metric.Min,
+			Max:           metric.Min,
+			Stddev:        metric.Stddev,
+			MeanStddev:    metric.MeanStddev,
+			Median:        metric.Median,
+			FirstQuartile: metric.FirstQuartile,
+			ThirdQuartile: metric.ThirdQuartile,
+			Iterations:    metric.Iterations,
+			Items:         items,
 		})
 	}
 

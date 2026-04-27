@@ -467,6 +467,15 @@ components:
       required:
         - name
         - mean
+        - min
+        - max
+        - stddev
+        - mean_stddev
+        - mean_error
+        - median
+        - first_quartile
+        - third_quartile
+        - iterations
         - items
       properties:
         name:
@@ -483,6 +492,29 @@ components:
           type: number
           format: double
           description: simc's reported error bound on `mean`.
+        min:
+          type: number
+          format: double
+        max:
+          type: number
+          format: double
+        stddev:
+          type: number
+          format: double
+        mean_stddev:
+          type: number
+          format: double
+        median:
+          type: number
+          format: double
+        first_quartile:
+          type: number
+          format: double
+        third_quartile:
+          type: number
+          format: double
+        iterations:
+          type: integer
         items:
           $ref: "#/components/schemas/topGear_profileset_items"
 

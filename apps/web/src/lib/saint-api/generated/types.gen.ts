@@ -247,7 +247,15 @@ export type TopGearProfilesetResult = {
     /**
      * simc's reported error bound on `mean`.
      */
-    mean_error?: number;
+    mean_error: number;
+    min: number;
+    max: number;
+    stddev: number;
+    mean_stddev: number;
+    median: number;
+    first_quartile: number;
+    third_quartile: number;
+    iterations: number;
     items: TopGearProfilesetItems;
 };
 

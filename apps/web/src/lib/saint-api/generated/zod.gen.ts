@@ -144,7 +144,15 @@ export const zTopGearProfilesetItems = z.object({
 export const zTopGearProfilesetResult = z.object({
     name: z.string(),
     mean: z.number(),
-    mean_error: z.number().optional(),
+    mean_error: z.number(),
+    min: z.number(),
+    max: z.number(),
+    stddev: z.number(),
+    mean_stddev: z.number(),
+    median: z.number(),
+    first_quartile: z.number(),
+    third_quartile: z.number(),
+    iterations: z.int(),
     items: zTopGearProfilesetItems
 });
 
