@@ -154,6 +154,36 @@ describe("TopGearSimulationResultDisplay", () => {
 			"item=190001&bonus=6652:123&ench=42&gems=11:22&ilvl=489",
 		);
 		expect(itemLink?.getAttribute("data-wh-icon-size")).toBe("medium");
+		expect(
+			screen.queryByText("You already have the best gear equipped."),
+		).toBeNull();
+		const bagItemCard = screen
+			.getAllByText("neck item 1")[0]
+			?.closest("div.border");
+		expect(bagItemCard?.className).toContain("border-blue-500/60");
+		expect(bagItemCard?.className).toContain("bg-blue-500/10");
 		expect(refreshLinks).toHaveBeenCalledTimes(1);
+	});
+
+	it("shows a message when the top ranked profileset is already fully equipped", () => {
+		const result = buildTopGearResult();
+
+		result.equipment = result.equipment.map((item) => ({
+			...item,
+			source: "equipped",
+		}));
+		result.profilesets[0] = {
+			...result.profilesets[0],
+			items: {
+				...result.profilesets[0].items,
+				off_hand: 15,
+			},
+		};
+
+		render(<TopGearSimulationResultDisplay {...result} />);
+
+		expect(
+			screen.getByText("You already have the best gear equipped."),
+		).toBeTruthy();
 	});
 });

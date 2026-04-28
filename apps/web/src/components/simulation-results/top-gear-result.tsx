@@ -35,6 +35,20 @@ const metricFormatter = new Intl.NumberFormat(undefined, {
 export function TopGearSimulationResultDisplay(
 	result: SimulationResultTopGear,
 ) {
+	const bestProfileset = result.profilesets[0];
+	const hasBestGearEquipped =
+		bestProfileset == null
+			? false
+			: TOP_GEAR_SLOT_ORDER.every((slot) => {
+					const equipmentIndex = bestProfileset.items[slot];
+
+					if (equipmentIndex == null) {
+						return true;
+					}
+
+					return result.equipment[equipmentIndex]?.source === "equipped";
+				});
+
 	useEffect(() => {
 		if (result.profilesets.length === 0) {
 			return;
@@ -50,6 +64,11 @@ export function TopGearSimulationResultDisplay(
 				<p className="text-muted-foreground text-sm">
 					{result.profilesets.length} profilesets ranked by {result.metric}
 				</p>
+				{hasBestGearEquipped ? (
+					<p className="text-blue-700 text-sm dark:text-blue-300">
+						You already have the best gear equipped.
+					</p>
+				) : null}
 			</div>
 
 			{result.profilesets.map((profileset) => (
@@ -123,6 +142,11 @@ function TopGearSimulationResultProfileset({
 									enchantId={item.enchant_id}
 									bonusIds={item.bonus_ids}
 									gemIds={item.gem_ids}
+									className={
+										item.source === "bag"
+											? "border-blue-500/60 bg-blue-500/10"
+											: undefined
+									}
 								/>
 							) : (
 								<div className="border border-destructive/50 bg-destructive/10 p-2 text-destructive text-sm">
