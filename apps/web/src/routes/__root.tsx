@@ -24,6 +24,11 @@ interface AppRouterContext {
 
 const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getItem('theme');var mode=(stored==='light'||stored==='dark'||stored==='auto')?stored:'auto';var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var resolved=mode==='auto'?(prefersDark?'dark':'light'):mode;var root=document.documentElement;root.classList.remove('light','dark');root.classList.add(resolved);if(mode==='auto'){root.removeAttribute('data-theme')}else{root.setAttribute('data-theme',mode)}root.style.colorScheme=resolved;}catch(e){}})();`;
 
+const WOWHEAD_CONFIG_SCRIPT =
+	"window.whTooltips={colorLinks:true,iconizeLinks:true,renameLinks:false};";
+
+const WOWHEAD_SCRIPT_SRC = "https://wow.zamimg.com/js/tooltips.js";
+
 export const Route = createRootRouteWithContext<AppRouterContext>()({
 	head: () => ({
 		meta: [
@@ -42,6 +47,14 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
 			{
 				rel: "stylesheet",
 				href: appCss,
+			},
+		],
+		scripts: [
+			{
+				children: WOWHEAD_CONFIG_SCRIPT,
+			},
+			{
+				src: WOWHEAD_SCRIPT_SRC,
 			},
 		],
 	}),

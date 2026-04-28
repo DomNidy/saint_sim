@@ -15,6 +15,12 @@ type EquipmentCardProps = {
 	className?: string;
 };
 
+/**
+ * Displays data on a piece of WoW equipment in a card, including the item icon & tooltip.
+ *
+ * NOTE: Requires the dom to have wowhead tooltips.js installed, and when changes occur,
+ * the `window.$WowheadPower.refreshLinks() script must be called.
+ */
 export const EquipmentCard = ({
 	displayName,
 	itemId,

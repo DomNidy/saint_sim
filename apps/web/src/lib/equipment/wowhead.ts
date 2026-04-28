@@ -4,17 +4,12 @@ export function buildWowheadUrl(itemId: number) {
 
 declare global {
 	interface Window {
-		// Added by the Wowhead tooltip script loaded in route heads.
+		// Added by the Wowhead tooltip script added in root route
 		$WowheadPower?: {
 			refreshLinks?: () => void;
 		};
 	}
 }
-
-export const WOWHEAD_CONFIG_SCRIPT =
-	"window.whTooltips={colorLinks:true,iconizeLinks:true,renameLinks:false};";
-
-export const WOWHEAD_SCRIPT_SRC = "https://wow.zamimg.com/js/tooltips.js";
 
 type WowheadItemData = {
 	item_id: number;

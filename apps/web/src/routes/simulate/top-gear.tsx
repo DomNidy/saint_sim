@@ -88,6 +88,8 @@ function RouteComponent() {
 		if (hydrated) {
 			const prevSimcProfile = localStorageGet(PREV_SIMC_PROFILE_KEY);
 			if (prevSimcProfile != null) setAddonExportRaw(prevSimcProfile);
+
+			console.log("wowhead power", window.$WowheadPower);
 		}
 	}, [hydrated]);
 
