@@ -16,6 +16,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useParseAddonExport } from "@/hooks/use-parse-addon-export";
+import { REQUIRED_TOP_GEAR_GROUP_LABELS } from "@/lib/equipment/group";
 import type { ParsedEquipmentItem } from "@/lib/equipment/types";
 import {
 	localStorageGet,
@@ -231,23 +232,23 @@ function RouteComponent() {
 			<div className="bg-secondary sticky bottom-24">
 				<h2 className="font-bold text-2xl">TOP GEAR</h2>
 				<p>Selected items: {selectedEquipment.length}</p>
-				<p>Total Combinations: {selectedEquipment.length}</p>
-				<button
-					onClick={() => calculateCombinations(selectedEquipment)}
-					type="button"
-				>
-					test
-				</button>
+				<p>Total Combinations: {calculateProfilesetCount(selectedEquipment)}</p>
 			</div>
 		</div>
 	);
 }
 
-function calculateCombinations(items: ParsedEquipmentItem[]): number {
-	console.log("hello");
+/**
+ * Calculate the number of profilesets that can be formed from the provided items.
+ * @param items The items that are selected and we want to arrange into profilesets
+ * @returns The number of profilesets that could be formed from the selected items
+ */
+function calculateProfilesetCount(
+	selectedItems: ParsedEquipmentItem[],
+): number {
 	const counts = new Map<string, number>();
 
-	items.forEach((item) => {
+	selectedItems.forEach((item) => {
 		const cc = counts.get(item.groupLabel);
 		if (cc) {
 			counts.set(item.groupLabel, cc + 1);
@@ -256,9 +257,37 @@ function calculateCombinations(items: ParsedEquipmentItem[]): number {
 		}
 	});
 
+	// ensure that we have at least one item of each group label
+	// (we cannot form *any* profilesets unless there is at least one)
+	for (const requiredGroupLabel of REQUIRED_TOP_GEAR_GROUP_LABELS) {
+		const ct = counts.get(requiredGroupLabel);
+		if (!ct || ct <= 0) {
+			return 0;
+		}
+	}
+
 	let totalCombinations = 1;
-	counts.forEach((kvp) => {
-		totalCombinations *= kvp;
-	});
+
+	for (const [itemGroup, count] of counts) {
+		if (itemGroup === "finger" || itemGroup === "trinket") {
+			totalCombinations *= unorderedPairs(count);
+		} else {
+			totalCombinations *= count;
+		}
+	}
+
 	return totalCombinations;
 }
+
+/**
+ * Calculate the number of unordered pairs that can be formed from
+ * a set of n elements
+ * @param n The number of elements that we want to compute the number of possible unordered pairs of
+ * @returns The number of possible unordered pairs that can be formed from a set of n elements
+ */
+const unorderedPairs = (n: number): number => {
+	if (n < 2) {
+		return 0;
+	}
+	return (n * (n - 1)) / 2;
+};
