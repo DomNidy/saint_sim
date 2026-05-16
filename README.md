@@ -17,12 +17,15 @@ The Go code in this repository uses a single root module defined by [`go.mod`](.
 - `/justfile`: Root task runner for local development and maintenance commands
 - `/internal`: Directory containing private shared packages and generated contracts used throughout the Go applications
 
-  - `/internal/api_types`: Automatically generated Go types from the OpenAPI schema
+  - `/internal/api`: Automatically generated Go types from the OpenAPI schema
   - `/internal/db`: Generated Go database access code from `sqlc`
+  - `/internal/platform`: Shared platform abstractions (Postgres, RabbitMQ)
   - `/internal/secrets`: Utility for reading secrets into memory
+  - `/internal/simulation`: Shared simulation domain logic and repository implementations
   - `/internal/utils`: Miscellaneous shared utilities
-  - `/apps/web/src/lib/db`: `sqlc`-generated TypeScript query bindings for the web app
-  - `/apps/web/src/lib/saint-api/generated`: OpenAPI-derived TypeScript types, SDK functions, Fetch client, and Zod schemas for the web app
+
+- `/apps/web/src/lib/db`: `sqlc`-generated TypeScript query bindings for the web app
+- `/apps/web/src/lib/saint-api/generated`: OpenAPI-derived TypeScript types, SDK functions, Fetch client, and Zod schemas for the web app
 
 - `/db/migrations`: Goose SQL migrations. This is the single source of truth for database schema changes.
 
